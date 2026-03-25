@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { TEMPLATES, CATEGORY_LABELS, type PosterTemplate } from "@/lib/templates";
-import { Tag, Plus, Lock, Search } from "lucide-react";
+import { Tag, Plus, Lock, Search, FileSpreadsheet } from "lucide-react";
 
 export default function Dashboard() {
   const [filter, setFilter] = useState<string>("all");
@@ -28,6 +28,11 @@ export default function Dashboard() {
             <span className="text-lg font-black tracking-tight text-foreground">GôndolaPro</span>
           </Link>
           <div className="flex items-center gap-2">
+            <Link to="/batch">
+              <Button size="sm" variant="outline" className="snap-active gap-1.5">
+                <FileSpreadsheet className="w-3.5 h-3.5" /> Importar CSV
+              </Button>
+            </Link>
             <span className="text-xs text-muted-foreground font-mono hidden sm:inline">3/10 cartazes</span>
             <Button size="sm" variant="outline" className="snap-active">Upgrade Pro</Button>
           </div>
