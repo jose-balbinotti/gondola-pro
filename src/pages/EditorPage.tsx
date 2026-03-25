@@ -144,21 +144,50 @@ export default function EditorPage() {
               </div>
             </div>
 
-            {/* Fonte */}
+            {/* Fontes */}
             <div className="p-4 rounded-lg border border-border bg-background">
-              <h3 className="text-sm font-bold text-foreground mb-3">Fonte</h3>
-              <Select value={posterStyle.fontFamily} onValueChange={(v) => updateStyle("fontFamily", v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecione a fonte" />
-                </SelectTrigger>
-                <SelectContent>
-                  {FONT_OPTIONS.map((f) => (
-                    <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>
-                      {f.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <h3 className="text-sm font-bold text-foreground mb-3">Fontes</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">Fonte geral</label>
+                  <Select value={posterStyle.fontFamily} onValueChange={(v) => updateStyle("fontFamily", v)}>
+                    <SelectTrigger className="w-full"><SelectValue placeholder="Fonte geral" /></SelectTrigger>
+                    <SelectContent>
+                      {FONT_OPTIONS.map((f) => (
+                        <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">Fonte do preço</label>
+                  <Select value={posterStyle.priceFontFamily || "__default__"} onValueChange={(v) => updateStyle("priceFontFamily", v === "__default__" ? "" : v)}>
+                    <SelectTrigger className="w-full"><SelectValue placeholder="Mesma da geral" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__default__">Mesma da geral</SelectItem>
+                      {FONT_OPTIONS.map((f) => (
+                        <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">Fonte da descrição</label>
+                  <Select value={posterStyle.descriptionFontFamily || "__default__"} onValueChange={(v) => updateStyle("descriptionFontFamily", v === "__default__" ? "" : v)}>
+                    <SelectTrigger className="w-full"><SelectValue placeholder="Mesma da geral" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__default__">Mesma da geral</SelectItem>
+                      {FONT_OPTIONS.map((f) => (
+                        <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-muted-foreground">Sombreamento nos textos</label>
+                  <Switch checked={posterStyle.textShadow} onCheckedChange={(v) => updateStyle("textShadow", v)} />
+                </div>
+              </div>
             </div>
 
             {/* Aparência / Tipografia */}
@@ -199,6 +228,7 @@ export default function EditorPage() {
                 <SliderField label={`Gramatura Y – ${posterStyle.gramaturaOffsetY}px`} value={posterStyle.gramaturaOffsetY} min={-80} max={80} onChange={(v) => updateStyle("gramaturaOffsetY", v)} />
                 <SliderField label={`Preço Y – ${posterStyle.priceOffsetY}px`} value={posterStyle.priceOffsetY} min={-80} max={80} onChange={(v) => updateStyle("priceOffsetY", v)} />
                 <SliderField label={`Validade Y – ${posterStyle.validityOffsetY}px`} value={posterStyle.validityOffsetY} min={-80} max={80} onChange={(v) => updateStyle("validityOffsetY", v)} />
+                <SliderField label={`Unidade X – ${posterStyle.unitOffsetX}px`} value={posterStyle.unitOffsetX} min={-120} max={120} onChange={(v) => updateStyle("unitOffsetX", v)} />
               </div>
             </div>
 
