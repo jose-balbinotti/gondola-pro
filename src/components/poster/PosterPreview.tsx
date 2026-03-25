@@ -103,7 +103,7 @@ function splitPrice(price: string): { reais: string; centavos: string } {
   return { reais: parts[0] || "0", centavos: parts[1] || "00" };
 }
 
-const SUPER_MARKET_SLANT_FONT = "'Arial Black', 'Impact', sans-serif";
+const SUPER_MARKET_SLANT_FONT = "'Dancing Script', cursive";
 
 function isSMS(font: string) { return font === "SuperMarketSlant"; }
 function resolveSMS(font: string) { return isSMS(font) ? SUPER_MARKET_SLANT_FONT : font; }
