@@ -260,7 +260,7 @@ export default function BatchPage() {
               <h3 className="text-sm font-bold text-foreground mb-3">Tamanhos de Texto</h3>
               <div className="space-y-3">
                 <SliderField label={`Produto – ${posterStyle.productFontSize}px`} value={posterStyle.productFontSize} min={10} max={72} onChange={(v) => updateStyle("productFontSize", v)} />
-                <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={48} onChange={(v) => updateStyle("brandFontSize", v)} />
+                <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={72} onChange={(v) => updateStyle("brandFontSize", v)} />
                 <SliderField label={`Preço (R$) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={120} onChange={(v) => updateStyle("priceFontSize", v)} />
                 <SliderField label={`Centavos – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={80} onChange={(v) => updateStyle("centsFontSize", v)} />
               </div>
