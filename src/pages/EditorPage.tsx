@@ -193,6 +193,7 @@ export default function EditorPage() {
                   ))}
                 </div>
               </div>
+            </div>
 
             {/* Aparência / Tipografia */}
             <div className="p-4 rounded-lg border border-border bg-background">
