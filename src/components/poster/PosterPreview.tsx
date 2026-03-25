@@ -45,7 +45,11 @@ export interface PosterStyle {
   fontFamily: string;
   priceFontFamily: string;
   descriptionFontFamily: string;
-  textShadow: boolean;
+  shadowProduct: boolean;
+  shadowBrand: boolean;
+  shadowGramatura: boolean;
+  shadowPrice: boolean;
+  shadowDescription: boolean;
 }
 
 export const DEFAULT_POSTER_STYLE: PosterStyle = {
@@ -66,7 +70,11 @@ export const DEFAULT_POSTER_STYLE: PosterStyle = {
   fontFamily: "'Arial Black', sans-serif",
   priceFontFamily: "",
   descriptionFontFamily: "",
-  textShadow: false,
+  shadowProduct: false,
+  shadowBrand: false,
+  shadowGramatura: false,
+  shadowPrice: false,
+  shadowDescription: false,
 };
 
 interface Props {
