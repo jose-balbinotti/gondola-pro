@@ -13,6 +13,18 @@ export const FONT_OPTIONS = [
   { value: "'Times New Roman', serif", label: "Times New Roman" },
   { value: "'Comic Sans MS', cursive", label: "Comic Sans MS" },
   { value: "'Lucida Console', monospace", label: "Lucida Console" },
+  { value: "'Tahoma', sans-serif", label: "Tahoma" },
+  { value: "'Palatino Linotype', serif", label: "Palatino" },
+  { value: "'Book Antiqua', serif", label: "Book Antiqua" },
+  { value: "'Garamond', serif", label: "Garamond" },
+  { value: "'Century Gothic', sans-serif", label: "Century Gothic" },
+  { value: "'Copperplate', fantasy", label: "Copperplate" },
+  { value: "'Rockwell', serif", label: "Rockwell" },
+  { value: "'Franklin Gothic Medium', sans-serif", label: "Franklin Gothic" },
+  { value: "'Cambria', serif", label: "Cambria" },
+  { value: "'Segoe UI', sans-serif", label: "Segoe UI" },
+  { value: "'Calibri', sans-serif", label: "Calibri" },
+  { value: "'Consolas', monospace", label: "Consolas" },
 ];
 
 export interface PosterStyle {
@@ -87,7 +99,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
     const aspect = ASPECT_RATIOS[paperSize] || ASPECT_RATIOS[template.size] || "aspect-[3/4]";
     const { reais, centavos } = splitPrice(data.newPrice);
 
-    const shadow = style.textShadow ? "2px 2px 4px rgba(0,0,0,0.5)" : "none";
+    const shadow = style.textShadow ? "3px 3px 6px rgba(0,0,0,0.7), 1px 1px 2px rgba(0,0,0,0.9)" : "none";
     const pFont = style.priceFontFamily || style.fontFamily;
     const dFont = style.descriptionFontFamily || style.fontFamily;
 
