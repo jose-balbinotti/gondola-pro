@@ -380,17 +380,16 @@ export default function BatchPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {validProducts.map((product, i) => (
                 <div key={i} className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)]">
-                  <PosterPreview
-                    ref={(el) => {
-                      if (el) el.id = `batch-poster-${i}`;
-                    }}
-                    template={template}
-                    data={{ ...product, templateId: selectedTemplate }}
-                    showQR={false}
-                    qrUrl=""
-                    style={posterStyle}
-                    paperSize={paperSize}
-                  />
+                  <div id={`batch-poster-${i}`}>
+                    <PosterPreview
+                      template={template}
+                      data={{ ...product, templateId: selectedTemplate }}
+                      showQR={false}
+                      qrUrl=""
+                      style={posterStyle}
+                      paperSize={paperSize}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
