@@ -103,8 +103,7 @@ function splitPrice(price: string): { reais: string; centavos: string } {
   return { reais: parts[0] || "0", centavos: parts[1] || "00" };
 }
 
-const SUPER_MARKET_SLANT_FONT = "'Dancing Script', cursive";
-const SUPER_MARKET_SLANT_SHADOW = "2px 2px 0px rgba(150,0,0,0.7), 4px 4px 0px rgba(100,0,0,0.5), 6px 6px 0px rgba(50,0,0,0.3), -1px -1px 5px rgba(255,255,255,0.5)";
+const SUPER_MARKET_SLANT_FONT = "'Arial Black', 'Impact', sans-serif";
 
 function isSMS(font: string) { return font === "SuperMarketSlant"; }
 function resolveSMS(font: string) { return isSMS(font) ? SUPER_MARKET_SLANT_FONT : font; }
@@ -129,12 +128,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
 
     // Super Market Slant skew style per field
     const smsSkew = (font: string) => isSMS(font) ? "skewX(-12deg)" : undefined;
-    const smsShadow = (font: string, baseShadow: string) => {
-      if (!isSMS(font)) return baseShadow;
-      return baseShadow !== "none"
-        ? `${baseShadow}, ${SUPER_MARKET_SLANT_SHADOW}`
-        : SUPER_MARKET_SLANT_SHADOW;
-    };
+    const smsShadow = (font: string, baseShadow: string) => baseShadow;
 
     return (
       <div
