@@ -11,6 +11,8 @@ export const FONT_OPTIONS = [
   { value: "'Trebuchet MS', sans-serif", label: "Trebuchet MS" },
   { value: "'Verdana', sans-serif", label: "Verdana" },
   { value: "'Times New Roman', serif", label: "Times New Roman" },
+  { value: "'Comic Sans MS', cursive", label: "Comic Sans MS" },
+  { value: "'Lucida Console', monospace", label: "Lucida Console" },
 ];
 
 export interface PosterStyle {
@@ -27,7 +29,11 @@ export interface PosterStyle {
   gramaturaOffsetY: number;
   priceOffsetY: number;
   validityOffsetY: number;
+  unitOffsetX: number;
   fontFamily: string;
+  priceFontFamily: string;
+  descriptionFontFamily: string;
+  textShadow: boolean;
 }
 
 export const DEFAULT_POSTER_STYLE: PosterStyle = {
@@ -44,7 +50,11 @@ export const DEFAULT_POSTER_STYLE: PosterStyle = {
   gramaturaOffsetY: 0,
   priceOffsetY: 0,
   validityOffsetY: 0,
+  unitOffsetX: 0,
   fontFamily: "'Arial Black', sans-serif",
+  priceFontFamily: "",
+  descriptionFontFamily: "",
+  textShadow: false,
 };
 
 interface Props {
@@ -77,6 +87,10 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
     const aspect = ASPECT_RATIOS[paperSize] || ASPECT_RATIOS[template.size] || "aspect-[3/4]";
     const { reais, centavos } = splitPrice(data.newPrice);
 
+    const shadow = style.textShadow ? "2px 2px 4px rgba(0,0,0,0.5)" : "none";
+    const pFont = style.priceFontFamily || style.fontFamily;
+    const dFont = style.descriptionFontFamily || style.fontFamily;
+
     return (
       <div
         ref={ref}
@@ -105,6 +119,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             color: template.textColor,
             fontSize: `${style.productFontSize}px`,
             transform: `translateY(${style.productOffsetY}px)`,
+            textShadow: shadow,
           }}
         >
           {data.productName || "Nome do Produto"}
@@ -118,6 +133,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             fontSize: `${style.brandFontSize}px`,
             transform: `translateY(${style.brandOffsetY}px)`,
             opacity: 0.85,
+            textShadow: shadow,
           }}
         >
           {data.brandName || "Marca"}
@@ -131,6 +147,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             fontSize: `${style.gramaturaFontSize}px`,
             transform: `translateY(${style.gramaturaOffsetY}px)`,
             opacity: 0.7,
+            textShadow: shadow,
           }}
         >
           {data.gramatura || "000g / 000ml"}
@@ -138,7 +155,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
 
         {/* Description */}
         {data.description && (
-          <div className="mb-2 opacity-80" style={{ color: template.textColor, fontSize: `${style.descriptionFontSize}px` }}>
+          <div className="mb-2 opacity-80" style={{ color: template.textColor, fontSize: `${style.descriptionFontSize}px`, fontFamily: dFont, textShadow: shadow }}>
             {data.description}
           </div>
         )}
@@ -156,7 +173,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             )}
           </div>
           {/* Split price: R$ reais , centavos */}
-          <div className="flex items-baseline" style={{ color: template.priceColor }}>
+          <div className="flex items-baseline" style={{ color: template.priceColor, fontFamily: pFont, textShadow: shadow }}>
             <span className="font-black" style={{ fontSize: `${style.centsFontSize}px` }}>R$</span>
             <span className="font-black" style={{ fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>
               {reais}
@@ -166,7 +183,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             </span>
           </div>
           {data.unit && (
-            <span className="text-xs mt-1 opacity-70" style={{ color: template.textColor }}>/{data.unit}</span>
+            <span className="text-xs mt-1 opacity-70" style={{ color: template.textColor, transform: `translateX(${style.unitOffsetX}px)`, display: 'inline-block' }}>/{data.unit}</span>
           )}
         </div>
 
