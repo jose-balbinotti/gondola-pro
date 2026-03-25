@@ -207,6 +207,13 @@ export default function EditorPage() {
                   max={80}
                   onChange={(v) => updateStyle("priceOffsetY", v)}
                 />
+                <SliderField
+                  label={`Deslocamento validade Y – ${posterStyle.validityOffsetY}px`}
+                  value={posterStyle.validityOffsetY}
+                  min={-80}
+                  max={80}
+                  onChange={(v) => updateStyle("validityOffsetY", v)}
+                />
               </div>
             </div>
 
