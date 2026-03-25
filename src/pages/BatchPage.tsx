@@ -258,6 +258,7 @@ export default function BatchPage() {
                     </div>
                   ))}
                 </div>
+              </div>
             </div>
 
             <div className="p-4 rounded-lg border border-border bg-background">
