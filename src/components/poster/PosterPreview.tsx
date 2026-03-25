@@ -25,6 +25,7 @@ export const FONT_OPTIONS = [
   { value: "'Segoe UI', sans-serif", label: "Segoe UI" },
   { value: "'Calibri', sans-serif", label: "Calibri" },
   { value: "'Consolas', monospace", label: "Consolas" },
+  { value: "SuperMarketSlant", label: "Super Market Slant" },
 ];
 
 export interface PosterStyle {
@@ -102,6 +103,12 @@ function splitPrice(price: string): { reais: string; centavos: string } {
   return { reais: parts[0] || "0", centavos: parts[1] || "00" };
 }
 
+const SUPER_MARKET_SLANT_FONT = "'Dancing Script', cursive";
+const SUPER_MARKET_SLANT_SHADOW = "2px 2px 0px rgba(150,0,0,0.7), 4px 4px 0px rgba(100,0,0,0.5), 6px 6px 0px rgba(50,0,0,0.3), -1px -1px 5px rgba(255,255,255,0.5)";
+
+function isSMS(font: string) { return font === "SuperMarketSlant"; }
+function resolveSMS(font: string) { return isSMS(font) ? SUPER_MARKET_SLANT_FONT : font; }
+
 const PosterPreview = forwardRef<HTMLDivElement, Props>(
   ({ template, data, showQR, qrUrl, style, paperSize }, ref) => {
     const aspect = ASPECT_RATIOS[paperSize] || ASPECT_RATIOS[template.size] || "aspect-[3/4]";
@@ -116,11 +123,24 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
     const pFont = style.priceFontFamily || style.fontFamily;
     const dFont = style.descriptionFontFamily || style.fontFamily;
 
+    const mainFont = resolveSMS(style.fontFamily);
+    const priceFont = resolveSMS(pFont);
+    const descFont = resolveSMS(dFont);
+
+    // Super Market Slant skew style per field
+    const smsSkew = (font: string) => isSMS(font) ? "skewX(-12deg)" : undefined;
+    const smsShadow = (font: string, baseShadow: string) => {
+      if (!isSMS(font)) return baseShadow;
+      return baseShadow !== "none"
+        ? `${baseShadow}, ${SUPER_MARKET_SLANT_SHADOW}`
+        : SUPER_MARKET_SLANT_SHADOW;
+    };
+
     return (
       <div
         ref={ref}
         className={`relative ${aspect} w-full flex flex-col items-center justify-center text-center p-6`}
-        style={{ background: template.bgColor, fontFamily: style.fontFamily }}
+        style={{ background: template.bgColor, fontFamily: mainFont }}
       >
         {/* Diagonal accent */}
         {template.layout === "diagonal" && (
@@ -143,8 +163,8 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
           style={{
             color: template.textColor,
             fontSize: `${style.productFontSize}px`,
-            transform: `translateY(${style.productOffsetY}px)`,
-            textShadow: sProd,
+            transform: `translateY(${style.productOffsetY}px) ${smsSkew(style.fontFamily) || ''}`,
+            textShadow: smsShadow(style.fontFamily, sProd),
           }}
         >
           {data.productName || "Nome do Produto"}
@@ -156,9 +176,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
           style={{
             color: template.textColor,
             fontSize: `${style.brandFontSize}px`,
-            transform: `translateY(${style.brandOffsetY}px)`,
+            transform: `translateY(${style.brandOffsetY}px) ${smsSkew(style.fontFamily) || ''}`,
             opacity: 0.85,
-            textShadow: sBrand,
+            textShadow: smsShadow(style.fontFamily, sBrand),
           }}
         >
           {data.brandName || "Marca"}
@@ -170,9 +190,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
           style={{
             color: template.textColor,
             fontSize: `${style.gramaturaFontSize}px`,
-            transform: `translateY(${style.gramaturaOffsetY}px)`,
+            transform: `translateY(${style.gramaturaOffsetY}px) ${smsSkew(style.fontFamily) || ''}`,
             opacity: 0.7,
-            textShadow: sGram,
+            textShadow: smsShadow(style.fontFamily, sGram),
           }}
         >
           {data.gramatura || "000g / 000ml"}
@@ -180,7 +200,13 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
 
         {/* Description */}
         {data.description && (
-          <div className="mb-2 opacity-80" style={{ color: template.textColor, fontSize: `${style.descriptionFontSize}px`, fontFamily: dFont, textShadow: sDesc }}>
+          <div className="mb-2 opacity-80" style={{
+            color: template.textColor,
+            fontSize: `${style.descriptionFontSize}px`,
+            fontFamily: descFont,
+            textShadow: smsShadow(dFont, sDesc),
+            transform: smsSkew(dFont),
+          }}>
             {data.description}
           </div>
         )}
@@ -198,7 +224,12 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             )}
           </div>
           {/* Split price: R$ reais , centavos */}
-          <div className="flex items-baseline" style={{ color: template.priceColor, fontFamily: pFont, textShadow: sPrice }}>
+          <div className="flex items-baseline" style={{
+            color: template.priceColor,
+            fontFamily: priceFont,
+            textShadow: smsShadow(pFont, sPrice),
+            transform: smsSkew(pFont),
+          }}>
             <span className="font-black" style={{ fontSize: `${style.centsFontSize}px` }}>R$</span>
             <span className="font-black" style={{ fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>
               {reais}
