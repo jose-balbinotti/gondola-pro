@@ -14,6 +14,8 @@ export interface PosterTemplate {
 export interface PosterData {
   templateId: string;
   productName: string;
+  brandName: string;
+  gramatura: string;
   oldPrice: string;
   newPrice: string;
   discount: string;
@@ -69,12 +71,14 @@ export const CATEGORY_LABELS: Record<string, string> = {
 
 export const DEFAULT_POSTER_DATA: PosterData = {
   templateId: 'promo-red-1',
-  productName: 'Arroz Tipo 1 5kg',
+  productName: 'Arroz Tipo 1',
+  brandName: 'Tio João',
+  gramatura: '5kg',
   oldPrice: '24,90',
   newPrice: '19,90',
   discount: '20',
   validity: '31/12/2026',
-  description: 'Produto selecionado',
+  description: '',
   quantity: '',
   unit: 'un',
   whatsappNumber: '',
