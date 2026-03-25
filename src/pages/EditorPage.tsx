@@ -208,12 +208,12 @@ export default function EditorPage() {
                     placeholder="Ex: Super Oferta, Só Hoje..."
                   />
                 )}
-                <SliderField label={`Nome do produto – ${posterStyle.productFontSize}px`} value={posterStyle.productFontSize} min={10} max={72} onChange={(v) => updateStyle("productFontSize", v)} />
-                <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={72} onChange={(v) => updateStyle("brandFontSize", v)} />
-                <SliderField label={`Gramatura – ${posterStyle.gramaturaFontSize}px`} value={posterStyle.gramaturaFontSize} min={8} max={36} onChange={(v) => updateStyle("gramaturaFontSize", v)} />
-                <SliderField label={`Preço (reais) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={120} onChange={(v) => updateStyle("priceFontSize", v)} />
-                <SliderField label={`Preço (centavos/R$) – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={80} onChange={(v) => updateStyle("centsFontSize", v)} />
-                <SliderField label={`Descrição – ${posterStyle.descriptionFontSize}px`} value={posterStyle.descriptionFontSize} min={8} max={32} onChange={(v) => updateStyle("descriptionFontSize", v)} />
+                <SliderField label={`Nome do produto – ${posterStyle.productFontSize}px`} value={posterStyle.productFontSize} min={10} max={120} onChange={(v) => updateStyle("productFontSize", v)} />
+                <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={120} onChange={(v) => updateStyle("brandFontSize", v)} />
+                <SliderField label={`Gramatura – ${posterStyle.gramaturaFontSize}px`} value={posterStyle.gramaturaFontSize} min={8} max={72} onChange={(v) => updateStyle("gramaturaFontSize", v)} />
+                <SliderField label={`Preço (reais) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={200} onChange={(v) => updateStyle("priceFontSize", v)} />
+                <SliderField label={`Preço (centavos/R$) – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={120} onChange={(v) => updateStyle("centsFontSize", v)} />
+                <SliderField label={`Descrição – ${posterStyle.descriptionFontSize}px`} value={posterStyle.descriptionFontSize} min={8} max={64} onChange={(v) => updateStyle("descriptionFontSize", v)} />
               </div>
             </div>
 
