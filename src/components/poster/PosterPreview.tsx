@@ -107,7 +107,12 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
     const aspect = ASPECT_RATIOS[paperSize] || ASPECT_RATIOS[template.size] || "aspect-[3/4]";
     const { reais, centavos } = splitPrice(data.newPrice);
 
-    const shadow = style.textShadow ? "3px 3px 6px rgba(0,0,0,0.7), 1px 1px 2px rgba(0,0,0,0.9)" : "none";
+    const SHADOW = "3px 3px 6px rgba(0,0,0,0.7), 1px 1px 2px rgba(0,0,0,0.9)";
+    const sProd = style.shadowProduct ? SHADOW : "none";
+    const sBrand = style.shadowBrand ? SHADOW : "none";
+    const sGram = style.shadowGramatura ? SHADOW : "none";
+    const sPrice = style.shadowPrice ? SHADOW : "none";
+    const sDesc = style.shadowDescription ? SHADOW : "none";
     const pFont = style.priceFontFamily || style.fontFamily;
     const dFont = style.descriptionFontFamily || style.fontFamily;
 
