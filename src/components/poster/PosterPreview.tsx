@@ -26,6 +26,7 @@ export const FONT_OPTIONS = [
   { value: "'Calibri', sans-serif", label: "Calibri" },
   { value: "'Consolas', monospace", label: "Consolas" },
   { value: "SuperMarketSlant", label: "Super Market Slant" },
+  { value: "'Balmy', cursive", label: "Balmy" },
 ];
 
 export interface PosterStyle {
