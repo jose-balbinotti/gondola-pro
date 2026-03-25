@@ -191,8 +191,8 @@ export default function EditorPage() {
                       <Switch checked={posterStyle[key] as boolean} onCheckedChange={(v) => updateStyle(key, v)} />
                     </div>
                   ))}
+                </div>
               </div>
-            </div>
 
             {/* Aparência / Tipografia */}
             <div className="p-4 rounded-lg border border-border bg-background">

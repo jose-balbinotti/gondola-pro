@@ -256,7 +256,7 @@ export default function BatchPage() {
                       <label className="text-xs text-muted-foreground">{label}</label>
                       <Switch checked={posterStyle[key] as boolean} onCheckedChange={(v) => updateStyle(key, v)} />
                     </div>
-                  ))}
+                </div>
               </div>
             </div>
 
