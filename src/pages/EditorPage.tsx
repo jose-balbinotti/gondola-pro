@@ -1,12 +1,30 @@
 import { useState, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { TEMPLATES, DEFAULT_POSTER_DATA, type PosterData } from "@/lib/templates";
-import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
+import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode, Type, Move } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
+import PosterPreview, { DEFAULT_POSTER_STYLE, type PosterStyle } from "@/components/poster/PosterPreview";
+
+const PAPER_SIZES = [
+  { value: "A4", label: "A4 (210×297mm)" },
+  { value: "A5", label: "A5 (148×210mm)" },
+  { value: "A3", label: "A3 (297×420mm)" },
+  { value: "gondola", label: "Gôndola (faixa)" },
+  { value: "10x15", label: "10×15 cm" },
+];
+
+const PDF_FORMATS: Record<string, [number, number]> = {
+  A4: [210, 297],
+  A5: [148, 210],
+  A3: [297, 420],
+  gondola: [297, 74],
+  "10x15": [100, 150],
+};
 
 export default function EditorPage() {
   const { templateId } = useParams<{ templateId: string }>();
@@ -20,9 +38,15 @@ export default function EditorPage() {
   });
 
   const [showQR, setShowQR] = useState(false);
+  const [posterStyle, setPosterStyle] = useState<PosterStyle>({ ...DEFAULT_POSTER_STYLE });
+  const [paperSize, setPaperSize] = useState(template.size === "gondola" ? "gondola" : "A4");
 
   const update = useCallback((field: keyof PosterData, value: string) => {
     setData((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const updateStyle = useCallback(<K extends keyof PosterStyle>(field: K, value: PosterStyle[K]) => {
+    setPosterStyle((prev) => ({ ...prev, [field]: value }));
   }, []);
 
   const exportPNG = async () => {
@@ -44,12 +68,18 @@ export default function EditorPage() {
     try {
       const canvas = await html2canvas(posterRef.current, { scale: 3, useCORS: true, backgroundColor: null });
       const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: template.size === "A5" ? "a5" : "a4" });
+      const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
+      const isLandscape = fmt[0] > fmt[1];
+      const pdf = new jsPDF({
+        orientation: isLandscape ? "landscape" : "portrait",
+        unit: "mm",
+        format: fmt,
+      });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
       pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
       pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
-      toast({ title: "PDF exportado!", description: "Pronto para impressão 300dpi." });
+      toast({ title: "PDF exportado!", description: `Formato ${paperSize} – 300dpi.` });
     } catch {
       toast({ title: "Erro ao exportar", variant: "destructive" });
     }
@@ -90,6 +120,7 @@ export default function EditorPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Editor Panel */}
           <div className="space-y-4 order-2 lg:order-1">
+            {/* Product Info */}
             <div className="p-4 rounded-lg border border-border bg-background">
               <h3 className="text-sm font-bold text-foreground mb-3">Informações do Produto</h3>
               <div className="space-y-3">
@@ -110,6 +141,96 @@ export default function EditorPage() {
               </div>
             </div>
 
+            {/* Aparência / Tipografia */}
+            <div className="p-4 rounded-lg border border-border bg-background">
+              <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                <Type className="w-4 h-4" /> Aparência & Texto
+              </h3>
+              <div className="space-y-4">
+                {/* Promo label toggle */}
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-muted-foreground">Mostrar texto de promoção</label>
+                  <Switch checked={posterStyle.showPromoLabel} onCheckedChange={(v) => updateStyle("showPromoLabel", v)} />
+                </div>
+
+                {posterStyle.showPromoLabel && (
+                  <Field
+                    label="Texto da promoção (opcional)"
+                    value={posterStyle.promoText}
+                    onChange={(v) => updateStyle("promoText", v)}
+                    placeholder="Ex: Super Oferta, Só Hoje..."
+                  />
+                )}
+
+                {/* Font sizes */}
+                <SliderField
+                  label={`Tamanho do nome – ${posterStyle.productFontSize}px`}
+                  value={posterStyle.productFontSize}
+                  min={14}
+                  max={64}
+                  onChange={(v) => updateStyle("productFontSize", v)}
+                />
+                <SliderField
+                  label={`Tamanho do preço – ${posterStyle.priceFontSize}px`}
+                  value={posterStyle.priceFontSize}
+                  min={24}
+                  max={120}
+                  onChange={(v) => updateStyle("priceFontSize", v)}
+                />
+                <SliderField
+                  label={`Tamanho da descrição – ${posterStyle.descriptionFontSize}px`}
+                  value={posterStyle.descriptionFontSize}
+                  min={8}
+                  max={32}
+                  onChange={(v) => updateStyle("descriptionFontSize", v)}
+                />
+              </div>
+            </div>
+
+            {/* Posição */}
+            <div className="p-4 rounded-lg border border-border bg-background">
+              <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                <Move className="w-4 h-4" /> Posição dos Elementos
+              </h3>
+              <div className="space-y-4">
+                <SliderField
+                  label={`Deslocamento nome Y – ${posterStyle.productOffsetY}px`}
+                  value={posterStyle.productOffsetY}
+                  min={-80}
+                  max={80}
+                  onChange={(v) => updateStyle("productOffsetY", v)}
+                />
+                <SliderField
+                  label={`Deslocamento preço Y – ${posterStyle.priceOffsetY}px`}
+                  value={posterStyle.priceOffsetY}
+                  min={-80}
+                  max={80}
+                  onChange={(v) => updateStyle("priceOffsetY", v)}
+                />
+              </div>
+            </div>
+
+            {/* Tamanho de Folha */}
+            <div className="p-4 rounded-lg border border-border bg-background">
+              <h3 className="text-sm font-bold text-foreground mb-3">Tamanho da Folha</h3>
+              <div className="flex flex-wrap gap-2">
+                {PAPER_SIZES.map((ps) => (
+                  <button
+                    key={ps.value}
+                    onClick={() => setPaperSize(ps.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold snap-active transition-colors ${
+                      paperSize === ps.value
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-accent"
+                    }`}
+                  >
+                    {ps.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Extras */}
             <div className="p-4 rounded-lg border border-border bg-background">
               <h3 className="text-sm font-bold text-foreground mb-3">Extras</h3>
               <div className="space-y-3">
@@ -125,6 +246,7 @@ export default function EditorPage() {
               </div>
             </div>
 
+            {/* Export */}
             <div className="p-4 rounded-lg border border-border bg-background">
               <h3 className="text-sm font-bold text-foreground mb-3">Exportar</h3>
               <div className="flex gap-2">
@@ -132,7 +254,7 @@ export default function EditorPage() {
                   <FileImage className="w-4 h-4" /> PNG
                 </Button>
                 <Button onClick={exportPDF} className="flex-1 snap-active gap-1.5">
-                  <Download className="w-4 h-4" /> PDF 300dpi
+                  <Download className="w-4 h-4" /> PDF {paperSize}
                 </Button>
               </div>
             </div>
@@ -140,9 +262,17 @@ export default function EditorPage() {
 
           {/* Poster Preview */}
           <div className="order-1 lg:order-2 lg:sticky lg:top-20 self-start">
-            <p className="text-xs text-muted-foreground mb-2 font-mono">PREVIEW</p>
+            <p className="text-xs text-muted-foreground mb-2 font-mono">PREVIEW – {paperSize}</p>
             <div className="poster-shadow rounded-lg overflow-hidden inline-block w-full max-w-md mx-auto">
-              <PosterPreview ref={posterRef} template={template} data={data} showQR={showQR} qrUrl={qrUrl} />
+              <PosterPreview
+                ref={posterRef}
+                template={template}
+                data={data}
+                showQR={showQR}
+                qrUrl={qrUrl}
+                style={posterStyle}
+                paperSize={paperSize}
+              />
             </div>
           </div>
         </div>
@@ -166,82 +296,11 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
   );
 }
 
-import { forwardRef } from "react";
-import type { PosterTemplate } from "@/lib/templates";
-
-const PosterPreview = forwardRef<HTMLDivElement, { template: PosterTemplate; data: PosterData; showQR: boolean; qrUrl: string }>(
-  ({ template, data, showQR, qrUrl }, ref) => {
-    const isGondola = template.size === "gondola";
-
-    return (
-      <div
-        ref={ref}
-        className={`relative ${isGondola ? "aspect-[4/1]" : "aspect-[3/4]"} w-full flex flex-col items-center justify-center text-center p-6`}
-        style={{ background: template.bgColor }}
-      >
-        {/* Diagonal accent */}
-        {template.layout === "diagonal" && (
-          <div className="absolute top-0 right-0 w-0 h-0" style={{
-            borderLeft: "120px solid transparent",
-            borderTop: `120px solid ${template.accentColor}`,
-          }} />
-        )}
-
-        {/* Header tag */}
-        <div className="text-xs font-bold uppercase tracking-[0.2em] mb-2" style={{ color: template.accentColor }}>
-          ★ {template.category === 'leve-pague' ? `Leve ${data.quantity || '3'}` : 'Promoção'} ★
-        </div>
-
-        {/* Product Name */}
-        <div className="text-2xl md:text-3xl font-black leading-tight mb-3 px-2" style={{ color: template.textColor }}>
-          {data.productName || "Nome do Produto"}
-        </div>
-
-        {/* Description */}
-        {data.description && (
-          <div className="text-xs mb-2 opacity-80" style={{ color: template.textColor }}>
-            {data.description}
-          </div>
-        )}
-
-        {/* Price section */}
-        <div className="flex items-center justify-center gap-3 mb-2">
-          {data.oldPrice && (
-            <span className="text-base line-through opacity-60" style={{ color: template.textColor }}>
-              R$ {data.oldPrice}
-            </span>
-          )}
-        </div>
-        <div className="text-price text-5xl md:text-6xl" style={{ color: template.priceColor }}>
-          R$ {data.newPrice || "0,00"}
-        </div>
-        {data.unit && (
-          <span className="text-xs mt-1 opacity-70" style={{ color: template.textColor }}>/{data.unit}</span>
-        )}
-
-        {/* Discount badge */}
-        {data.discount && (
-          <div className="inline-block mt-3 px-4 py-1.5 rounded-full text-sm font-black" style={{ background: template.accentColor, color: template.bgColor }}>
-            {data.discount}% OFF
-          </div>
-        )}
-
-        {/* Validity */}
-        {data.validity && (
-          <div className="text-[10px] mt-3 opacity-60 font-mono" style={{ color: template.textColor }}>
-            Válido até {data.validity}
-          </div>
-        )}
-
-        {/* QR Code */}
-        {showQR && qrUrl && (
-          <div className="mt-3 p-1.5 bg-background rounded inline-block">
-            <QRCodeSVG value={qrUrl} size={56} />
-          </div>
-        )}
-      </div>
-    );
-  }
-);
-
-PosterPreview.displayName = "PosterPreview";
+function SliderField({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (v: number) => void }) {
+  return (
+    <div>
+      <label className="text-xs font-semibold text-muted-foreground mb-2 block">{label}</label>
+      <Slider value={[value]} min={min} max={max} step={1} onValueChange={([v]) => onChange(v)} />
+    </div>
+  );
+}
