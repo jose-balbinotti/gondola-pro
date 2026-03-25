@@ -140,7 +140,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
       <div
         ref={ref}
         className={`relative ${aspect} w-full flex flex-col items-center justify-center text-center p-6`}
-        style={{ background: template.bgColor, fontFamily: style.fontFamily }}
+        style={{ background: template.bgColor, fontFamily: mainFont }}
       >
         {/* Diagonal accent */}
         {template.layout === "diagonal" && (
@@ -163,8 +163,8 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
           style={{
             color: template.textColor,
             fontSize: `${style.productFontSize}px`,
-            transform: `translateY(${style.productOffsetY}px)`,
-            textShadow: sProd,
+            transform: `translateY(${style.productOffsetY}px) ${smsSkew(style.fontFamily) || ''}`,
+            textShadow: smsShadow(style.fontFamily, sProd),
           }}
         >
           {data.productName || "Nome do Produto"}
@@ -176,9 +176,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
           style={{
             color: template.textColor,
             fontSize: `${style.brandFontSize}px`,
-            transform: `translateY(${style.brandOffsetY}px)`,
+            transform: `translateY(${style.brandOffsetY}px) ${smsSkew(style.fontFamily) || ''}`,
             opacity: 0.85,
-            textShadow: sBrand,
+            textShadow: smsShadow(style.fontFamily, sBrand),
           }}
         >
           {data.brandName || "Marca"}
@@ -190,9 +190,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
           style={{
             color: template.textColor,
             fontSize: `${style.gramaturaFontSize}px`,
-            transform: `translateY(${style.gramaturaOffsetY}px)`,
+            transform: `translateY(${style.gramaturaOffsetY}px) ${smsSkew(style.fontFamily) || ''}`,
             opacity: 0.7,
-            textShadow: sGram,
+            textShadow: smsShadow(style.fontFamily, sGram),
           }}
         >
           {data.gramatura || "000g / 000ml"}
@@ -200,7 +200,13 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
 
         {/* Description */}
         {data.description && (
-          <div className="mb-2 opacity-80" style={{ color: template.textColor, fontSize: `${style.descriptionFontSize}px`, fontFamily: dFont, textShadow: sDesc }}>
+          <div className="mb-2 opacity-80" style={{
+            color: template.textColor,
+            fontSize: `${style.descriptionFontSize}px`,
+            fontFamily: descFont,
+            textShadow: smsShadow(dFont, sDesc),
+            transform: smsSkew(dFont),
+          }}>
             {data.description}
           </div>
         )}
@@ -218,7 +224,12 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             )}
           </div>
           {/* Split price: R$ reais , centavos */}
-          <div className="flex items-baseline" style={{ color: template.priceColor, fontFamily: pFont, textShadow: sPrice }}>
+          <div className="flex items-baseline" style={{
+            color: template.priceColor,
+            fontFamily: priceFont,
+            textShadow: smsShadow(pFont, sPrice),
+            transform: smsSkew(pFont),
+          }}>
             <span className="font-black" style={{ fontSize: `${style.centsFontSize}px` }}>R$</span>
             <span className="font-black" style={{ fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>
               {reais}
