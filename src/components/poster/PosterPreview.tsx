@@ -25,6 +25,7 @@ export const FONT_OPTIONS = [
   { value: "'Segoe UI', sans-serif", label: "Segoe UI" },
   { value: "'Calibri', sans-serif", label: "Calibri" },
   { value: "'Consolas', monospace", label: "Consolas" },
+  { value: "SuperMarketSlant", label: "Super Market Slant" },
 ];
 
 export interface PosterStyle {
