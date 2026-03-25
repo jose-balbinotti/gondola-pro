@@ -10,16 +10,18 @@ export interface PosterStyle {
   descriptionFontSize: number;
   productOffsetY: number;
   priceOffsetY: number;
+  validityOffsetY: number;
 }
 
 export const DEFAULT_POSTER_STYLE: PosterStyle = {
-  showPromoLabel: true,
+  showPromoLabel: false,
   promoText: "",
   productFontSize: 28,
   priceFontSize: 56,
   descriptionFontSize: 12,
   productOffsetY: 0,
   priceOffsetY: 0,
+  validityOffsetY: 0,
 };
 
 interface Props {
@@ -113,7 +115,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
 
         {/* Validity */}
         {data.validity && (
-          <div className="text-[10px] mt-3 opacity-60 font-mono" style={{ color: template.textColor }}>
+          <div className="text-[10px] mt-3 opacity-60 font-mono" style={{ color: template.textColor, transform: `translateY(${style.validityOffsetY}px)` }}>
             Válido até {data.validity}
           </div>
         )}
