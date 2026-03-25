@@ -144,7 +144,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             color: template.textColor,
             fontSize: `${style.productFontSize}px`,
             transform: `translateY(${style.productOffsetY}px)`,
-            textShadow: shadow,
+            textShadow: sProd,
           }}
         >
           {data.productName || "Nome do Produto"}
@@ -158,7 +158,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             fontSize: `${style.brandFontSize}px`,
             transform: `translateY(${style.brandOffsetY}px)`,
             opacity: 0.85,
-            textShadow: shadow,
+            textShadow: sBrand,
           }}
         >
           {data.brandName || "Marca"}
@@ -172,7 +172,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             fontSize: `${style.gramaturaFontSize}px`,
             transform: `translateY(${style.gramaturaOffsetY}px)`,
             opacity: 0.7,
-            textShadow: shadow,
+            textShadow: sGram,
           }}
         >
           {data.gramatura || "000g / 000ml"}
@@ -180,7 +180,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
 
         {/* Description */}
         {data.description && (
-          <div className="mb-2 opacity-80" style={{ color: template.textColor, fontSize: `${style.descriptionFontSize}px`, fontFamily: dFont, textShadow: shadow }}>
+          <div className="mb-2 opacity-80" style={{ color: template.textColor, fontSize: `${style.descriptionFontSize}px`, fontFamily: dFont, textShadow: sDesc }}>
             {data.description}
           </div>
         )}
@@ -198,7 +198,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             )}
           </div>
           {/* Split price: R$ reais , centavos */}
-          <div className="flex items-baseline" style={{ color: template.priceColor, fontFamily: pFont, textShadow: shadow }}>
+          <div className="flex items-baseline" style={{ color: template.priceColor, fontFamily: pFont, textShadow: sPrice }}>
             <span className="font-black" style={{ fontSize: `${style.centsFontSize}px` }}>R$</span>
             <span className="font-black" style={{ fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>
               {reais}

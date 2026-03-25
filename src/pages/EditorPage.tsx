@@ -183,10 +183,14 @@ export default function EditorPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-muted-foreground">Sombreamento nos textos</label>
-                  <Switch checked={posterStyle.textShadow} onCheckedChange={(v) => updateStyle("textShadow", v)} />
-                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-muted-foreground">Sombreamento Individual</label>
+                  {([["shadowProduct", "Produto"], ["shadowBrand", "Marca"], ["shadowGramatura", "Gramatura"], ["shadowPrice", "Preço"], ["shadowDescription", "Descrição"]] as const).map(([key, label]) => (
+                    <div key={key} className="flex items-center justify-between">
+                      <label className="text-xs text-muted-foreground">{label}</label>
+                      <Switch checked={posterStyle[key] as boolean} onCheckedChange={(v) => updateStyle(key, v)} />
+                    </div>
+                  ))}
               </div>
             </div>
 
