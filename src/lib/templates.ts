@@ -14,6 +14,8 @@ export interface PosterTemplate {
 export interface PosterData {
   templateId: string;
   productName: string;
+  brandName: string;
+  gramatura: string;
   oldPrice: string;
   newPrice: string;
   discount: string;

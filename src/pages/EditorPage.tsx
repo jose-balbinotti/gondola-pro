@@ -3,12 +3,13 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TEMPLATES, DEFAULT_POSTER_DATA, type PosterData } from "@/lib/templates";
 import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode, Type, Move } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
-import PosterPreview, { DEFAULT_POSTER_STYLE, type PosterStyle } from "@/components/poster/PosterPreview";
+import PosterPreview, { DEFAULT_POSTER_STYLE, FONT_OPTIONS, type PosterStyle } from "@/components/poster/PosterPreview";
 
 const PAPER_SIZES = [
   { value: "A4", label: "A4 (210×297mm)" },
@@ -124,10 +125,12 @@ export default function EditorPage() {
             <div className="p-4 rounded-lg border border-border bg-background">
               <h3 className="text-sm font-bold text-foreground mb-3">Informações do Produto</h3>
               <div className="space-y-3">
-                <Field label="Nome do Produto" value={data.productName} onChange={(v) => update("productName", v)} />
+                <Field label="Nome do Produto" value={data.productName} onChange={(v) => update("productName", v)} placeholder="Ex: Arroz Integral" />
+                <Field label="Marca" value={data.brandName} onChange={(v) => update("brandName", v)} placeholder="Ex: Tio João" />
+                <Field label="Gramatura / Volume" value={data.gramatura} onChange={(v) => update("gramatura", v)} placeholder="Ex: 1kg, 500ml" />
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Preço Antigo (R$)" value={data.oldPrice} onChange={(v) => update("oldPrice", v)} />
-                  <Field label="Preço Novo (R$)" value={data.newPrice} onChange={(v) => update("newPrice", v)} />
+                  <Field label="Preço Novo (R$)" value={data.newPrice} onChange={(v) => update("newPrice", v)} placeholder="Ex: 12,99" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Desconto (%)" value={data.discount} onChange={(v) => update("discount", v)} />
@@ -141,18 +144,33 @@ export default function EditorPage() {
               </div>
             </div>
 
+            {/* Fonte */}
+            <div className="p-4 rounded-lg border border-border bg-background">
+              <h3 className="text-sm font-bold text-foreground mb-3">Fonte</h3>
+              <Select value={posterStyle.fontFamily} onValueChange={(v) => updateStyle("fontFamily", v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione a fonte" />
+                </SelectTrigger>
+                <SelectContent>
+                  {FONT_OPTIONS.map((f) => (
+                    <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>
+                      {f.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Aparência / Tipografia */}
             <div className="p-4 rounded-lg border border-border bg-background">
               <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-                <Type className="w-4 h-4" /> Aparência & Texto
+                <Type className="w-4 h-4" /> Tamanho dos Textos
               </h3>
               <div className="space-y-4">
-                {/* Promo label toggle */}
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-muted-foreground">Mostrar texto de promoção</label>
                   <Switch checked={posterStyle.showPromoLabel} onCheckedChange={(v) => updateStyle("showPromoLabel", v)} />
                 </div>
-
                 {posterStyle.showPromoLabel && (
                   <Field
                     label="Texto da promoção (opcional)"
@@ -161,29 +179,12 @@ export default function EditorPage() {
                     placeholder="Ex: Super Oferta, Só Hoje..."
                   />
                 )}
-
-                {/* Font sizes */}
-                <SliderField
-                  label={`Tamanho do nome – ${posterStyle.productFontSize}px`}
-                  value={posterStyle.productFontSize}
-                  min={14}
-                  max={64}
-                  onChange={(v) => updateStyle("productFontSize", v)}
-                />
-                <SliderField
-                  label={`Tamanho do preço – ${posterStyle.priceFontSize}px`}
-                  value={posterStyle.priceFontSize}
-                  min={24}
-                  max={120}
-                  onChange={(v) => updateStyle("priceFontSize", v)}
-                />
-                <SliderField
-                  label={`Tamanho da descrição – ${posterStyle.descriptionFontSize}px`}
-                  value={posterStyle.descriptionFontSize}
-                  min={8}
-                  max={32}
-                  onChange={(v) => updateStyle("descriptionFontSize", v)}
-                />
+                <SliderField label={`Nome do produto – ${posterStyle.productFontSize}px`} value={posterStyle.productFontSize} min={10} max={72} onChange={(v) => updateStyle("productFontSize", v)} />
+                <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={48} onChange={(v) => updateStyle("brandFontSize", v)} />
+                <SliderField label={`Gramatura – ${posterStyle.gramaturaFontSize}px`} value={posterStyle.gramaturaFontSize} min={8} max={36} onChange={(v) => updateStyle("gramaturaFontSize", v)} />
+                <SliderField label={`Preço (reais) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={120} onChange={(v) => updateStyle("priceFontSize", v)} />
+                <SliderField label={`Preço (centavos/R$) – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={80} onChange={(v) => updateStyle("centsFontSize", v)} />
+                <SliderField label={`Descrição – ${posterStyle.descriptionFontSize}px`} value={posterStyle.descriptionFontSize} min={8} max={32} onChange={(v) => updateStyle("descriptionFontSize", v)} />
               </div>
             </div>
 
@@ -193,27 +194,11 @@ export default function EditorPage() {
                 <Move className="w-4 h-4" /> Posição dos Elementos
               </h3>
               <div className="space-y-4">
-                <SliderField
-                  label={`Deslocamento nome Y – ${posterStyle.productOffsetY}px`}
-                  value={posterStyle.productOffsetY}
-                  min={-80}
-                  max={80}
-                  onChange={(v) => updateStyle("productOffsetY", v)}
-                />
-                <SliderField
-                  label={`Deslocamento preço Y – ${posterStyle.priceOffsetY}px`}
-                  value={posterStyle.priceOffsetY}
-                  min={-80}
-                  max={80}
-                  onChange={(v) => updateStyle("priceOffsetY", v)}
-                />
-                <SliderField
-                  label={`Deslocamento validade Y – ${posterStyle.validityOffsetY}px`}
-                  value={posterStyle.validityOffsetY}
-                  min={-80}
-                  max={80}
-                  onChange={(v) => updateStyle("validityOffsetY", v)}
-                />
+                <SliderField label={`Nome Y – ${posterStyle.productOffsetY}px`} value={posterStyle.productOffsetY} min={-80} max={80} onChange={(v) => updateStyle("productOffsetY", v)} />
+                <SliderField label={`Marca Y – ${posterStyle.brandOffsetY}px`} value={posterStyle.brandOffsetY} min={-80} max={80} onChange={(v) => updateStyle("brandOffsetY", v)} />
+                <SliderField label={`Gramatura Y – ${posterStyle.gramaturaOffsetY}px`} value={posterStyle.gramaturaOffsetY} min={-80} max={80} onChange={(v) => updateStyle("gramaturaOffsetY", v)} />
+                <SliderField label={`Preço Y – ${posterStyle.priceOffsetY}px`} value={posterStyle.priceOffsetY} min={-80} max={80} onChange={(v) => updateStyle("priceOffsetY", v)} />
+                <SliderField label={`Validade Y – ${posterStyle.validityOffsetY}px`} value={posterStyle.validityOffsetY} min={-80} max={80} onChange={(v) => updateStyle("validityOffsetY", v)} />
               </div>
             </div>
 
