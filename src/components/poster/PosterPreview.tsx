@@ -265,22 +265,23 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             alignItems: 'flex-end',
           }}>
             {!style.hideCurrencySymbol && (
-              <span className="font-black" style={{ fontSize: `${style.centsFontSize}px` }}>R$</span>
+              <span className="font-black" style={{ fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>R$</span>
             )}
             <span className="font-black" style={{ fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>
               {reais}
             </span>
-            <span className="font-black" style={{ fontSize: `${style.centsFontSize}px` }}>
+            <span className="font-black" style={{ fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>
               ,
             </span>
             <span style={{
+              position: 'relative',
               display: 'inline-flex',
               flexDirection: 'column',
               alignItems: 'center',
+              justifyContent: style.unitBelowCents ? 'space-between' : 'flex-end',
               alignSelf: style.centsAlignTop ? 'flex-start' : 'flex-end',
-              maxHeight: style.unitBelowCents ? `${style.priceFontSize}px` : undefined,
-              justifyContent: 'space-between',
-              overflow: 'visible',
+              height: style.unitBelowCents ? `${style.priceFontSize}px` : 'auto',
+              lineHeight: 1,
             }}>
               <span className="font-black" style={{
                 fontSize: `${style.centsFontSize}px`,
@@ -292,12 +293,15 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               </span>
               {data.unit && style.unitBelowCents && (
                 <span style={{
+                  position: 'absolute',
+                  left: `calc(50% + ${style.unitOffsetX}px)`,
+                  bottom: 0,
+                  transform: 'translateX(-50%)',
                   color: template.textColor,
                   opacity: 0.7,
-                  fontSize: `${Math.max(style.centsFontSize * 0.45, 8)}px`,
+                  fontSize: `${Math.max(Math.min(style.centsFontSize * 0.38, style.priceFontSize * 0.2), 8)}px`,
                   lineHeight: 1,
-                  transform: `translateX(${style.unitOffsetX}px)`,
-                  marginTop: '1px',
+                  whiteSpace: 'nowrap',
                 }}>/{data.unit}</span>
               )}
             </span>
