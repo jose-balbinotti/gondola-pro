@@ -370,18 +370,23 @@ export default function BatchPage() {
 
       const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
-      const printWindow = window.open(pdfUrl, '_blank');
-      if (printWindow) {
-        printWindow.addEventListener('load', () => {
+      const printFrame = document.createElement('iframe');
+      printFrame.style.position = 'fixed';
+      printFrame.style.top = '-10000px';
+      printFrame.style.left = '-10000px';
+      printFrame.style.width = '1px';
+      printFrame.style.height = '1px';
+      printFrame.src = pdfUrl;
+      document.body.appendChild(printFrame);
+      printFrame.onload = () => {
+        setTimeout(() => {
+          printFrame.contentWindow?.print();
           setTimeout(() => {
-            printWindow.print();
-          }, 500);
-        });
-      } else {
-        // Fallback: download if popup blocked
-        pdf.save(`cartazes-lote-${validProducts.length}.pdf`);
-        toast({ title: "Pop-up bloqueado. PDF baixado.", description: "Abra o PDF e imprima manualmente." });
-      }
+            document.body.removeChild(printFrame);
+            URL.revokeObjectURL(pdfUrl);
+          }, 1000);
+        }, 500);
+      };
       toast({ title: "Enviando para impressora...", description: `${validProducts.length} cartazes – ${paperSize}.` });
     } catch {
       toast({ title: "Erro ao imprimir", variant: "destructive" });
