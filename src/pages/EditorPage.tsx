@@ -428,15 +428,9 @@ export default function EditorPage() {
                           Abaixo dos centavos
                         </label>
                         {posterStyle.unitBelowCents && (
-                          <div className="mt-2 space-y-2">
-                            <div>
-                              <label className="text-xs text-muted-foreground">Unidade eixo Y ({posterStyle.unitOffsetY})</label>
-                              <Slider min={-100} max={100} step={1} value={[posterStyle.unitOffsetY]} onValueChange={([v]) => updateStyle("unitOffsetY", v)} />
-                            </div>
-                            <div>
-                              <label className="text-xs text-muted-foreground">Tamanho unidade ({posterStyle.unitFontSize || 'auto'})</label>
-                              <Slider min={0} max={80} step={1} value={[posterStyle.unitFontSize]} onValueChange={([v]) => updateStyle("unitFontSize", v)} />
-                            </div>
+                          <div className="mt-2">
+                            <label className="text-xs text-muted-foreground">Unidade eixo Y ({posterStyle.unitOffsetY})</label>
+                            <Slider min={-100} max={100} step={1} value={[posterStyle.unitOffsetY]} onValueChange={([v]) => updateStyle("unitOffsetY", v)} />
                           </div>
                         )}
                       </div>
