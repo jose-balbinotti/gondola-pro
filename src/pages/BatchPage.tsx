@@ -247,7 +247,16 @@ export default function BatchPage() {
 
   const validProducts = products.filter((p) => p.productName.trim() || p.newPrice.trim());
 
-  const capturePoster = async (containerEl: HTMLElement) => {
+  // Adaptive scale: reduce quality for large batches to prevent memory overflow
+  const getCaptureScale = () => {
+    const count = validProducts.length;
+    if (count > 50) return 1.5;
+    if (count > 20) return 2;
+    return 3;
+  };
+
+  const capturePoster = async (containerEl: HTMLElement, captureScale?: number) => {
+    const sc = captureScale ?? getCaptureScale();
     const posterEl = containerEl.querySelector('[data-print-poster]') as HTMLElement;
     const target = posterEl || containerEl;
     const clone = target.cloneNode(true) as HTMLElement;
@@ -274,7 +283,7 @@ export default function BatchPage() {
     await new Promise(r => setTimeout(r, 50));
     try {
       return await html2canvas(clone, {
-        scale: 4, useCORS: true,
+        scale: sc, useCORS: true,
         backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null,
         width: parseInt(target.style.width),
         height: parseInt(target.style.height),
