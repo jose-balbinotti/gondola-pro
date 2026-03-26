@@ -363,29 +363,25 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                 fontFamily: priceFont,
                 textShadow: sPrice,
                 transform: smsSkew(pFont),
-                alignItems: style.centsAlignTop ? 'flex-start' : 'flex-end',
+                alignItems: 'flex-end',
                 minHeight: `${style.priceFontSize}px`,
                 overflow: 'visible',
               }}>
                 {!style.hideCurrencySymbol && (
-                  <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: style.centsAlignTop ? 'flex-start' : 'flex-end' }}>R$</span>
+                  <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>R$</span>
                 )}
-                <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>
+                <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>
                   {reais}
                 </span>
-                <span style={{
-                  fontWeight: 900,
-                  fontSize: `${style.centsFontSize}px`,
-                  lineHeight: 1,
-                  alignSelf: style.centsAlignTop ? 'flex-start' : 'flex-end',
-                }}>
+                <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>
                   ,
                 </span>
                 <span style={{
                   display: 'inline-flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  alignSelf: style.centsAlignTop ? 'flex-start' : 'flex-end',
+                  justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
+                  alignSelf: style.centsAlignTop ? 'flex-start' : 'stretch',
                   lineHeight: 1,
                 }}>
                   <span style={{
@@ -401,7 +397,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                     <span style={{
                       color: template.textColor,
                       opacity: 0.7,
-                      fontSize: `${style.centsFontSize}px`,
+                      fontSize: `${Math.round(style.centsFontSize * 0.5)}px`,
                       lineHeight: 1,
                       whiteSpace: 'nowrap',
                       marginTop: `${Math.round(style.centsFontSize * 0.08)}px`,
