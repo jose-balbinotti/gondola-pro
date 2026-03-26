@@ -643,6 +643,17 @@ export default function EditorPage() {
 
           {/* TAB: Cartazes Salvos */}
           <TabsContent value="saved">
+            {/* Export / Import toolbar */}
+            <div className="flex gap-2 mb-4">
+              <Button variant="outline" size="sm" onClick={handleExportPresets} className="gap-1.5">
+                <FileDown className="w-4 h-4" /> Exportar JSON
+              </Button>
+              <input ref={importFileRef} type="file" accept=".json" onChange={handleImportPresets} className="hidden" />
+              <Button variant="outline" size="sm" onClick={() => importFileRef.current?.click()} className="gap-1.5">
+                <FileUp className="w-4 h-4" /> Importar JSON
+              </Button>
+            </div>
+
             {presets.length === 0 ? (
               <div className="text-center py-16">
                 <BookOpen className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" />
