@@ -247,7 +247,16 @@ export default function BatchPage() {
 
   const validProducts = products.filter((p) => p.productName.trim() || p.newPrice.trim());
 
-  const capturePoster = async (containerEl: HTMLElement) => {
+  // Adaptive scale: reduce quality for large batches to prevent memory overflow
+  const getCaptureScale = () => {
+    const count = validProducts.length;
+    if (count > 50) return 1.5;
+    if (count > 20) return 2;
+    return 3;
+  };
+
+  const capturePoster = async (containerEl: HTMLElement, captureScale?: number) => {
+    const sc = captureScale ?? getCaptureScale();
     const posterEl = containerEl.querySelector('[data-print-poster]') as HTMLElement;
     const target = posterEl || containerEl;
     const clone = target.cloneNode(true) as HTMLElement;
@@ -274,7 +283,7 @@ export default function BatchPage() {
     await new Promise(r => setTimeout(r, 50));
     try {
       return await html2canvas(clone, {
-        scale: 4, useCORS: true,
+        scale: sc, useCORS: true,
         backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null,
         width: parseInt(target.style.width),
         height: parseInt(target.style.height),
@@ -282,6 +291,16 @@ export default function BatchPage() {
     } finally {
       document.body.removeChild(wrapper);
     }
+  };
+
+  const addPosterToPDF = async (pdf: jsPDF, elId: string, x: number, y: number, w: number, h: number) => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    const canvas = await capturePoster(el);
+    const imgData = canvas.toDataURL("image/jpeg", 0.85);
+    pdf.addImage(imgData, "JPEG", x, y, w, h);
+    canvas.width = 0;
+    canvas.height = 0;
   };
 
   const exportAllPDF = async () => {
@@ -298,33 +317,23 @@ export default function BatchPage() {
       if (isDuplo) {
         const halfH = pdfH / 2;
         for (let i = 0; i < validProducts.length; i += 2) {
-          const el1 = document.getElementById(`batch-poster-${i}`);
           if (i > 0) pdf.addPage();
-          if (el1) {
-            const canvas1 = await capturePoster(el1);
-            pdf.addImage(canvas1.toDataURL("image/png"), "PNG", 0, 0, pdfW, halfH);
-          }
+          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH);
           if (i + 1 < validProducts.length) {
-            const el2 = document.getElementById(`batch-poster-${i + 1}`);
-            if (el2) {
-              const canvas2 = await capturePoster(el2);
-              pdf.addImage(canvas2.toDataURL("image/png"), "PNG", 0, halfH, pdfW, halfH);
-            }
+            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH);
           }
         }
       } else {
         for (let i = 0; i < validProducts.length; i++) {
-          const el = document.getElementById(`batch-poster-${i}`);
-          if (!el) continue;
-          const canvas = await capturePoster(el);
           if (i > 0) pdf.addPage();
-          pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pdfW, pdfH);
+          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, pdfH);
         }
       }
 
       pdf.save(`cartazes-lote-${validProducts.length}.pdf`);
       toast({ title: "PDF em lote exportado!", description: `${validProducts.length} cartazes – ${paperSize}.` });
-    } catch {
+    } catch (err) {
+      console.error("Erro ao exportar PDF:", err);
       toast({ title: "Erro ao exportar", variant: "destructive" });
     }
     setExporting(false);
@@ -344,27 +353,16 @@ export default function BatchPage() {
       if (isDuplo) {
         const halfH = pdfH / 2;
         for (let i = 0; i < validProducts.length; i += 2) {
-          const el1 = document.getElementById(`batch-poster-${i}`);
           if (i > 0) pdf.addPage();
-          if (el1) {
-            const canvas1 = await capturePoster(el1);
-            pdf.addImage(canvas1.toDataURL("image/png"), "PNG", 0, 0, pdfW, halfH);
-          }
+          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH);
           if (i + 1 < validProducts.length) {
-            const el2 = document.getElementById(`batch-poster-${i + 1}`);
-            if (el2) {
-              const canvas2 = await capturePoster(el2);
-              pdf.addImage(canvas2.toDataURL("image/png"), "PNG", 0, halfH, pdfW, halfH);
-            }
+            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH);
           }
         }
       } else {
         for (let i = 0; i < validProducts.length; i++) {
-          const el = document.getElementById(`batch-poster-${i}`);
-          if (!el) continue;
-          const canvas = await capturePoster(el);
           if (i > 0) pdf.addPage();
-          pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pdfW, pdfH);
+          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, pdfH);
         }
       }
 
@@ -388,7 +386,8 @@ export default function BatchPage() {
         }, 500);
       };
       toast({ title: "Enviando para impressora...", description: `${validProducts.length} cartazes – ${paperSize}.` });
-    } catch {
+    } catch (err) {
+      console.error("Erro ao imprimir:", err);
       toast({ title: "Erro ao imprimir", variant: "destructive" });
     }
     setExporting(false);
