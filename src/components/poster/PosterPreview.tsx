@@ -58,6 +58,10 @@ export interface PosterStyle {
   gramaturaLines: boolean;
   unitBelowCents: boolean;
   descriptionOffsetY: number;
+  centsUnderlineOffsetY: number;
+  gramaturaLinesOffsetY: number;
+  unitOffsetY: number;
+  centsOffsetY: number;
 }
 
 export const DEFAULT_POSTER_STYLE: PosterStyle = {
@@ -89,6 +93,10 @@ export const DEFAULT_POSTER_STYLE: PosterStyle = {
   gramaturaLines: false,
   unitBelowCents: false,
   descriptionOffsetY: 0,
+  centsUnderlineOffsetY: 0,
+  gramaturaLinesOffsetY: 0,
+  unitOffsetY: 0,
+  centsOffsetY: 0,
 };
 
 interface Props {
@@ -288,6 +296,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                   opacity: 0.5,
                   marginRight: '8px',
                   flexShrink: 0,
+                  transform: `translateY(${style.gramaturaLinesOffsetY}px)`,
                 }} />
               )}
               {data.gramatura && (
@@ -301,6 +310,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                   opacity: 0.5,
                   marginLeft: '8px',
                   flexShrink: 0,
+                  transform: `translateY(${style.gramaturaLinesOffsetY}px)`,
                 }} />
               )}
             </div>
@@ -374,6 +384,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                   justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
                   alignSelf: 'stretch',
                   lineHeight: 1,
+                  transform: `translateY(${style.centsOffsetY}px)`,
                 }}>
                   <span style={{
                     fontWeight: 900,
@@ -381,6 +392,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                     lineHeight: 1,
                     borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
                     paddingBottom: style.centsUnderline ? '1px' : '0',
+                    transform: style.centsUnderline ? `translateY(${style.centsUnderlineOffsetY}px)` : undefined,
                   }}>
                     {centavos}
                   </span>
@@ -392,7 +404,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                       lineHeight: 1,
                       whiteSpace: 'nowrap',
                       marginTop: '2px',
-                      transform: `translateX(${style.unitOffsetX}px)`,
+                      transform: `translateX(${style.unitOffsetX}px) translateY(${style.unitOffsetY}px)`,
                     }}>{data.unit}</span>
                   )}
                 </span>
@@ -405,7 +417,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                   marginTop: '4px',
                   opacity: 0.7,
                   color: template.textColor,
-                  transform: `translateX(${style.unitOffsetX}px)`,
+                  transform: `translateX(${style.unitOffsetX}px) translateY(${style.unitOffsetY}px)`,
                   display: 'inline-block',
                 }}>{data.unit}</span>
               )}
