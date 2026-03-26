@@ -70,29 +70,39 @@ export default function EditorPage() {
     }
   };
 
-  const exportPNG = async () => {
-    if (!posterRef.current) return;
+  const capturePosterCanvas = async () => {
+    if (!posterRef.current) return null;
+
+    stripBgForExport();
     try {
-      stripBgForExport();
-      const canvas = await html2canvas(posterRef.current, { scale: 3, useCORS: true, backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null });
+      return await html2canvas(posterRef.current, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null,
+      });
+    } finally {
       restoreBgAfterExport();
+    }
+  };
+
+  const exportPNG = async () => {
+    try {
+      const canvas = await capturePosterCanvas();
+      if (!canvas) return;
       const link = document.createElement("a");
       link.download = `cartaz-${data.productName || "gondolapro"}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
       toast({ title: "PNG exportado!", description: "Seu cartaz foi salvo." });
     } catch {
-      restoreBgAfterExport();
       toast({ title: "Erro ao exportar", variant: "destructive" });
     }
   };
 
   const exportPDF = async () => {
-    if (!posterRef.current) return;
     try {
-      stripBgForExport();
-      const canvas = await html2canvas(posterRef.current, { scale: 3, useCORS: true, backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null });
-      restoreBgAfterExport();
+      const canvas = await capturePosterCanvas();
+      if (!canvas) return;
       const imgData = canvas.toDataURL("image/png");
       const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
       const isLandscape = fmt[0] > fmt[1];
@@ -107,8 +117,78 @@ export default function EditorPage() {
       pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
       toast({ title: "PDF exportado!", description: `Formato ${paperSize} – 300dpi.` });
     } catch {
-      restoreBgAfterExport();
       toast({ title: "Erro ao exportar", variant: "destructive" });
+    }
+  };
+
+  const handleDirectPrint = async () => {
+    try {
+      const canvas = await capturePosterCanvas();
+      if (!canvas) return;
+
+      const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
+      const printWindow = window.open("", "_blank", "noopener,noreferrer,width=900,height=1200");
+
+      if (!printWindow) {
+        toast({ title: "Libere pop-ups para imprimir", variant: "destructive" });
+        return;
+      }
+
+      const orientation = fmt[0] > fmt[1] ? "landscape" : "portrait";
+      const imageData = canvas.toDataURL("image/png");
+
+      printWindow.document.write(`
+        <!doctype html>
+        <html>
+          <head>
+            <title>Imprimir cartaz</title>
+            <style>
+              @page { size: ${fmt[0]}mm ${fmt[1]}mm; margin: 0; }
+              html, body {
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100%;
+                background: white;
+              }
+              body {
+                display: flex;
+                align-items: stretch;
+                justify-content: stretch;
+              }
+              img {
+                width: 100%;
+                height: 100%;
+                object-fit: fill;
+                display: block;
+              }
+              @media print {
+                html, body {
+                  width: ${fmt[0]}mm;
+                  height: ${fmt[1]}mm;
+                }
+              }
+            </style>
+          </head>
+          <body>
+            <img src="${imageData}" alt="Cartaz para impressão" />
+            <script>
+              window.addEventListener('load', () => {
+                setTimeout(() => {
+                  window.focus();
+                  window.print();
+                  window.close();
+                }, 150);
+              });
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+
+      toast({ title: `Impressão ${orientation} pronta!` });
+    } catch {
+      toast({ title: "Erro ao imprimir", variant: "destructive" });
     }
   };
 
@@ -208,13 +288,7 @@ export default function EditorPage() {
             <Button size="sm" onClick={exportPDF} className="snap-active gap-1.5">
               <FileText className="w-3.5 h-3.5" /> PDF
             </Button>
-            <Button variant="outline" size="sm" onClick={() => {
-              if (bgBaseOnly && customBackground && posterRef.current) {
-                posterRef.current.style.backgroundImage = 'none';
-                posterRef.current.style.backgroundColor = '#ffffff';
-                setTimeout(() => { window.print(); setTimeout(() => { if (posterRef.current) { posterRef.current.style.backgroundImage = `url(${customBackground})`; posterRef.current.style.backgroundColor = ''; }}, 500); }, 100);
-              } else { window.print(); }
-            }} className="snap-active gap-1.5">
+            <Button variant="outline" size="sm" onClick={handleDirectPrint} className="snap-active gap-1.5">
               <Printer className="w-3.5 h-3.5" /> Imprimir
             </Button>
           </div>
@@ -478,7 +552,7 @@ export default function EditorPage() {
                     <Button onClick={exportPDF} className="flex-1 snap-active gap-1.5">
                       <Download className="w-4 h-4" /> PDF {paperSize}
                     </Button>
-                    <Button variant="secondary" onClick={() => window.print()} className="flex-1 snap-active gap-1.5">
+                    <Button variant="secondary" onClick={handleDirectPrint} className="flex-1 snap-active gap-1.5">
                       <Printer className="w-4 h-4" /> Imprimir
                     </Button>
                   </div>
