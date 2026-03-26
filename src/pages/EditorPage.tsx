@@ -410,6 +410,10 @@ export default function EditorPage() {
                         Traços na gramatura
                       </label>
                     </div>
+                    <div className="mt-2">
+                      <label className="text-xs text-muted-foreground">Centavos eixo Y ({posterStyle.centsOffsetY})</label>
+                      <Slider min={-100} max={100} step={1} value={[posterStyle.centsOffsetY]} onValueChange={([v]) => updateStyle("centsOffsetY", v)} />
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
                       <Field label="Desconto (%)" value={data.discount} onChange={(v) => update("discount", v)} />
                       <Field label="Validade" value={data.validity} onChange={(v) => update("validity", v)} />
@@ -423,6 +427,12 @@ export default function EditorPage() {
                           <Switch checked={posterStyle.unitBelowCents} onCheckedChange={(v) => updateStyle("unitBelowCents", v)} />
                           Abaixo dos centavos
                         </label>
+                        {posterStyle.unitBelowCents && (
+                          <div className="mt-2">
+                            <label className="text-xs text-muted-foreground">Unidade eixo Y ({posterStyle.unitOffsetY})</label>
+                            <Slider min={-100} max={100} step={1} value={[posterStyle.unitOffsetY]} onValueChange={([v]) => updateStyle("unitOffsetY", v)} />
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

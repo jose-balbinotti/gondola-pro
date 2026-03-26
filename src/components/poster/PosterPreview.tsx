@@ -383,6 +383,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                   justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
                   alignSelf: style.centsAlignTop ? 'flex-start' : 'stretch',
                   lineHeight: 1,
+                  transform: `translateY(${style.centsOffsetY}px)`,
                 }}>
                   <span style={{
                     fontWeight: 900,
@@ -401,7 +402,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                       lineHeight: 1,
                       whiteSpace: 'nowrap',
                       marginTop: `${Math.round(style.centsFontSize * 0.08)}px`,
-                      transform: `translateX(${style.unitOffsetX}px)`,
+                      transform: `translateX(${style.unitOffsetX}px) translateY(${style.unitOffsetY}px)`,
                     }}>{data.unit}</span>
                   )}
                 </span>
