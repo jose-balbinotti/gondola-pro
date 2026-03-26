@@ -318,22 +318,23 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               textShadow: sPrice,
               transform: smsSkew(pFont),
               alignItems: 'flex-end',
+              height: `${style.priceFontSize}px`,
             }}>
               {!style.hideCurrencySymbol && (
-                <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>R$</span>
+                <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>R$</span>
               )}
-              <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>
+              <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>
                 {reais}
               </span>
               <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>
                 ,
               </span>
               <span style={{
-                position: 'relative',
                 display: 'inline-flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                alignSelf: style.centsAlignTop ? 'flex-start' : 'flex-end',
+                justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
+                alignSelf: 'stretch',
                 lineHeight: 1,
               }}>
                 <span style={{
