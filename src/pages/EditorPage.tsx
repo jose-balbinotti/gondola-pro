@@ -85,44 +85,6 @@ export default function EditorPage() {
     }
   };
 
-  /** Clone poster DOM with all computed styles inlined for vectorized output */
-  const clonePosterWithStyles = (): HTMLElement | null => {
-    const el = posterRef.current;
-    if (!el) return null;
-
-    const deepClone = (source: HTMLElement): HTMLElement => {
-      const clone = source.cloneNode(false) as HTMLElement;
-      if (source.nodeType === Node.TEXT_NODE) return source.cloneNode(true) as HTMLElement;
-      if (source.nodeType !== Node.ELEMENT_NODE) return clone;
-
-      // Copy all computed styles as inline
-      const cs = window.getComputedStyle(source);
-      for (let i = 0; i < cs.length; i++) {
-        const prop = cs[i];
-        clone.style.setProperty(prop, cs.getPropertyValue(prop));
-      }
-
-      // Recurse children
-      source.childNodes.forEach((child) => {
-        if (child.nodeType === Node.TEXT_NODE) {
-          clone.appendChild(child.cloneNode(true));
-        } else if (child.nodeType === Node.ELEMENT_NODE) {
-          clone.appendChild(deepClone(child as HTMLElement));
-        }
-      });
-
-      return clone;
-    };
-
-    const cloned = deepClone(el);
-    // Strip bg if base only
-    if (bgBaseOnly && customBackground) {
-      cloned.style.backgroundImage = 'none';
-      cloned.style.backgroundColor = '#ffffff';
-    }
-    return cloned;
-  };
-
   const exportPNG = async () => {
     try {
       const canvas = await capturePosterCanvas(4);
