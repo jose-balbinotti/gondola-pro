@@ -61,6 +61,7 @@ export default function BatchPage() {
   const [posterStyle, setPosterStyle] = useState<PosterStyle>({ ...DEFAULT_POSTER_STYLE });
   const [inputMode, setInputMode] = useState<InputMode>("table");
   const [customBackground, setCustomBackground] = useState<string>("");
+  const [bgBaseOnly, setBgBaseOnly] = useState(false);
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<PosterPreset[]>(() => loadPresets());
 
@@ -181,6 +182,19 @@ export default function BatchPage() {
 
   const validProducts = products.filter((p) => p.productName.trim() || p.newPrice.trim());
 
+  const stripBgForExport = (el: HTMLElement) => {
+    if (bgBaseOnly && customBackground) {
+      el.style.backgroundImage = 'none';
+      el.style.backgroundColor = '#ffffff';
+    }
+  };
+  const restoreBgAfterExport = (el: HTMLElement) => {
+    if (bgBaseOnly && customBackground) {
+      el.style.backgroundImage = `url(${customBackground})`;
+      el.style.backgroundColor = '';
+    }
+  };
+
   const exportAllPDF = async () => {
     if (validProducts.length === 0) return;
     setExporting(true);
@@ -191,21 +205,27 @@ export default function BatchPage() {
       const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
+      const bgColor = bgBaseOnly && customBackground ? '#ffffff' : null;
 
       if (isDuplo) {
-        // 2 posters per page (top + bottom)
         const halfH = pdfH / 2;
         for (let i = 0; i < validProducts.length; i += 2) {
           const el1 = document.getElementById(`batch-poster-${i}`);
           if (i > 0) pdf.addPage();
           if (el1) {
-            const canvas1 = await html2canvas(el1, { scale: 3, useCORS: true, backgroundColor: null });
+            const posterEl1 = el1.querySelector('[data-print-poster]') as HTMLElement;
+            if (posterEl1) stripBgForExport(posterEl1);
+            const canvas1 = await html2canvas(el1, { scale: 3, useCORS: true, backgroundColor: bgColor });
+            if (posterEl1) restoreBgAfterExport(posterEl1);
             pdf.addImage(canvas1.toDataURL("image/png"), "PNG", 0, 0, pdfW, halfH);
           }
           if (i + 1 < validProducts.length) {
             const el2 = document.getElementById(`batch-poster-${i + 1}`);
             if (el2) {
-              const canvas2 = await html2canvas(el2, { scale: 3, useCORS: true, backgroundColor: null });
+              const posterEl2 = el2.querySelector('[data-print-poster]') as HTMLElement;
+              if (posterEl2) stripBgForExport(posterEl2);
+              const canvas2 = await html2canvas(el2, { scale: 3, useCORS: true, backgroundColor: bgColor });
+              if (posterEl2) restoreBgAfterExport(posterEl2);
               pdf.addImage(canvas2.toDataURL("image/png"), "PNG", 0, halfH, pdfW, halfH);
             }
           }
@@ -214,7 +234,10 @@ export default function BatchPage() {
         for (let i = 0; i < validProducts.length; i++) {
           const el = document.getElementById(`batch-poster-${i}`);
           if (!el) continue;
-          const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: null });
+          const posterEl = el.querySelector('[data-print-poster]') as HTMLElement;
+          if (posterEl) stripBgForExport(posterEl);
+          const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: bgColor });
+          if (posterEl) restoreBgAfterExport(posterEl);
           if (i > 0) pdf.addPage();
           pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pdfW, pdfH);
         }
@@ -358,9 +381,15 @@ export default function BatchPage() {
                   )}
                 </div>
                 {customBackground && (
-                  <div className="mt-2 w-20 h-28 rounded border border-border overflow-hidden">
-                    <img src={customBackground} alt="Fundo" className="w-full h-full object-cover" />
-                  </div>
+                  <>
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mt-2">
+                      <Switch checked={bgBaseOnly} onCheckedChange={setBgBaseOnly} />
+                      Usar só como base (não imprime o fundo)
+                    </label>
+                    <div className="mt-2 w-20 h-28 rounded border border-border overflow-hidden">
+                      <img src={customBackground} alt="Fundo" className="w-full h-full object-cover" />
+                    </div>
+                  </>
                 )}
               </div>
 
