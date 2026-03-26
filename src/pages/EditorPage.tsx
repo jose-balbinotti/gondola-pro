@@ -156,6 +156,7 @@ export default function EditorPage() {
       paperSize,
       style: posterStyle,
       backgroundImage: customBackground || undefined,
+      posterData: { ...data },
     });
     if (result) {
       setPresets(loadPresets());
