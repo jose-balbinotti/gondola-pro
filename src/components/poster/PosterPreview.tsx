@@ -250,6 +250,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               fontSize: `${style.productFontSize}px`,
               transform: `translateY(${style.productOffsetY}px) ${smsSkew(style.fontFamily) || ''}`,
               textShadow: sProd,
+              maxHeight: `${Math.ceil(style.productFontSize * 1.1 * 3)}px`,
+              overflow: 'hidden',
+              flexShrink: 0,
             }}>
               {data.productName}
             </div>
@@ -266,6 +269,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               transform: `translateY(${style.brandOffsetY}px) ${smsSkew(style.fontFamily) || ''}`,
               opacity: 0.85,
               textShadow: sBrand,
+              maxHeight: `${Math.ceil(style.brandFontSize * 1.1 * 2)}px`,
+              overflow: 'hidden',
+              flexShrink: 0,
             }}>
               {data.brandName}
             </div>
@@ -324,6 +330,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               fontFamily: descFont,
               textShadow: sDesc,
               transform: `translateY(${style.descriptionOffsetY}px) ${smsSkew(dFont) || ''}`,
+              maxHeight: `${Math.ceil(style.descriptionFontSize * 1.4 * 3)}px`,
+              overflow: 'hidden',
+              flexShrink: 0,
             }}>
               {data.description}
             </div>
