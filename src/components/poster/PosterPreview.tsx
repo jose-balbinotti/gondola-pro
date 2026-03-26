@@ -62,6 +62,7 @@ export interface PosterStyle {
   gramaturaLinesOffsetY: number;
   unitOffsetY: number;
   centsOffsetY: number;
+  unitFontSize: number;
 }
 
 export const DEFAULT_POSTER_STYLE: PosterStyle = {
@@ -97,6 +98,7 @@ export const DEFAULT_POSTER_STYLE: PosterStyle = {
   gramaturaLinesOffsetY: 0,
   unitOffsetY: 0,
   centsOffsetY: 0,
+  unitFontSize: 0,
 };
 
 interface Props {
@@ -398,7 +400,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                     <span style={{
                       color: template.textColor,
                       opacity: 0.7,
-                      fontSize: `${Math.round(style.centsFontSize * 0.5)}px`,
+                      fontSize: `${style.unitFontSize > 0 ? style.unitFontSize : Math.round(style.centsFontSize * 0.5)}px`,
                       lineHeight: 1,
                       whiteSpace: 'nowrap',
                       marginTop: `${Math.round(style.centsFontSize * 0.08)}px`,
