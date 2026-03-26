@@ -127,64 +127,53 @@ export default function EditorPage() {
       if (!canvas) return;
 
       const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
-      const printWindow = window.open("", "_blank", "noopener,noreferrer,width=900,height=1200");
-
-      if (!printWindow) {
-        toast({ title: "Libere pop-ups para imprimir", variant: "destructive" });
-        return;
-      }
-
       const orientation = fmt[0] > fmt[1] ? "landscape" : "portrait";
       const imageData = canvas.toDataURL("image/png");
 
-      printWindow.document.write(`
-        <!doctype html>
-        <html>
-          <head>
-            <title>Imprimir cartaz</title>
-            <style>
-              @page { size: ${fmt[0]}mm ${fmt[1]}mm; margin: 0; }
-              html, body {
-                margin: 0;
-                padding: 0;
-                width: 100%;
-                height: 100%;
-                background: white;
-              }
-              body {
-                display: flex;
-                align-items: stretch;
-                justify-content: stretch;
-              }
-              img {
-                width: 100%;
-                height: 100%;
-                object-fit: fill;
-                display: block;
-              }
-              @media print {
-                html, body {
-                  width: ${fmt[0]}mm;
-                  height: ${fmt[1]}mm;
-                }
-              }
-            </style>
-          </head>
-          <body>
-            <img src="${imageData}" alt="Cartaz para impressão" />
-            <script>
-              window.addEventListener('load', () => {
-                setTimeout(() => {
-                  window.focus();
-                  window.print();
-                  window.close();
-                }, 150);
-              });
-            </script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
+      // Use hidden iframe for printing to avoid pop-up blockers
+      let iframe = document.getElementById("print-iframe") as HTMLIFrameElement | null;
+      if (iframe) iframe.remove();
+
+      iframe = document.createElement("iframe");
+      iframe.id = "print-iframe";
+      iframe.style.position = "fixed";
+      iframe.style.top = "-10000px";
+      iframe.style.left = "-10000px";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        toast({ title: "Erro ao preparar impressão", variant: "destructive" });
+        return;
+      }
+
+      iframeDoc.open();
+      iframeDoc.write(`<!doctype html><html><head><style>
+        @page { size: ${fmt[0]}mm ${fmt[1]}mm; margin: 0; }
+        html, body { margin:0; padding:0; width:100%; height:100%; background:white; }
+        img { width:100%; height:100%; object-fit:fill; display:block; }
+      </style></head><body><img src="${imageData}" /></body></html>`);
+      iframeDoc.close();
+
+      // Wait for image to load then print
+      const img = iframeDoc.querySelector("img");
+      const doPrint = () => {
+        setTimeout(() => {
+          iframe!.contentWindow?.focus();
+          iframe!.contentWindow?.print();
+          setTimeout(() => iframe?.remove(), 1000);
+        }, 100);
+      };
+      if (img) {
+        img.onload = doPrint;
+        // If already loaded (data URL)
+        if (img.complete) doPrint();
+      } else {
+        doPrint();
+      }
 
       toast({ title: `Impressão ${orientation} pronta!` });
     } catch {
