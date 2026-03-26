@@ -221,9 +221,11 @@ export default function BatchPage() {
     setExporting(true);
     try {
       const baseFmt = paperSize.replace("-duplo", "") as string;
-      const fmt = PDF_FORMATS[baseFmt] || PDF_FORMATS.A4;
-      const isLandscape = fmt[0] > fmt[1];
-      const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
+      const fmtMM = PDF_FORMATS[baseFmt] || PDF_FORMATS.A4;
+      const widthCM = fmtMM[0] / 10;
+      const heightCM = fmtMM[1] / 10;
+      const isLandscape = fmtMM[0] > fmtMM[1];
+      const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "cm", format: [widthCM, heightCM] });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
       const bgColor = bgBaseOnly && customBackground ? '#ffffff' : null;

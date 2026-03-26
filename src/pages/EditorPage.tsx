@@ -116,12 +116,14 @@ export default function EditorPage() {
       const canvas = await capturePosterCanvas();
       if (!canvas) return;
       const imgData = canvas.toDataURL("image/png", 1.0);
-      const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
-      const isLandscape = fmt[0] > fmt[1];
+      const fmtMM = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
+      const widthCM = fmtMM[0] / 10;
+      const heightCM = fmtMM[1] / 10;
+      const isLandscape = fmtMM[0] > fmtMM[1];
       const pdf = new jsPDF({
         orientation: isLandscape ? "landscape" : "portrait",
-        unit: "mm",
-        format: fmt,
+        unit: "cm",
+        format: [widthCM, heightCM],
       });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
@@ -141,9 +143,9 @@ export default function EditorPage() {
         return;
       }
 
-      const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
-      const widthMM = fmt[0];
-      const heightMM = fmt[1];
+      const fmtMM = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
+      const widthCM = fmtMM[0] / 10;
+      const heightCM = fmtMM[1] / 10;
       const imageData = canvas.toDataURL("image/png", 1.0);
 
       let iframe = document.getElementById("print-iframe") as HTMLIFrameElement | null;
@@ -167,9 +169,22 @@ export default function EditorPage() {
 
       iframeDoc.open();
       iframeDoc.write(`<!doctype html><html><head><style>
-        @page { size: ${widthMM}mm ${heightMM}mm; margin: 0; }
-        html, body { margin:0; padding:0; width:${widthMM}mm; height:${heightMM}mm; background:white; overflow:hidden; }
-        img { width:${widthMM}mm; height:${heightMM}mm; display:block; object-fit:fill; }
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
+        @page { size: ${widthCM}cm ${heightCM}cm; margin: 0; }
+        html, body {
+          margin: 0; padding: 0;
+          width: ${widthCM}cm; height: ${heightCM}cm;
+          background: white; overflow: hidden;
+          font-family: 'Roboto', sans-serif;
+        }
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        img {
+          width: ${widthCM}cm; height: ${heightCM}cm;
+          display: block; object-fit: fill;
+        }
       </style></head><body><img src="${imageData}" /></body></html>`);
       iframeDoc.close();
 
