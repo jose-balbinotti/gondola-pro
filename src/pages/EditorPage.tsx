@@ -205,7 +205,13 @@ export default function EditorPage() {
             <Button size="sm" onClick={exportPDF} className="snap-active gap-1.5">
               <FileText className="w-3.5 h-3.5" /> PDF
             </Button>
-            <Button variant="outline" size="sm" onClick={() => window.print()} className="snap-active gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => {
+              if (bgBaseOnly && customBackground && posterRef.current) {
+                posterRef.current.style.backgroundImage = 'none';
+                posterRef.current.style.backgroundColor = '#ffffff';
+                setTimeout(() => { window.print(); setTimeout(() => { if (posterRef.current) { posterRef.current.style.backgroundImage = `url(${customBackground})`; posterRef.current.style.backgroundColor = ''; }}, 500); }, 100);
+              } else { window.print(); }
+            }} className="snap-active gap-1.5">
               <Printer className="w-3.5 h-3.5" /> Imprimir
             </Button>
           </div>
