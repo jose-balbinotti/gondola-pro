@@ -241,12 +241,12 @@ export default function EditorPage() {
     e.target.value = "";
   };
 
-  const handleSavePreset = () => {
+  const handleSavePreset = async () => {
     if (!presetName.trim()) {
       toast({ title: "Digite um nome para o preset", variant: "destructive" });
       return;
     }
-    const result = savePreset({
+    const result = await savePresetToDB({
       name: presetName.trim(),
       templateId: template.id,
       paperSize,
@@ -255,11 +255,12 @@ export default function EditorPage() {
       posterData: { ...data },
     });
     if (result) {
-      setPresets(loadPresets());
+      const updated = await loadPresetsFromDB();
+      setPresets(updated);
       setPresetName("");
       toast({ title: `Preset "${result.name}" salvo!` });
     } else {
-      toast({ title: "Limite de 20 presets atingido", variant: "destructive" });
+      toast({ title: "Limite de presets atingido", variant: "destructive" });
     }
   };
 
@@ -271,10 +272,41 @@ export default function EditorPage() {
     toast({ title: `Preset "${preset.name}" carregado!` });
   };
 
-  const handleDeletePreset = (id: string) => {
-    deletePreset(id);
-    setPresets(loadPresets());
+  const handleDeletePreset = async (id: string) => {
+    await deletePresetFromDB(id);
+    const updated = await loadPresetsFromDB();
+    setPresets(updated);
     toast({ title: "Preset removido" });
+  };
+
+  const handleExportPresets = () => {
+    if (presets.length === 0) {
+      toast({ title: "Nenhum preset para exportar", variant: "destructive" });
+      return;
+    }
+    exportPresetsToJSON(presets);
+    toast({ title: `${presets.length} presets exportados!` });
+  };
+
+  const importFileRef = useRef<HTMLInputElement>(null);
+
+  const handleImportPresets = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const updated = await importPresetsFromJSON(file);
+      setPresets(updated);
+      // Sync imported to DB
+      for (const p of updated) {
+        await savePresetToDB({ name: p.name, templateId: p.templateId, paperSize: p.paperSize, style: p.style, backgroundImage: p.backgroundImage, posterData: p.posterData });
+      }
+      const fromDB = await loadPresetsFromDB();
+      setPresets(fromDB);
+      toast({ title: "Presets importados com sucesso!" });
+    } catch {
+      toast({ title: "Erro ao importar arquivo", variant: "destructive" });
+    }
+    e.target.value = "";
   };
 
   const qrUrl = data.whatsappNumber
