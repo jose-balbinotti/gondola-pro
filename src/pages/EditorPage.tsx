@@ -57,18 +57,7 @@ export default function EditorPage() {
     setPosterStyle((prev) => ({ ...prev, [field]: value }));
   }, []);
 
-  const stripBgForExport = () => {
-    if (bgBaseOnly && customBackground && posterRef.current) {
-      posterRef.current.style.backgroundImage = 'none';
-      posterRef.current.style.backgroundColor = '#ffffff';
-    }
-  };
-  const restoreBgAfterExport = () => {
-    if (bgBaseOnly && customBackground && posterRef.current) {
-      posterRef.current.style.backgroundImage = `url(${customBackground})`;
-      posterRef.current.style.backgroundColor = '';
-    }
-  };
+  // Background stripping is now handled inside capturePosterCanvas via clone
 
   const capturePosterCanvas = async () => {
     if (!posterRef.current) return null;
