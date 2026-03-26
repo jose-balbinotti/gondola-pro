@@ -5,11 +5,12 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TEMPLATES, DEFAULT_POSTER_DATA, type PosterData } from "@/lib/templates";
-import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode, Type, Move } from "lucide-react";
+import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode, Type, Move, Save, FolderOpen, Upload, Trash2, Image as ImageIcon } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
 import PosterPreview, { DEFAULT_POSTER_STYLE, FONT_OPTIONS, type PosterStyle } from "@/components/poster/PosterPreview";
+import { loadPresets, savePreset, deletePreset, type PosterPreset } from "@/lib/presets";
 
 const PAPER_SIZES = [
   { value: "A4", label: "A4 (210×297mm)" },
@@ -31,6 +32,7 @@ export default function EditorPage() {
   const { templateId } = useParams<{ templateId: string }>();
   const template = TEMPLATES.find((t) => t.id === templateId) || TEMPLATES[0];
   const posterRef = useRef<HTMLDivElement>(null);
+  const bgFileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const [data, setData] = useState<PosterData>({
@@ -41,6 +43,9 @@ export default function EditorPage() {
   const [showQR, setShowQR] = useState(false);
   const [posterStyle, setPosterStyle] = useState<PosterStyle>({ ...DEFAULT_POSTER_STYLE });
   const [paperSize, setPaperSize] = useState(template.size === "gondola" ? "gondola" : "A4");
+  const [customBackground, setCustomBackground] = useState<string>("");
+  const [presetName, setPresetName] = useState("");
+  const [presets, setPresets] = useState<PosterPreset[]>(() => loadPresets());
 
   const update = useCallback((field: keyof PosterData, value: string) => {
     setData((prev) => ({ ...prev, [field]: value }));
