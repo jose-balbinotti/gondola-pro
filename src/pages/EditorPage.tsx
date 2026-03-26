@@ -91,15 +91,36 @@ export default function EditorPage() {
     }
   };
 
-  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setCustomBackground(ev.target?.result as string);
-      toast({ title: "Imagem de fundo carregada!" });
-    };
-    reader.readAsDataURL(file);
+
+    if (file.type === "application/pdf") {
+      try {
+        const pdfjsLib = await import("pdfjs-dist");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext("2d")!;
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        setCustomBackground(canvas.toDataURL("image/png"));
+        toast({ title: "PDF importado como fundo!" });
+      } catch {
+        toast({ title: "Erro ao importar PDF", variant: "destructive" });
+      }
+    } else {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setCustomBackground(ev.target?.result as string);
+        toast({ title: "Imagem de fundo carregada!" });
+      };
+      reader.readAsDataURL(file);
+    }
     e.target.value = "";
   };
 
@@ -207,7 +228,7 @@ export default function EditorPage() {
                 <ImageIcon className="w-4 h-4" /> Fundo Personalizado
               </h3>
               <div className="flex gap-2">
-                <input ref={bgFileRef} type="file" accept="image/*" onChange={handleBgUpload} className="hidden" />
+                <input ref={bgFileRef} type="file" accept="image/*,application/pdf" onChange={handleBgUpload} className="hidden" />
                 <Button variant="outline" size="sm" onClick={() => bgFileRef.current?.click()} className="gap-1.5">
                   <Upload className="w-3.5 h-3.5" /> Importar Fundo
                 </Button>
