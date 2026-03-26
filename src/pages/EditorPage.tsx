@@ -75,25 +75,50 @@ export default function EditorPage() {
 
     const el = posterRef.current;
 
-    // The inner poster div is always rendered at the fixed REFERENCE_WIDTH (800px).
-    // Remove CSS scale transform temporarily so html2canvas captures at native size.
-    const origTransform = el.style.transform;
-    el.style.transform = 'none';
+    // Clone the poster element so we can render it at full reference size
+    // without being clipped by the scaled parent container.
+    const clone = el.cloneNode(true) as HTMLElement;
 
-    stripBgForExport();
+    // Reset transform (the original has CSS scale to fit container)
+    clone.style.transform = 'none';
+    clone.style.position = 'absolute';
+    clone.style.top = '0';
+    clone.style.left = '0';
+    // Use the exact same fixed dimensions as the original render
+    clone.style.width = el.style.width;   // e.g. "800px"
+    clone.style.height = el.style.height; // e.g. "1131px"
+
+    if (bgBaseOnly && customBackground) {
+      clone.style.backgroundImage = 'none';
+      clone.style.backgroundColor = '#ffffff';
+    }
+
+    // Wrap in a container that won't clip and is offscreen
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'fixed';
+    wrapper.style.top = '-20000px';
+    wrapper.style.left = '-20000px';
+    wrapper.style.width = el.style.width;
+    wrapper.style.height = el.style.height;
+    wrapper.style.overflow = 'visible';
+    wrapper.style.zIndex = '-9999';
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
+    // Wait for fonts & images to settle
+    await new Promise(r => setTimeout(r, 100));
+
     try {
-      // Capture at scale 4 → effective resolution ~3200px wide (high DPI print quality)
-      const canvas = await html2canvas(el, {
+      const canvas = await html2canvas(clone, {
         scale: 4,
         useCORS: true,
         backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null,
-        width: el.offsetWidth,
-        height: el.offsetHeight,
+        width: parseInt(el.style.width),
+        height: parseInt(el.style.height),
       });
       return canvas;
     } finally {
-      el.style.transform = origTransform;
-      restoreBgAfterExport();
+      document.body.removeChild(wrapper);
     }
   };
 
