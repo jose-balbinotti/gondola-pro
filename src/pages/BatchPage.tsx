@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TEMPLATES, DEFAULT_POSTER_DATA, type PosterData } from "@/lib/templates";
 import PosterPreview, { DEFAULT_POSTER_STYLE, FONT_OPTIONS, type PosterStyle } from "@/components/poster/PosterPreview";
-import { Tag, ArrowLeft, Download, FileText, Loader2, Plus, Trash2, Upload, Table, Type as TypeIcon, Save, FolderOpen, Image as ImageIcon } from "lucide-react";
+import { Tag, ArrowLeft, Download, FileText, Loader2, Plus, Trash2, Upload, Table, Type as TypeIcon, Save, FolderOpen, Image as ImageIcon, Printer } from "lucide-react";
 import Papa from "papaparse";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -308,6 +308,106 @@ export default function BatchPage() {
     setExporting(false);
   };
 
+  const printAll = async () => {
+    if (validProducts.length === 0) return;
+    setExporting(true);
+    try {
+      const baseFmt = paperSize.replace("-duplo", "") as string;
+      const fmt = PDF_FORMATS[baseFmt] || PDF_FORMATS.A4;
+      const isLandscape = fmt[0] > fmt[1];
+      const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = pdf.internal.pageSize.getHeight();
+      const bgColor = bgBaseOnly && customBackground ? '#ffffff' : null;
+
+      const capturePoster = async (containerEl: HTMLElement) => {
+        const posterEl = containerEl.querySelector('[data-print-poster]') as HTMLElement;
+        const target = posterEl || containerEl;
+        const clone = target.cloneNode(true) as HTMLElement;
+        clone.style.transform = 'none';
+        clone.style.position = 'absolute';
+        clone.style.top = '0';
+        clone.style.left = '0';
+        clone.style.width = target.style.width;
+        clone.style.height = target.style.height;
+        if (bgBaseOnly && customBackground) {
+          clone.style.backgroundImage = 'none';
+          clone.style.backgroundColor = '#ffffff';
+        }
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'fixed';
+        wrapper.style.top = '-20000px';
+        wrapper.style.left = '-20000px';
+        wrapper.style.width = target.style.width;
+        wrapper.style.height = target.style.height;
+        wrapper.style.overflow = 'visible';
+        wrapper.style.zIndex = '-9999';
+        wrapper.appendChild(clone);
+        document.body.appendChild(wrapper);
+        await new Promise(r => setTimeout(r, 50));
+        try {
+          return await html2canvas(clone, {
+            scale: 4, useCORS: true, backgroundColor: bgColor,
+            width: parseInt(target.style.width), height: parseInt(target.style.height),
+          });
+        } finally {
+          document.body.removeChild(wrapper);
+        }
+      };
+
+      if (isDuplo) {
+        const halfH = pdfH / 2;
+        for (let i = 0; i < validProducts.length; i += 2) {
+          const el1 = document.getElementById(`batch-poster-${i}`);
+          if (i > 0) pdf.addPage();
+          if (el1) {
+            const canvas1 = await capturePoster(el1);
+            pdf.addImage(canvas1.toDataURL("image/png"), "PNG", 0, 0, pdfW, halfH);
+          }
+          if (i + 1 < validProducts.length) {
+            const el2 = document.getElementById(`batch-poster-${i + 1}`);
+            if (el2) {
+              const canvas2 = await capturePoster(el2);
+              pdf.addImage(canvas2.toDataURL("image/png"), "PNG", 0, halfH, pdfW, halfH);
+            }
+          }
+        }
+      } else {
+        for (let i = 0; i < validProducts.length; i++) {
+          const el = document.getElementById(`batch-poster-${i}`);
+          if (!el) continue;
+          const canvas = await capturePoster(el);
+          if (i > 0) pdf.addPage();
+          pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pdfW, pdfH);
+        }
+      }
+
+      const pdfBlob = pdf.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      const printFrame = document.createElement('iframe');
+      printFrame.style.position = 'fixed';
+      printFrame.style.top = '-10000px';
+      printFrame.style.left = '-10000px';
+      printFrame.style.width = '1px';
+      printFrame.style.height = '1px';
+      printFrame.src = pdfUrl;
+      document.body.appendChild(printFrame);
+      printFrame.onload = () => {
+        setTimeout(() => {
+          printFrame.contentWindow?.print();
+          setTimeout(() => {
+            document.body.removeChild(printFrame);
+            URL.revokeObjectURL(pdfUrl);
+          }, 1000);
+        }, 500);
+      };
+      toast({ title: "Enviando para impressora...", description: `${validProducts.length} cartazes – ${paperSize}.` });
+    } catch {
+      toast({ title: "Erro ao imprimir", variant: "destructive" });
+    }
+    setExporting(false);
+  };
+
   // Preview data for step 1
   const previewData: PosterData = {
     ...DEFAULT_POSTER_DATA,
@@ -334,10 +434,16 @@ export default function BatchPage() {
               </Button>
             )}
             {step === "preview" && validProducts.length > 0 && (
-              <Button size="sm" onClick={exportAllPDF} disabled={exporting} className="gap-1.5">
-                {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                Exportar PDF ({validProducts.length})
-              </Button>
+              <>
+                <Button size="sm" onClick={exportAllPDF} disabled={exporting} className="gap-1.5">
+                  {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                  Exportar PDF ({validProducts.length})
+                </Button>
+                <Button size="sm" variant="outline" onClick={printAll} disabled={exporting} className="gap-1.5">
+                  {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
+                  Imprimir ({validProducts.length})
+                </Button>
+              </>
             )}
           </div>
         </div>
