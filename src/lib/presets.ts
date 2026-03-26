@@ -1,4 +1,5 @@
 import type { PosterStyle } from "@/components/poster/PosterPreview";
+import type { PosterData } from "@/lib/templates";
 
 export interface PosterPreset {
   id: string;
@@ -7,6 +8,7 @@ export interface PosterPreset {
   paperSize: string;
   style: PosterStyle;
   backgroundImage?: string;
+  posterData?: PosterData;
   createdAt: number;
 }
 
