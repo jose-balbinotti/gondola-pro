@@ -138,6 +138,22 @@
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html, body {
+    width: 21cm !important;
+    height: 29.7cm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
   /* Hide everything except the poster */
   body * {
     visibility: hidden !important;
@@ -147,24 +163,25 @@
   [data-print-poster],
   [data-print-poster] * {
     visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 
   [data-print-poster] {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
-    width: 100vw !important;
-    height: auto !important;
-    max-height: 100vh !important;
+    width: 21cm !important;
+    height: 29.7cm !important;
     margin: 0 !important;
-    padding: 6px !important;
+    padding: 0.5cm !important;
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    /* Keep the original aspect-ratio from the class */
-  }
-
-  @page {
-    margin: 0;
+    transform: none !important;
+    transform-origin: top left !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
   }
 }
