@@ -228,7 +228,7 @@ export default function EditorPage() {
                 <ImageIcon className="w-4 h-4" /> Fundo Personalizado
               </h3>
               <div className="flex gap-2">
-                <input ref={bgFileRef} type="file" accept="image/*" onChange={handleBgUpload} className="hidden" />
+                <input ref={bgFileRef} type="file" accept="image/*,application/pdf" onChange={handleBgUpload} className="hidden" />
                 <Button variant="outline" size="sm" onClick={() => bgFileRef.current?.click()} className="gap-1.5">
                   <Upload className="w-3.5 h-3.5" /> Importar Fundo
                 </Button>
