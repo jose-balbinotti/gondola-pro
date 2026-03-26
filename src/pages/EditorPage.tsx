@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -6,12 +6,12 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { TEMPLATES, DEFAULT_POSTER_DATA, type PosterData } from "@/lib/templates";
-import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode, Type, Move, Save, FolderOpen, Upload, Trash2, Image as ImageIcon, Printer, BookOpen, Edit } from "lucide-react";
+import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode, Type, Move, Save, FolderOpen, Upload, Trash2, Image as ImageIcon, Printer, BookOpen, Edit, FileDown, FileUp } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
 import PosterPreview, { DEFAULT_POSTER_STYLE, FONT_OPTIONS, type PosterStyle } from "@/components/poster/PosterPreview";
-import { loadPresets, savePreset, deletePreset, type PosterPreset } from "@/lib/presets";
+import { loadPresets, savePresetToDB, deletePresetFromDB, loadPresetsFromDB, exportPresetsToJSON, importPresetsFromJSON, type PosterPreset } from "@/lib/presets";
 
 const PAPER_SIZES = [
   { value: "A4", label: "A4 (210×297mm)" },
@@ -48,6 +48,11 @@ export default function EditorPage() {
   const [bgBaseOnly, setBgBaseOnly] = useState(false);
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<PosterPreset[]>(() => loadPresets());
+
+  // Load presets from DB on mount
+  useEffect(() => {
+    loadPresetsFromDB().then(setPresets);
+  }, []);
 
   const update = useCallback((field: keyof PosterData, value: string) => {
     setData((prev) => ({ ...prev, [field]: value }));
@@ -241,12 +246,12 @@ export default function EditorPage() {
     e.target.value = "";
   };
 
-  const handleSavePreset = () => {
+  const handleSavePreset = async () => {
     if (!presetName.trim()) {
       toast({ title: "Digite um nome para o preset", variant: "destructive" });
       return;
     }
-    const result = savePreset({
+    const result = await savePresetToDB({
       name: presetName.trim(),
       templateId: template.id,
       paperSize,
@@ -255,11 +260,12 @@ export default function EditorPage() {
       posterData: { ...data },
     });
     if (result) {
-      setPresets(loadPresets());
+      const updated = await loadPresetsFromDB();
+      setPresets(updated);
       setPresetName("");
       toast({ title: `Preset "${result.name}" salvo!` });
     } else {
-      toast({ title: "Limite de 20 presets atingido", variant: "destructive" });
+      toast({ title: "Limite de presets atingido", variant: "destructive" });
     }
   };
 
@@ -271,10 +277,41 @@ export default function EditorPage() {
     toast({ title: `Preset "${preset.name}" carregado!` });
   };
 
-  const handleDeletePreset = (id: string) => {
-    deletePreset(id);
-    setPresets(loadPresets());
+  const handleDeletePreset = async (id: string) => {
+    await deletePresetFromDB(id);
+    const updated = await loadPresetsFromDB();
+    setPresets(updated);
     toast({ title: "Preset removido" });
+  };
+
+  const handleExportPresets = () => {
+    if (presets.length === 0) {
+      toast({ title: "Nenhum preset para exportar", variant: "destructive" });
+      return;
+    }
+    exportPresetsToJSON(presets);
+    toast({ title: `${presets.length} presets exportados!` });
+  };
+
+  const importFileRef = useRef<HTMLInputElement>(null);
+
+  const handleImportPresets = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const updated = await importPresetsFromJSON(file);
+      setPresets(updated);
+      // Sync imported to DB
+      for (const p of updated) {
+        await savePresetToDB({ name: p.name, templateId: p.templateId, paperSize: p.paperSize, style: p.style, backgroundImage: p.backgroundImage, posterData: p.posterData });
+      }
+      const fromDB = await loadPresetsFromDB();
+      setPresets(fromDB);
+      toast({ title: "Presets importados com sucesso!" });
+    } catch {
+      toast({ title: "Erro ao importar arquivo", variant: "destructive" });
+    }
+    e.target.value = "";
   };
 
   const qrUrl = data.whatsappNumber
@@ -606,6 +643,17 @@ export default function EditorPage() {
 
           {/* TAB: Cartazes Salvos */}
           <TabsContent value="saved">
+            {/* Export / Import toolbar */}
+            <div className="flex gap-2 mb-4">
+              <Button variant="outline" size="sm" onClick={handleExportPresets} className="gap-1.5">
+                <FileDown className="w-4 h-4" /> Exportar JSON
+              </Button>
+              <input ref={importFileRef} type="file" accept=".json" onChange={handleImportPresets} className="hidden" />
+              <Button variant="outline" size="sm" onClick={() => importFileRef.current?.click()} className="gap-1.5">
+                <FileUp className="w-4 h-4" /> Importar JSON
+              </Button>
+            </div>
+
             {presets.length === 0 ? (
               <div className="text-center py-16">
                 <BookOpen className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" />

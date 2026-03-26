@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -11,7 +11,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
-import { loadPresets, savePreset, deletePreset, type PosterPreset } from "@/lib/presets";
+import { loadPresets, savePresetToDB, deletePresetFromDB, loadPresetsFromDB, type PosterPreset } from "@/lib/presets";
 
 const PDF_FORMATS: Record<string, [number, number]> = {
   A4: [210, 297],
@@ -64,6 +64,10 @@ export default function BatchPage() {
   const [bgBaseOnly, setBgBaseOnly] = useState(false);
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<PosterPreset[]>(() => loadPresets());
+
+  useEffect(() => {
+    loadPresetsFromDB().then(setPresets);
+  }, []);
 
   const [products, setProducts] = useState<PosterData[]>([emptyProduct()]);
   const [textInput, setTextInput] = useState("");
@@ -166,12 +170,12 @@ export default function BatchPage() {
     e.target.value = "";
   };
 
-  const handleSavePreset = () => {
+  const handleSavePreset = async () => {
     if (!presetName.trim()) {
       toast({ title: "Digite um nome para o preset", variant: "destructive" });
       return;
     }
-    const result = savePreset({
+    const result = await savePresetToDB({
       name: presetName.trim(),
       templateId: selectedTemplate,
       paperSize,
@@ -179,11 +183,12 @@ export default function BatchPage() {
       backgroundImage: customBackground || undefined,
     });
     if (result) {
-      setPresets(loadPresets());
+      const updated = await loadPresetsFromDB();
+      setPresets(updated);
       setPresetName("");
       toast({ title: `Preset "${result.name}" salvo!` });
     } else {
-      toast({ title: "Limite de 20 presets atingido", variant: "destructive" });
+      toast({ title: "Limite de presets atingido", variant: "destructive" });
     }
   };
 
@@ -195,9 +200,10 @@ export default function BatchPage() {
     toast({ title: `Preset "${preset.name}" carregado!` });
   };
 
-  const handleDeletePreset = (id: string) => {
-    deletePreset(id);
-    setPresets(loadPresets());
+  const handleDeletePreset = async (id: string) => {
+    await deletePresetFromDB(id);
+    const updated = await loadPresetsFromDB();
+    setPresets(updated);
     toast({ title: "Preset removido" });
   };
 
