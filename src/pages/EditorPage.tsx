@@ -423,6 +423,12 @@ export default function EditorPage() {
                           <Switch checked={posterStyle.unitBelowCents} onCheckedChange={(v) => updateStyle("unitBelowCents", v)} />
                           Abaixo dos centavos
                         </label>
+                        {posterStyle.unitBelowCents && (
+                          <div className="mt-2">
+                            <label className="text-xs text-muted-foreground">Unidade eixo Y ({posterStyle.unitOffsetY})</label>
+                            <Slider min={-100} max={100} step={1} value={[posterStyle.unitOffsetY]} onValueChange={([v]) => updateStyle("unitOffsetY", v)} />
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
