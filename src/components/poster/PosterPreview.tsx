@@ -278,19 +278,26 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               flexDirection: 'column',
               alignItems: 'center',
               alignSelf: style.centsAlignTop ? 'flex-start' : 'flex-end',
+              maxHeight: style.unitBelowCents ? `${style.priceFontSize}px` : undefined,
+              justifyContent: 'space-between',
+              overflow: 'visible',
             }}>
               <span className="font-black" style={{
                 fontSize: `${style.centsFontSize}px`,
+                lineHeight: 1,
                 borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
-                paddingBottom: style.centsUnderline ? '2px' : '0',
+                paddingBottom: style.centsUnderline ? '1px' : '0',
               }}>
                 {centavos}
               </span>
               {data.unit && style.unitBelowCents && (
-                <span className="text-xs opacity-70" style={{
+                <span style={{
                   color: template.textColor,
+                  opacity: 0.7,
+                  fontSize: `${Math.max(style.centsFontSize * 0.45, 8)}px`,
+                  lineHeight: 1,
                   transform: `translateX(${style.unitOffsetX}px)`,
-                  marginTop: '2px',
+                  marginTop: '1px',
                 }}>/{data.unit}</span>
               )}
             </span>
