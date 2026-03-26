@@ -58,6 +58,10 @@ export interface PosterStyle {
   gramaturaLines: boolean;
   unitBelowCents: boolean;
   descriptionOffsetY: number;
+  centsUnderlineOffsetY: number;
+  gramaturaLinesOffsetY: number;
+  unitOffsetY: number;
+  centsOffsetY: number;
 }
 
 export const DEFAULT_POSTER_STYLE: PosterStyle = {
@@ -89,6 +93,10 @@ export const DEFAULT_POSTER_STYLE: PosterStyle = {
   gramaturaLines: false,
   unitBelowCents: false,
   descriptionOffsetY: 0,
+  centsUnderlineOffsetY: 0,
+  gramaturaLinesOffsetY: 0,
+  unitOffsetY: 0,
+  centsOffsetY: 0,
 };
 
 interface Props {
