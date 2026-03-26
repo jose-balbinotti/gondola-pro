@@ -383,6 +383,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                   justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
                   alignSelf: style.centsAlignTop ? 'flex-start' : 'stretch',
                   lineHeight: 1,
+                  transform: `translateY(${style.centsOffsetY}px)`,
                 }}>
                   <span style={{
                     fontWeight: 900,
