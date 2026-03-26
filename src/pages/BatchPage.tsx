@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -11,7 +11,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
-import { loadPresets, savePreset, deletePreset, type PosterPreset } from "@/lib/presets";
+import { loadPresets, savePresetToDB, deletePresetFromDB, loadPresetsFromDB, type PosterPreset } from "@/lib/presets";
 
 const PDF_FORMATS: Record<string, [number, number]> = {
   A4: [210, 297],
