@@ -56,6 +56,8 @@ export interface PosterStyle {
   centsAlignTop: boolean;
   centsUnderline: boolean;
   gramaturaLines: boolean;
+  unitBelowCents: boolean;
+  descriptionOffsetY: number;
 }
 
 export const DEFAULT_POSTER_STYLE: PosterStyle = {
@@ -85,6 +87,8 @@ export const DEFAULT_POSTER_STYLE: PosterStyle = {
   centsAlignTop: false,
   centsUnderline: false,
   gramaturaLines: false,
+  unitBelowCents: false,
+  descriptionOffsetY: 0,
 };
 
 interface Props {
@@ -233,7 +237,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             fontSize: `${style.descriptionFontSize}px`,
             fontFamily: descFont,
             textShadow: smsShadow(dFont, sDesc),
-            transform: smsSkew(dFont),
+            transform: `translateY(${style.descriptionOffsetY}px) ${smsSkew(dFont) || ''}`,
           }}>
             {data.description}
           </div>
@@ -265,26 +269,29 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             <span className="font-black" style={{ fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>
               {reais}
             </span>
-            <span className="font-black" style={{
-              fontSize: `${style.centsFontSize}px`,
-              borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
-              paddingBottom: style.centsUnderline ? '2px' : '0',
-            }}>
-              ,{centavos}
+            <span className="font-black" style={{ fontSize: `${style.centsFontSize}px` }}>
+              ,
+            </span>
+            <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span className="font-black" style={{
+                fontSize: `${style.centsFontSize}px`,
+                borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
+                paddingBottom: style.centsUnderline ? '2px' : '0',
+              }}>
+                {centavos}
+              </span>
+              {data.unit && style.unitBelowCents && (
+                <span className="text-xs opacity-70" style={{
+                  color: template.textColor,
+                  transform: `translateX(${style.unitOffsetX}px)`,
+                  marginTop: '2px',
+                }}>/{data.unit}</span>
+              )}
             </span>
           </div>
-          {/* Unit - below underline when centsUnderline is active */}
-          {data.unit && !style.centsUnderline && (
+          {/* Unit - default position when not below cents */}
+          {data.unit && !style.unitBelowCents && (
             <span className="text-xs mt-1 opacity-70" style={{ color: template.textColor, transform: `translateX(${style.unitOffsetX}px)`, display: 'inline-block' }}>/{data.unit}</span>
-          )}
-          {data.unit && style.centsUnderline && (
-            <span className="text-xs opacity-70" style={{
-              color: template.textColor,
-              transform: `translateX(${style.unitOffsetX}px)`,
-              display: 'inline-block',
-              alignSelf: 'flex-end',
-              marginTop: '0px',
-            }}>/{data.unit}</span>
           )}
         </div>
 
