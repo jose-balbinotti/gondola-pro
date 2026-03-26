@@ -101,18 +101,19 @@ interface Props {
   customBackground?: string;
 }
 
-const ASPECT_RATIOS: Record<string, string> = {
-  A4: "aspect-[210/297]",
-  A5: "aspect-[148/210]",
-  A3: "aspect-[297/420]",
-  gondola: "aspect-[4/1]",
-  "10x15": "aspect-[10/15]",
-  custom: "aspect-[3/4]",
+const ASPECT_RATIOS: Record<string, number> = {
+  A4: 210 / 297,
+  A5: 148 / 210,
+  A3: 297 / 420,
+  gondola: 4 / 1,
+  "10x15": 10 / 15,
+  custom: 3 / 4,
 };
 
 function splitPrice(price: string): { reais: string; centavos: string } {
-  if (!price) return { reais: "0", centavos: "00" };
+  if (!price) return { reais: "", centavos: "" };
   const clean = price.replace("R$", "").trim();
+  if (!clean) return { reais: "", centavos: "" };
   const parts = clean.split(/[,\.]/);
   return { reais: parts[0] || "0", centavos: parts[1] || "00" };
 }
@@ -124,8 +125,9 @@ function resolveSMS(font: string) { return isSMS(font) ? SUPER_MARKET_SLANT_FONT
 
 const PosterPreview = forwardRef<HTMLDivElement, Props>(
   ({ template, data, showQR, qrUrl, style, paperSize, customBackground }, ref) => {
-    const aspect = ASPECT_RATIOS[paperSize] || ASPECT_RATIOS[template.size] || "aspect-[3/4]";
+    const ratio = ASPECT_RATIOS[paperSize] || ASPECT_RATIOS[template.size] || 3 / 4;
     const { reais, centavos } = splitPrice(data.newPrice);
+    const hasPrice = !!(reais || centavos);
 
     const SHADOW = "3px 3px 6px rgba(0,0,0,0.7), 1px 1px 2px rgba(0,0,0,0.9)";
     const sProd = style.shadowProduct ? SHADOW : "none";
@@ -140,9 +142,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
     const priceFont = resolveSMS(pFont);
     const descFont = resolveSMS(dFont);
 
-    // Super Market Slant skew style per field
     const smsSkew = (font: string) => isSMS(font) ? "skewX(-12deg)" : undefined;
-    const smsShadow = (font: string, baseShadow: string) => baseShadow;
 
     const bgImage = customBackground || template.backgroundImage;
     const hasBgImage = !!bgImage;
@@ -151,15 +151,30 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
       <div
         ref={ref}
         data-print-poster
-        className={`relative ${aspect} w-full flex flex-col items-center justify-center text-center p-6`}
         style={{
+          position: 'relative',
+          width: '100%',
+          aspectRatio: `${ratio}`,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          padding: '24px',
           background: hasBgImage ? `url(${bgImage}) center/cover no-repeat` : template.bgColor,
           fontFamily: mainFont,
+          boxSizing: 'border-box',
+          overflow: 'hidden',
         }}
       >
         {/* Diagonal accent */}
         {template.layout === "diagonal" && (
-          <div className="absolute top-0 right-0 w-0 h-0" style={{
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: 0,
+            height: 0,
             borderLeft: "120px solid transparent",
             borderTop: `120px solid ${template.accentColor}`,
           }} />
@@ -167,77 +182,101 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
 
         {/* Header tag */}
         {style.showPromoLabel && (
-          <div className="text-xs font-bold uppercase tracking-[0.2em] mb-2" style={{ color: template.accentColor }}>
+          <div style={{
+            fontSize: '12px',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.2em',
+            marginBottom: '8px',
+            color: template.accentColor,
+          }}>
             ★ {style.promoText || (template.category === 'leve-pague' ? `Leve ${data.quantity || '3'}` : 'Promoção')} ★
           </div>
         )}
 
         {/* Product Name */}
-        <div
-          className="font-black leading-tight px-2"
-          style={{
+        {data.productName && (
+          <div style={{
+            fontWeight: 900,
+            lineHeight: 1.1,
+            padding: '0 8px',
             color: template.textColor,
             fontSize: `${style.productFontSize}px`,
             transform: `translateY(${style.productOffsetY}px) ${smsSkew(style.fontFamily) || ''}`,
-            textShadow: smsShadow(style.fontFamily, sProd),
-          }}
-        >
-          {data.productName || ""}
-        </div>
+            textShadow: sProd,
+          }}>
+            {data.productName}
+          </div>
+        )}
 
         {/* Brand */}
-        <div
-          className="font-semibold leading-tight px-2"
-          style={{
+        {data.brandName && (
+          <div style={{
+            fontWeight: 600,
+            lineHeight: 1.1,
+            padding: '0 8px',
             color: template.textColor,
             fontSize: `${style.brandFontSize}px`,
             transform: `translateY(${style.brandOffsetY}px) ${smsSkew(style.fontFamily) || ''}`,
             opacity: 0.85,
-            textShadow: smsShadow(style.fontFamily, sBrand),
-          }}
-        >
-          {data.brandName || ""}
-        </div>
+            textShadow: sBrand,
+          }}>
+            {data.brandName}
+          </div>
+        )}
 
         {/* Gramatura with optional lines */}
-        <div
-          className="font-medium leading-tight px-2 mb-2 flex items-center justify-center w-full"
-          style={{
+        {(data.gramatura || style.gramaturaLines) && (
+          <div style={{
+            fontWeight: 500,
+            lineHeight: 1.1,
+            padding: '0 8px',
+            marginBottom: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
             color: template.textColor,
             fontSize: `${style.gramaturaFontSize}px`,
             transform: `translateY(${style.gramaturaOffsetY}px) ${smsSkew(style.fontFamily) || ''}`,
             opacity: 0.7,
-            textShadow: smsShadow(style.fontFamily, sGram),
-          }}
-        >
-          {style.gramaturaLines && (
-            <span style={{
-              flex: '0 0 33%',
-              height: '2px',
-              background: template.textColor,
-              opacity: 0.5,
-              marginRight: '8px',
-            }} />
-          )}
-          <span className="whitespace-nowrap">{data.gramatura || ""}</span>
-          {style.gramaturaLines && (
-            <span style={{
-              flex: '0 0 33%',
-              height: '2px',
-              background: template.textColor,
-              opacity: 0.5,
-              marginLeft: '8px',
-            }} />
-          )}
-        </div>
+            textShadow: sGram,
+          }}>
+            {style.gramaturaLines && (
+              <span style={{
+                flex: '0 0 33%',
+                height: '2px',
+                background: template.textColor,
+                opacity: 0.5,
+                marginRight: '8px',
+                display: 'block',
+              }} />
+            )}
+            {data.gramatura && (
+              <span style={{ whiteSpace: 'nowrap' }}>{data.gramatura}</span>
+            )}
+            {style.gramaturaLines && (
+              <span style={{
+                flex: '0 0 33%',
+                height: '2px',
+                background: template.textColor,
+                opacity: 0.5,
+                marginLeft: '8px',
+                display: 'block',
+              }} />
+            )}
+          </div>
+        )}
 
         {/* Description */}
         {data.description && (
-          <div className="mb-2 opacity-80" style={{
+          <div style={{
+            marginBottom: '8px',
+            opacity: 0.8,
             color: template.textColor,
             fontSize: `${style.descriptionFontSize}px`,
             fontFamily: descFont,
-            textShadow: smsShadow(dFont, sDesc),
+            textShadow: sDesc,
             transform: `translateY(${style.descriptionOffsetY}px) ${smsSkew(dFont) || ''}`,
           }}>
             {data.description}
@@ -245,90 +284,134 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
         )}
 
         {/* Price section */}
-        <div
-          className="flex flex-col items-center"
-          style={{ transform: `translateY(${style.priceOffsetY}px)` }}
-        >
-          <div className="flex items-center justify-center gap-3 mb-1">
-            {data.oldPrice && (
-              <span className="text-base line-through opacity-60" style={{ color: template.textColor }}>
-                {!style.hideCurrencySymbol && 'R$ '}{data.oldPrice}
-              </span>
-            )}
-          </div>
-          {/* Split price: R$ reais , centavos */}
-          <div className="flex" style={{
-            color: template.priceColor,
-            fontFamily: priceFont,
-            textShadow: smsShadow(pFont, sPrice),
-            transform: smsSkew(pFont),
-            alignItems: 'flex-end',
+        {hasPrice && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            transform: `translateY(${style.priceOffsetY}px)`,
           }}>
-            {!style.hideCurrencySymbol && (
-              <span className="font-black" style={{ fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>R$</span>
-            )}
-            <span className="font-black" style={{ fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>
-              {reais}
-            </span>
-            <span className="font-black" style={{ fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>
-              ,
-            </span>
-            <span style={{
-              position: 'relative',
-              display: 'inline-flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: style.unitBelowCents ? 'space-between' : 'flex-end',
-              alignSelf: style.centsAlignTop ? 'flex-start' : 'flex-end',
-              height: style.unitBelowCents ? `${style.priceFontSize}px` : 'auto',
-              lineHeight: 1,
-            }}>
-              <span className="font-black" style={{
-                fontSize: `${style.centsFontSize}px`,
-                lineHeight: 1,
-                borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
-                paddingBottom: style.centsUnderline ? '1px' : '0',
+            {data.oldPrice && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px',
+                marginBottom: '4px',
               }}>
-                {centavos}
-              </span>
-              {data.unit && style.unitBelowCents && (
                 <span style={{
-                  position: 'absolute',
-                  left: `calc(50% + ${style.unitOffsetX}px)`,
-                  bottom: 0,
-                  transform: 'translateX(-50%)',
+                  fontSize: '16px',
+                  textDecoration: 'line-through',
+                  opacity: 0.6,
                   color: template.textColor,
-                  opacity: 0.7,
-                  fontSize: `${Math.max(Math.min(style.centsFontSize * 0.38, style.priceFontSize * 0.2), 8)}px`,
-                  lineHeight: 1,
-                  whiteSpace: 'nowrap',
-                }}>/{data.unit}</span>
+                }}>
+                  {!style.hideCurrencySymbol && 'R$ '}{data.oldPrice}
+                </span>
+              </div>
+            )}
+
+            {/* Split price */}
+            <div style={{
+              display: 'flex',
+              color: template.priceColor,
+              fontFamily: priceFont,
+              textShadow: sPrice,
+              transform: smsSkew(pFont),
+              alignItems: 'flex-end',
+            }}>
+              {!style.hideCurrencySymbol && (
+                <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>R$</span>
               )}
-            </span>
+              <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>
+                {reais}
+              </span>
+              <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>
+                ,
+              </span>
+              <span style={{
+                position: 'relative',
+                display: 'inline-flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                alignSelf: style.centsAlignTop ? 'flex-start' : 'flex-end',
+                lineHeight: 1,
+              }}>
+                <span style={{
+                  fontWeight: 900,
+                  fontSize: `${style.centsFontSize}px`,
+                  lineHeight: 1,
+                  borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
+                  paddingBottom: style.centsUnderline ? '1px' : '0',
+                }}>
+                  {centavos}
+                </span>
+                {data.unit && style.unitBelowCents && (
+                  <span style={{
+                    color: template.textColor,
+                    opacity: 0.7,
+                    fontSize: `${Math.max(Math.min(style.centsFontSize * 0.45, style.priceFontSize * 0.22), 9)}px`,
+                    lineHeight: 1,
+                    whiteSpace: 'nowrap',
+                    marginTop: '2px',
+                    transform: `translateX(${style.unitOffsetX}px)`,
+                  }}>{data.unit}</span>
+                )}
+              </span>
+            </div>
+
+            {/* Unit - default position */}
+            {data.unit && !style.unitBelowCents && (
+              <span style={{
+                fontSize: '12px',
+                marginTop: '4px',
+                opacity: 0.7,
+                color: template.textColor,
+                transform: `translateX(${style.unitOffsetX}px)`,
+                display: 'inline-block',
+              }}>{data.unit}</span>
+            )}
           </div>
-          {/* Unit - default position when not below cents */}
-          {data.unit && !style.unitBelowCents && (
-            <span className="text-xs mt-1 opacity-70" style={{ color: template.textColor, transform: `translateX(${style.unitOffsetX}px)`, display: 'inline-block' }}>/{data.unit}</span>
-          )}
-        </div>
+        )}
 
         {/* Discount badge */}
         {data.discount && (
-          <div className="inline-block mt-3 px-4 py-1.5 rounded-full text-sm font-black" style={{ background: template.accentColor, color: template.bgColor }}>
+          <div style={{
+            display: 'inline-block',
+            marginTop: '12px',
+            padding: '6px 16px',
+            borderRadius: '9999px',
+            fontSize: '14px',
+            fontWeight: 900,
+            background: template.accentColor,
+            color: template.bgColor,
+          }}>
             {data.discount}% OFF
           </div>
         )}
 
         {/* Validity */}
         {data.validity && (
-          <div className="text-[10px] mt-3 opacity-60 font-mono" style={{ color: template.textColor, transform: `translateY(${style.validityOffsetY}px)` }}>
+          <div style={{
+            fontSize: '10px',
+            marginTop: '12px',
+            opacity: 0.6,
+            fontFamily: "'JetBrains Mono', monospace",
+            color: template.textColor,
+            transform: `translateY(${style.validityOffsetY}px)`,
+          }}>
             Válido até {data.validity}
           </div>
         )}
 
         {/* QR Code */}
         {showQR && qrUrl && (
-          <div className="mt-3 p-1.5 bg-background rounded inline-block">
+          <div style={{
+            marginTop: '12px',
+            padding: '6px',
+            background: '#ffffff',
+            borderRadius: '4px',
+            display: 'inline-block',
+          }}>
             <QRCodeSVG value={qrUrl} size={56} />
           </div>
         )}
