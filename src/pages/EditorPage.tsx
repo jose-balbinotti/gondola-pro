@@ -505,10 +505,6 @@ export default function EditorPage() {
                     <SliderField label={`Descrição Y – ${posterStyle.descriptionOffsetY}px`} value={posterStyle.descriptionOffsetY} min={-200} max={200} onChange={(v) => updateStyle("descriptionOffsetY", v)} />
                     <SliderField label={`Validade Y – ${posterStyle.validityOffsetY}px`} value={posterStyle.validityOffsetY} min={-200} max={200} onChange={(v) => updateStyle("validityOffsetY", v)} />
                     <SliderField label={`Unidade X – ${posterStyle.unitOffsetX}px`} value={posterStyle.unitOffsetX} min={-200} max={200} onChange={(v) => updateStyle("unitOffsetX", v)} />
-                    <SliderField label={`Unidade Y – ${posterStyle.unitOffsetY}px`} value={posterStyle.unitOffsetY} min={-200} max={200} onChange={(v) => updateStyle("unitOffsetY", v)} />
-                    <SliderField label={`Centavos Y – ${posterStyle.centsOffsetY}px`} value={posterStyle.centsOffsetY} min={-200} max={200} onChange={(v) => updateStyle("centsOffsetY", v)} />
-                    <SliderField label={`Traço Centavos Y – ${posterStyle.centsUnderlineOffsetY}px`} value={posterStyle.centsUnderlineOffsetY} min={-200} max={200} onChange={(v) => updateStyle("centsUnderlineOffsetY", v)} />
-                    <SliderField label={`Traços Gramatura Y – ${posterStyle.gramaturaLinesOffsetY}px`} value={posterStyle.gramaturaLinesOffsetY} min={-200} max={200} onChange={(v) => updateStyle("gramaturaLinesOffsetY", v)} />
                   </div>
                 </div>
 

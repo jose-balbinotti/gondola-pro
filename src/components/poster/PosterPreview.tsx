@@ -296,7 +296,6 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                   opacity: 0.5,
                   marginRight: '8px',
                   flexShrink: 0,
-                  transform: `translateY(${style.gramaturaLinesOffsetY}px)`,
                 }} />
               )}
               {data.gramatura && (
@@ -310,7 +309,6 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                   opacity: 0.5,
                   marginLeft: '8px',
                   flexShrink: 0,
-                  transform: `translateY(${style.gramaturaLinesOffsetY}px)`,
                 }} />
               )}
             </div>
@@ -382,9 +380,8 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
-                  alignSelf: 'stretch',
+                  alignSelf: style.centsAlignTop ? 'flex-start' : 'stretch',
                   lineHeight: 1,
-                  transform: `translateY(${style.centsOffsetY}px)`,
                 }}>
                   <span style={{
                     fontWeight: 900,
@@ -392,7 +389,6 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                     lineHeight: 1,
                     borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
                     paddingBottom: style.centsUnderline ? '1px' : '0',
-                    transform: style.centsUnderline ? `translateY(${style.centsUnderlineOffsetY}px)` : undefined,
                   }}>
                     {centavos}
                   </span>
@@ -400,11 +396,11 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                     <span style={{
                       color: template.textColor,
                       opacity: 0.7,
-                      fontSize: `${Math.max(Math.min(style.centsFontSize * 0.45, style.priceFontSize * 0.22), 9)}px`,
+                      fontSize: `${Math.round(style.centsFontSize * 0.5)}px`,
                       lineHeight: 1,
                       whiteSpace: 'nowrap',
-                      marginTop: '2px',
-                      transform: `translateX(${style.unitOffsetX}px) translateY(${style.unitOffsetY}px)`,
+                      marginTop: `${Math.round(style.centsFontSize * 0.08)}px`,
+                      transform: `translateX(${style.unitOffsetX}px)`,
                     }}>{data.unit}</span>
                   )}
                 </span>
@@ -417,7 +413,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                   marginTop: '4px',
                   opacity: 0.7,
                   color: template.textColor,
-                  transform: `translateX(${style.unitOffsetX}px) translateY(${style.unitOffsetY}px)`,
+                  transform: `translateX(${style.unitOffsetX}px)`,
                   display: 'inline-block',
                 }}>{data.unit}</span>
               )}
