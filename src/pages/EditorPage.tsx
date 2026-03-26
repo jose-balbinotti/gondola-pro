@@ -91,6 +91,52 @@ export default function EditorPage() {
     }
   };
 
+  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setCustomBackground(ev.target?.result as string);
+      toast({ title: "Imagem de fundo carregada!" });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleSavePreset = () => {
+    if (!presetName.trim()) {
+      toast({ title: "Digite um nome para o preset", variant: "destructive" });
+      return;
+    }
+    const result = savePreset({
+      name: presetName.trim(),
+      templateId: template.id,
+      paperSize,
+      style: posterStyle,
+      backgroundImage: customBackground || undefined,
+    });
+    if (result) {
+      setPresets(loadPresets());
+      setPresetName("");
+      toast({ title: `Preset "${result.name}" salvo!` });
+    } else {
+      toast({ title: "Limite de 20 presets atingido", variant: "destructive" });
+    }
+  };
+
+  const handleLoadPreset = (preset: PosterPreset) => {
+    setPosterStyle(preset.style);
+    setPaperSize(preset.paperSize);
+    if (preset.backgroundImage) setCustomBackground(preset.backgroundImage);
+    toast({ title: `Preset "${preset.name}" carregado!` });
+  };
+
+  const handleDeletePreset = (id: string) => {
+    deletePreset(id);
+    setPresets(loadPresets());
+    toast({ title: "Preset removido" });
+  };
+
   const qrUrl = data.whatsappNumber
     ? `https://wa.me/55${data.whatsappNumber.replace(/\D/g, "")}`
     : "";
