@@ -14,7 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      poster_presets: {
+        Row: {
+          background_image: string | null
+          created_at: string
+          device_id: string
+          id: string
+          name: string
+          paper_size: string
+          poster_data: Json | null
+          style: Json
+          template_id: string
+        }
+        Insert: {
+          background_image?: string | null
+          created_at?: string
+          device_id: string
+          id?: string
+          name: string
+          paper_size?: string
+          poster_data?: Json | null
+          style?: Json
+          template_id: string
+        }
+        Update: {
+          background_image?: string | null
+          created_at?: string
+          device_id?: string
+          id?: string
+          name?: string
+          paper_size?: string
+          poster_data?: Json | null
+          style?: Json
+          template_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
