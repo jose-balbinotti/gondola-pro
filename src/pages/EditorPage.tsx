@@ -70,13 +70,13 @@ export default function EditorPage() {
     }
   };
 
-  const capturePosterCanvas = async () => {
+  const capturePosterCanvas = async (scale = 4) => {
     if (!posterRef.current) return null;
 
     stripBgForExport();
     try {
       return await html2canvas(posterRef.current, {
-        scale: 3,
+        scale,
         useCORS: true,
         backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null,
       });
@@ -85,15 +85,53 @@ export default function EditorPage() {
     }
   };
 
+  /** Clone poster DOM with all computed styles inlined for vectorized output */
+  const clonePosterWithStyles = (): HTMLElement | null => {
+    const el = posterRef.current;
+    if (!el) return null;
+
+    const deepClone = (source: HTMLElement): HTMLElement => {
+      const clone = source.cloneNode(false) as HTMLElement;
+      if (source.nodeType === Node.TEXT_NODE) return source.cloneNode(true) as HTMLElement;
+      if (source.nodeType !== Node.ELEMENT_NODE) return clone;
+
+      // Copy all computed styles as inline
+      const cs = window.getComputedStyle(source);
+      for (let i = 0; i < cs.length; i++) {
+        const prop = cs[i];
+        clone.style.setProperty(prop, cs.getPropertyValue(prop));
+      }
+
+      // Recurse children
+      source.childNodes.forEach((child) => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          clone.appendChild(child.cloneNode(true));
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          clone.appendChild(deepClone(child as HTMLElement));
+        }
+      });
+
+      return clone;
+    };
+
+    const cloned = deepClone(el);
+    // Strip bg if base only
+    if (bgBaseOnly && customBackground) {
+      cloned.style.backgroundImage = 'none';
+      cloned.style.backgroundColor = '#ffffff';
+    }
+    return cloned;
+  };
+
   const exportPNG = async () => {
     try {
-      const canvas = await capturePosterCanvas();
+      const canvas = await capturePosterCanvas(4);
       if (!canvas) return;
       const link = document.createElement("a");
       link.download = `cartaz-${data.productName || "gondolapro"}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
-      toast({ title: "PNG exportado!", description: "Seu cartaz foi salvo." });
+      toast({ title: "PNG exportado!", description: "Seu cartaz foi salvo em alta resolução." });
     } catch {
       toast({ title: "Erro ao exportar", variant: "destructive" });
     }
@@ -101,9 +139,9 @@ export default function EditorPage() {
 
   const exportPDF = async () => {
     try {
-      const canvas = await capturePosterCanvas();
+      const canvas = await capturePosterCanvas(4);
       if (!canvas) return;
-      const imgData = canvas.toDataURL("image/png");
+      const imgData = canvas.toDataURL("image/png", 1.0);
       const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
       const isLandscape = fmt[0] > fmt[1];
       const pdf = new jsPDF({
@@ -115,7 +153,7 @@ export default function EditorPage() {
       const pdfH = pdf.internal.pageSize.getHeight();
       pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
       pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
-      toast({ title: "PDF exportado!", description: `Formato ${paperSize} – 300dpi.` });
+      toast({ title: "PDF exportado!", description: `Formato ${paperSize} – alta resolução.` });
     } catch {
       toast({ title: "Erro ao exportar", variant: "destructive" });
     }
@@ -123,14 +161,28 @@ export default function EditorPage() {
 
   const handleDirectPrint = async () => {
     try {
-      const canvas = await capturePosterCanvas();
-      if (!canvas) return;
-
       const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
-      const orientation = fmt[0] > fmt[1] ? "landscape" : "portrait";
-      const imageData = canvas.toDataURL("image/png");
 
-      // Use hidden iframe for printing to avoid pop-up blockers
+      // Clone poster DOM with all styles inlined (vectorized)
+      const cloned = clonePosterWithStyles();
+      if (!cloned) {
+        toast({ title: "Erro ao preparar impressão", variant: "destructive" });
+        return;
+      }
+
+      // Set fixed dimensions on clone to match paper proportions
+      const widthMM = fmt[0];
+      const heightMM = fmt[1];
+      cloned.style.width = `${widthMM}mm`;
+      cloned.style.height = `${heightMM}mm`;
+      cloned.style.aspectRatio = 'auto';
+      cloned.style.position = 'relative';
+      cloned.style.margin = '0';
+      cloned.style.padding = cloned.style.padding || '24px';
+      cloned.style.boxSizing = 'border-box';
+      cloned.style.overflow = 'hidden';
+
+      // Remove iframe if exists
       let iframe = document.getElementById("print-iframe") as HTMLIFrameElement | null;
       if (iframe) iframe.remove();
 
@@ -139,8 +191,8 @@ export default function EditorPage() {
       iframe.style.position = "fixed";
       iframe.style.top = "-10000px";
       iframe.style.left = "-10000px";
-      iframe.style.width = "0";
-      iframe.style.height = "0";
+      iframe.style.width = `${widthMM + 10}mm`;
+      iframe.style.height = `${heightMM + 10}mm`;
       iframe.style.border = "none";
       document.body.appendChild(iframe);
 
@@ -150,32 +202,53 @@ export default function EditorPage() {
         return;
       }
 
+      // Build fonts import
+      const fontsLink = document.querySelector('link[href*="fonts.googleapis.com"]');
+      const fontsHref = fontsLink?.getAttribute('href') || '';
+
       iframeDoc.open();
-      iframeDoc.write(`<!doctype html><html><head><style>
-        @page { size: ${fmt[0]}mm ${fmt[1]}mm; margin: 0; }
-        html, body { margin:0; padding:0; width:100%; height:100%; background:white; }
-        img { width:100%; height:100%; object-fit:fill; display:block; }
-      </style></head><body><img src="${imageData}" /></body></html>`);
+      iframeDoc.write(`<!doctype html><html><head>
+        ${fontsHref ? `<link rel="stylesheet" href="${fontsHref}" />` : ''}
+        <style>
+          @page { size: ${widthMM}mm ${heightMM}mm; margin: 0; }
+          html, body { margin:0; padding:0; width:${widthMM}mm; height:${heightMM}mm; background:white; overflow:hidden; }
+        </style>
+      </head><body></body></html>`);
       iframeDoc.close();
 
-      // Wait for image to load then print
-      const img = iframeDoc.querySelector("img");
+      // Inject cloned DOM
+      iframeDoc.body.appendChild(cloned);
+
+      // Also copy any @font-face rules from the main document
+      for (const sheet of Array.from(document.styleSheets)) {
+        try {
+          for (const rule of Array.from(sheet.cssRules)) {
+            if (rule instanceof CSSFontFaceRule) {
+              const style = iframeDoc.createElement('style');
+              style.textContent = rule.cssText;
+              iframeDoc.head.appendChild(style);
+            }
+          }
+        } catch { /* cross-origin sheets */ }
+      }
+
+      // Wait for fonts to load then print
       const doPrint = () => {
         setTimeout(() => {
           iframe!.contentWindow?.focus();
           iframe!.contentWindow?.print();
-          setTimeout(() => iframe?.remove(), 1000);
-        }, 100);
+          setTimeout(() => iframe?.remove(), 2000);
+        }, 300);
       };
-      if (img) {
-        img.onload = doPrint;
-        // If already loaded (data URL)
-        if (img.complete) doPrint();
+
+      // Wait for fonts
+      if (iframe.contentDocument?.fonts) {
+        iframe.contentDocument.fonts.ready.then(doPrint);
       } else {
         doPrint();
       }
 
-      toast({ title: `Impressão ${orientation} pronta!` });
+      toast({ title: `Impressão vetorizada pronta!` });
     } catch {
       toast({ title: "Erro ao imprimir", variant: "destructive" });
     }
