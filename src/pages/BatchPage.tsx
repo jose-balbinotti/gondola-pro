@@ -399,21 +399,6 @@ export default function BatchPage() {
     templateId: selectedTemplate,
   };
 
-  // Per-poster edit panel field helper
-  const PosterDataField = ({ label, field, idx }: { label: string; field: keyof PosterData; idx: number }) => {
-    const d = getDataForPoster(idx);
-    return (
-      <div>
-        <label className="text-xs font-semibold text-muted-foreground mb-1 block">{label}</label>
-        <input
-          type="text"
-          value={(d[field] as string) || ""}
-          onChange={(e) => updatePerPosterData(idx, field, e.target.value)}
-          className="w-full h-8 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        />
-      </div>
-    );
-  };
 
   return (
     <div className="min-h-screen bg-background">
