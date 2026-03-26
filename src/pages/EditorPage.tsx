@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { TEMPLATES, DEFAULT_POSTER_DATA, type PosterData } from "@/lib/templates";
-import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode, Type, Move, Save, FolderOpen, Upload, Trash2, Image as ImageIcon, Printer } from "lucide-react";
+import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode, Type, Move, Save, FolderOpen, Upload, Trash2, Image as ImageIcon, Printer, BookOpen, Edit } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
@@ -155,6 +156,7 @@ export default function EditorPage() {
       paperSize,
       style: posterStyle,
       backgroundImage: customBackground || undefined,
+      posterData: { ...data },
     });
     if (result) {
       setPresets(loadPresets());
@@ -169,6 +171,7 @@ export default function EditorPage() {
     setPosterStyle(preset.style);
     setPaperSize(preset.paperSize);
     if (preset.backgroundImage) setCustomBackground(preset.backgroundImage);
+    if (preset.posterData) setData(preset.posterData);
     toast({ title: `Preset "${preset.name}" carregado!` });
   };
 
@@ -219,287 +222,343 @@ export default function EditorPage() {
       </nav>
 
       <div className="container py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Editor Panel */}
-          <div className="space-y-4 order-2 lg:order-1">
-            {/* Presets */}
-            <div className="p-4 rounded-lg border border-border bg-background">
-              <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-                <FolderOpen className="w-4 h-4" /> Presets Salvos
-              </h3>
-              {presets.length > 0 ? (
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  {presets.map((p) => (
-                    <div key={p.id} className="flex items-center gap-1 p-2 rounded-lg border border-border bg-muted/30 text-xs">
-                      <button onClick={() => handleLoadPreset(p)} className="flex-1 text-left font-semibold text-foreground truncate hover:text-primary transition-colors">
-                        {p.name}
+        <Tabs defaultValue="editor" className="w-full">
+          <TabsList className="mb-6 w-full max-w-md">
+            <TabsTrigger value="editor" className="flex-1 gap-1.5">
+              <Edit className="w-3.5 h-3.5" /> Editor
+            </TabsTrigger>
+            <TabsTrigger value="saved" className="flex-1 gap-1.5">
+              <BookOpen className="w-3.5 h-3.5" /> Cartazes Salvos ({presets.length})
+            </TabsTrigger>
+          </TabsList>
+
+          {/* TAB: Editor */}
+          <TabsContent value="editor">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Editor Panel */}
+              <div className="space-y-4 order-2 lg:order-1">
+                {/* Save current as preset */}
+                <div className="p-4 rounded-lg border border-border bg-background">
+                  <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                    <Save className="w-4 h-4" /> Salvar Cartaz como Preset
+                  </h3>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Salve o cartaz atual com todos os dados preenchidos para reutilizar depois.
+                  </p>
+                  <div className="flex gap-2">
+                    <input type="text" value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="Nome do preset..." className="flex-1 h-8 px-3 rounded-lg border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                    <Button variant="outline" size="sm" onClick={handleSavePreset} className="gap-1">
+                      <Save className="w-3 h-3" /> Salvar
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Background Image */}
+                <div className="p-4 rounded-lg border border-border bg-background">
+                  <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4" /> Fundo Personalizado
+                  </h3>
+                  <div className="flex gap-2">
+                    <input ref={bgFileRef} type="file" accept="image/*,application/pdf" onChange={handleBgUpload} className="hidden" />
+                    <Button variant="outline" size="sm" onClick={() => bgFileRef.current?.click()} className="gap-1.5">
+                      <Upload className="w-3.5 h-3.5" /> Importar Fundo
+                    </Button>
+                    {customBackground && (
+                      <Button variant="ghost" size="sm" onClick={() => setCustomBackground("")} className="text-destructive">Remover</Button>
+                    )}
+                  </div>
+                  {customBackground && (
+                    <>
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mt-2">
+                        <Switch checked={bgBaseOnly} onCheckedChange={setBgBaseOnly} />
+                        Usar só como base (não imprime o fundo)
+                      </label>
+                      <div className="mt-2 w-16 h-22 rounded border border-border overflow-hidden">
+                        <img src={customBackground} alt="Fundo" className="w-full h-full object-cover" />
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Product Info */}
+                <div className="p-4 rounded-lg border border-border bg-background">
+                  <h3 className="text-sm font-bold text-foreground mb-3">Informações do Produto</h3>
+                  <div className="space-y-3">
+                    <Field label="Nome do Produto" value={data.productName} onChange={(v) => update("productName", v)} placeholder="Ex: Arroz Integral" />
+                    <Field label="Marca" value={data.brandName} onChange={(v) => update("brandName", v)} placeholder="Ex: Tio João" />
+                    <Field label="Gramatura / Volume" value={data.gramatura} onChange={(v) => update("gramatura", v)} placeholder="Ex: 1kg, 500ml" />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-semibold text-muted-foreground">Preço Antigo (R$)</label>
+                        </div>
+                        <input type="text" value={data.oldPrice} onChange={(e) => update("oldPrice", e.target.value)} className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-semibold text-muted-foreground">Preço Novo (R$)</label>
+                        </div>
+                        <input type="text" value={data.newPrice} onChange={(e) => update("newPrice", e.target.value)} placeholder="Ex: 12,99" className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                      </div>
+                    </div>
+                    {/* Price display options */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                        <Switch checked={posterStyle.hideCurrencySymbol} onCheckedChange={(v) => updateStyle("hideCurrencySymbol", v)} />
+                        Ocultar R$
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                        <Switch checked={posterStyle.centsAlignTop} onCheckedChange={(v) => updateStyle("centsAlignTop", v)} />
+                        Centavos no topo
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                        <Switch checked={posterStyle.centsUnderline} onCheckedChange={(v) => updateStyle("centsUnderline", v)} />
+                        Traço nos centavos
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                        <Switch checked={posterStyle.gramaturaLines} onCheckedChange={(v) => updateStyle("gramaturaLines", v)} />
+                        Traços na gramatura
+                      </label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Desconto (%)" value={data.discount} onChange={(v) => update("discount", v)} />
+                      <Field label="Validade" value={data.validity} onChange={(v) => update("validity", v)} />
+                    </div>
+                    <Field label="Descrição" value={data.description} onChange={(v) => update("description", v)} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Quantidade" value={data.quantity} onChange={(v) => update("quantity", v)} placeholder="Ex: 3" />
+                      <div>
+                        <Field label="Unidade" value={data.unit} onChange={(v) => update("unit", v)} placeholder="un, kg, L" />
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mt-1.5">
+                          <Switch checked={posterStyle.unitBelowCents} onCheckedChange={(v) => updateStyle("unitBelowCents", v)} />
+                          Abaixo dos centavos
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fontes */}
+                <div className="p-4 rounded-lg border border-border bg-background">
+                  <h3 className="text-sm font-bold text-foreground mb-3">Fontes</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground mb-1 block">Fonte geral</label>
+                      <Select value={posterStyle.fontFamily} onValueChange={(v) => updateStyle("fontFamily", v)}>
+                        <SelectTrigger className="w-full"><SelectValue placeholder="Fonte geral" /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_OPTIONS.map((f) => (
+                            <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground mb-1 block">Fonte do preço</label>
+                      <Select value={posterStyle.priceFontFamily || "__default__"} onValueChange={(v) => updateStyle("priceFontFamily", v === "__default__" ? "" : v)}>
+                        <SelectTrigger className="w-full"><SelectValue placeholder="Mesma da geral" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__default__">Mesma da geral</SelectItem>
+                          {FONT_OPTIONS.map((f) => (
+                            <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground mb-1 block">Fonte da descrição</label>
+                      <Select value={posterStyle.descriptionFontFamily || "__default__"} onValueChange={(v) => updateStyle("descriptionFontFamily", v === "__default__" ? "" : v)}>
+                        <SelectTrigger className="w-full"><SelectValue placeholder="Mesma da geral" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__default__">Mesma da geral</SelectItem>
+                          {FONT_OPTIONS.map((f) => (
+                            <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-muted-foreground">Sombreamento Individual</label>
+                      {([["shadowProduct", "Produto"], ["shadowBrand", "Marca"], ["shadowGramatura", "Gramatura"], ["shadowPrice", "Preço"], ["shadowDescription", "Descrição"]] as const).map(([key, label]) => (
+                        <div key={key} className="flex items-center justify-between">
+                          <label className="text-xs text-muted-foreground">{label}</label>
+                          <Switch checked={posterStyle[key] as boolean} onCheckedChange={(v) => updateStyle(key, v)} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Aparência / Tipografia */}
+                <div className="p-4 rounded-lg border border-border bg-background">
+                  <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                    <Type className="w-4 h-4" /> Tamanho dos Textos
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-muted-foreground">Mostrar texto de promoção</label>
+                      <Switch checked={posterStyle.showPromoLabel} onCheckedChange={(v) => updateStyle("showPromoLabel", v)} />
+                    </div>
+                    {posterStyle.showPromoLabel && (
+                      <Field
+                        label="Texto da promoção (opcional)"
+                        value={posterStyle.promoText}
+                        onChange={(v) => updateStyle("promoText", v)}
+                        placeholder="Ex: Super Oferta, Só Hoje..."
+                      />
+                    )}
+                    <SliderField label={`Nome do produto – ${posterStyle.productFontSize}px`} value={posterStyle.productFontSize} min={10} max={120} onChange={(v) => updateStyle("productFontSize", v)} />
+                    <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={120} onChange={(v) => updateStyle("brandFontSize", v)} />
+                    <SliderField label={`Gramatura – ${posterStyle.gramaturaFontSize}px`} value={posterStyle.gramaturaFontSize} min={8} max={72} onChange={(v) => updateStyle("gramaturaFontSize", v)} />
+                    <SliderField label={`Preço (reais) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={200} onChange={(v) => updateStyle("priceFontSize", v)} />
+                    <SliderField label={`Preço (centavos/R$) – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={120} onChange={(v) => updateStyle("centsFontSize", v)} />
+                    <SliderField label={`Descrição – ${posterStyle.descriptionFontSize}px`} value={posterStyle.descriptionFontSize} min={8} max={64} onChange={(v) => updateStyle("descriptionFontSize", v)} />
+                  </div>
+                </div>
+
+                {/* Posição */}
+                <div className="p-4 rounded-lg border border-border bg-background">
+                  <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                    <Move className="w-4 h-4" /> Posição dos Elementos
+                  </h3>
+                  <div className="space-y-4">
+                    <SliderField label={`Nome Y – ${posterStyle.productOffsetY}px`} value={posterStyle.productOffsetY} min={-80} max={80} onChange={(v) => updateStyle("productOffsetY", v)} />
+                    <SliderField label={`Marca Y – ${posterStyle.brandOffsetY}px`} value={posterStyle.brandOffsetY} min={-80} max={80} onChange={(v) => updateStyle("brandOffsetY", v)} />
+                    <SliderField label={`Gramatura Y – ${posterStyle.gramaturaOffsetY}px`} value={posterStyle.gramaturaOffsetY} min={-80} max={80} onChange={(v) => updateStyle("gramaturaOffsetY", v)} />
+                    <SliderField label={`Preço Y – ${posterStyle.priceOffsetY}px`} value={posterStyle.priceOffsetY} min={-80} max={80} onChange={(v) => updateStyle("priceOffsetY", v)} />
+                    <SliderField label={`Descrição Y – ${posterStyle.descriptionOffsetY}px`} value={posterStyle.descriptionOffsetY} min={-80} max={80} onChange={(v) => updateStyle("descriptionOffsetY", v)} />
+                    <SliderField label={`Validade Y – ${posterStyle.validityOffsetY}px`} value={posterStyle.validityOffsetY} min={-80} max={80} onChange={(v) => updateStyle("validityOffsetY", v)} />
+                    <SliderField label={`Unidade X – ${posterStyle.unitOffsetX}px`} value={posterStyle.unitOffsetX} min={-120} max={120} onChange={(v) => updateStyle("unitOffsetX", v)} />
+                  </div>
+                </div>
+
+                {/* Tamanho de Folha */}
+                <div className="p-4 rounded-lg border border-border bg-background">
+                  <h3 className="text-sm font-bold text-foreground mb-3">Tamanho da Folha</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {PAPER_SIZES.map((ps) => (
+                      <button
+                        key={ps.value}
+                        onClick={() => setPaperSize(ps.value)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold snap-active transition-colors ${
+                          paperSize === ps.value
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground hover:bg-accent"
+                        }`}
+                      >
+                        {ps.label}
                       </button>
-                      <button onClick={() => handleDeletePreset(p.id)} className="text-muted-foreground hover:text-destructive transition-colors p-0.5">
-                        <Trash2 className="w-3 h-3" />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Extras */}
+                <div className="p-4 rounded-lg border border-border bg-background">
+                  <h3 className="text-sm font-bold text-foreground mb-3">Extras</h3>
+                  <div className="space-y-3">
+                    <Field label="WhatsApp (DDD + Número)" value={data.whatsappNumber || ""} onChange={(v) => update("whatsappNumber", v)} placeholder="11999998888" />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowQR(!showQR)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold snap-active transition-colors ${showQR ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                      >
+                        <QrCode className="w-3.5 h-3.5" /> QR Code
                       </button>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground mb-3">Nenhum preset salvo.</p>
-              )}
-              <div className="flex gap-2">
-                <input type="text" value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="Nome do preset..." className="flex-1 h-8 px-3 rounded-lg border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-                <Button variant="outline" size="sm" onClick={handleSavePreset} className="gap-1">
-                  <Save className="w-3 h-3" /> Salvar
-                </Button>
-              </div>
-            </div>
 
-            {/* Background Image */}
-            <div className="p-4 rounded-lg border border-border bg-background">
-              <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-                <ImageIcon className="w-4 h-4" /> Fundo Personalizado
-              </h3>
-              <div className="flex gap-2">
-                <input ref={bgFileRef} type="file" accept="image/*,application/pdf" onChange={handleBgUpload} className="hidden" />
-                <Button variant="outline" size="sm" onClick={() => bgFileRef.current?.click()} className="gap-1.5">
-                  <Upload className="w-3.5 h-3.5" /> Importar Fundo
-                </Button>
-                {customBackground && (
-                  <Button variant="ghost" size="sm" onClick={() => setCustomBackground("")} className="text-destructive">Remover</Button>
-                )}
-              </div>
-              {customBackground && (
-                <>
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mt-2">
-                    <Switch checked={bgBaseOnly} onCheckedChange={setBgBaseOnly} />
-                    Usar só como base (não imprime o fundo)
-                  </label>
-                  <div className="mt-2 w-16 h-22 rounded border border-border overflow-hidden">
-                    <img src={customBackground} alt="Fundo" className="w-full h-full object-cover" />
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Product Info */}
-            <div className="p-4 rounded-lg border border-border bg-background">
-              <h3 className="text-sm font-bold text-foreground mb-3">Informações do Produto</h3>
-              <div className="space-y-3">
-                <Field label="Nome do Produto" value={data.productName} onChange={(v) => update("productName", v)} placeholder="Ex: Arroz Integral" />
-                <Field label="Marca" value={data.brandName} onChange={(v) => update("brandName", v)} placeholder="Ex: Tio João" />
-                <Field label="Gramatura / Volume" value={data.gramatura} onChange={(v) => update("gramatura", v)} placeholder="Ex: 1kg, 500ml" />
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-semibold text-muted-foreground">Preço Antigo (R$)</label>
-                    </div>
-                    <input type="text" value={data.oldPrice} onChange={(e) => update("oldPrice", e.target.value)} className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-semibold text-muted-foreground">Preço Novo (R$)</label>
-                    </div>
-                    <input type="text" value={data.newPrice} onChange={(e) => update("newPrice", e.target.value)} placeholder="Ex: 12,99" className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-                  </div>
-                </div>
-                {/* Price display options */}
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                    <Switch checked={posterStyle.hideCurrencySymbol} onCheckedChange={(v) => updateStyle("hideCurrencySymbol", v)} />
-                    Ocultar R$
-                  </label>
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                    <Switch checked={posterStyle.centsAlignTop} onCheckedChange={(v) => updateStyle("centsAlignTop", v)} />
-                    Centavos no topo
-                  </label>
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                    <Switch checked={posterStyle.centsUnderline} onCheckedChange={(v) => updateStyle("centsUnderline", v)} />
-                    Traço nos centavos
-                  </label>
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                    <Switch checked={posterStyle.gramaturaLines} onCheckedChange={(v) => updateStyle("gramaturaLines", v)} />
-                    Traços na gramatura
-                  </label>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Desconto (%)" value={data.discount} onChange={(v) => update("discount", v)} />
-                  <Field label="Validade" value={data.validity} onChange={(v) => update("validity", v)} />
-                </div>
-                <Field label="Descrição" value={data.description} onChange={(v) => update("description", v)} />
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Quantidade" value={data.quantity} onChange={(v) => update("quantity", v)} placeholder="Ex: 3" />
-                  <div>
-                    <Field label="Unidade" value={data.unit} onChange={(v) => update("unit", v)} placeholder="un, kg, L" />
-                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mt-1.5">
-                      <Switch checked={posterStyle.unitBelowCents} onCheckedChange={(v) => updateStyle("unitBelowCents", v)} />
-                      Abaixo dos centavos
-                    </label>
+                {/* Export */}
+                <div className="p-4 rounded-lg border border-border bg-background">
+                  <h3 className="text-sm font-bold text-foreground mb-3">Exportar</h3>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={exportPNG} className="flex-1 snap-active gap-1.5">
+                      <FileImage className="w-4 h-4" /> PNG
+                    </Button>
+                    <Button onClick={exportPDF} className="flex-1 snap-active gap-1.5">
+                      <Download className="w-4 h-4" /> PDF {paperSize}
+                    </Button>
+                    <Button variant="secondary" onClick={() => window.print()} className="flex-1 snap-active gap-1.5">
+                      <Printer className="w-4 h-4" /> Imprimir
+                    </Button>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Fontes */}
-            <div className="p-4 rounded-lg border border-border bg-background">
-              <h3 className="text-sm font-bold text-foreground mb-3">Fontes</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">Fonte geral</label>
-                  <Select value={posterStyle.fontFamily} onValueChange={(v) => updateStyle("fontFamily", v)}>
-                    <SelectTrigger className="w-full"><SelectValue placeholder="Fonte geral" /></SelectTrigger>
-                    <SelectContent>
-                      {FONT_OPTIONS.map((f) => (
-                        <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">Fonte do preço</label>
-                  <Select value={posterStyle.priceFontFamily || "__default__"} onValueChange={(v) => updateStyle("priceFontFamily", v === "__default__" ? "" : v)}>
-                    <SelectTrigger className="w-full"><SelectValue placeholder="Mesma da geral" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__default__">Mesma da geral</SelectItem>
-                      {FONT_OPTIONS.map((f) => (
-                        <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">Fonte da descrição</label>
-                  <Select value={posterStyle.descriptionFontFamily || "__default__"} onValueChange={(v) => updateStyle("descriptionFontFamily", v === "__default__" ? "" : v)}>
-                    <SelectTrigger className="w-full"><SelectValue placeholder="Mesma da geral" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__default__">Mesma da geral</SelectItem>
-                      {FONT_OPTIONS.map((f) => (
-                        <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-muted-foreground">Sombreamento Individual</label>
-                  {([["shadowProduct", "Produto"], ["shadowBrand", "Marca"], ["shadowGramatura", "Gramatura"], ["shadowPrice", "Preço"], ["shadowDescription", "Descrição"]] as const).map(([key, label]) => (
-                    <div key={key} className="flex items-center justify-between">
-                      <label className="text-xs text-muted-foreground">{label}</label>
-                      <Switch checked={posterStyle[key] as boolean} onCheckedChange={(v) => updateStyle(key, v)} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Aparência / Tipografia */}
-            <div className="p-4 rounded-lg border border-border bg-background">
-              <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-                <Type className="w-4 h-4" /> Tamanho dos Textos
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-muted-foreground">Mostrar texto de promoção</label>
-                  <Switch checked={posterStyle.showPromoLabel} onCheckedChange={(v) => updateStyle("showPromoLabel", v)} />
-                </div>
-                {posterStyle.showPromoLabel && (
-                  <Field
-                    label="Texto da promoção (opcional)"
-                    value={posterStyle.promoText}
-                    onChange={(v) => updateStyle("promoText", v)}
-                    placeholder="Ex: Super Oferta, Só Hoje..."
+              {/* Poster Preview */}
+              <div className="order-1 lg:order-2 lg:sticky lg:top-20 self-start">
+                <p className="text-xs text-muted-foreground mb-2 font-mono">PREVIEW – {paperSize}</p>
+                <div className="poster-shadow rounded-lg overflow-hidden inline-block w-full max-w-md mx-auto">
+                  <PosterPreview
+                    ref={posterRef}
+                    template={template}
+                    data={data}
+                    showQR={showQR}
+                    qrUrl={qrUrl}
+                    style={posterStyle}
+                    paperSize={paperSize}
+                    customBackground={customBackground || undefined}
                   />
-                )}
-                <SliderField label={`Nome do produto – ${posterStyle.productFontSize}px`} value={posterStyle.productFontSize} min={10} max={120} onChange={(v) => updateStyle("productFontSize", v)} />
-                <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={120} onChange={(v) => updateStyle("brandFontSize", v)} />
-                <SliderField label={`Gramatura – ${posterStyle.gramaturaFontSize}px`} value={posterStyle.gramaturaFontSize} min={8} max={72} onChange={(v) => updateStyle("gramaturaFontSize", v)} />
-                <SliderField label={`Preço (reais) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={200} onChange={(v) => updateStyle("priceFontSize", v)} />
-                <SliderField label={`Preço (centavos/R$) – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={120} onChange={(v) => updateStyle("centsFontSize", v)} />
-                <SliderField label={`Descrição – ${posterStyle.descriptionFontSize}px`} value={posterStyle.descriptionFontSize} min={8} max={64} onChange={(v) => updateStyle("descriptionFontSize", v)} />
-              </div>
-            </div>
-
-            {/* Posição */}
-            <div className="p-4 rounded-lg border border-border bg-background">
-              <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-                <Move className="w-4 h-4" /> Posição dos Elementos
-              </h3>
-              <div className="space-y-4">
-                <SliderField label={`Nome Y – ${posterStyle.productOffsetY}px`} value={posterStyle.productOffsetY} min={-80} max={80} onChange={(v) => updateStyle("productOffsetY", v)} />
-                <SliderField label={`Marca Y – ${posterStyle.brandOffsetY}px`} value={posterStyle.brandOffsetY} min={-80} max={80} onChange={(v) => updateStyle("brandOffsetY", v)} />
-                <SliderField label={`Gramatura Y – ${posterStyle.gramaturaOffsetY}px`} value={posterStyle.gramaturaOffsetY} min={-80} max={80} onChange={(v) => updateStyle("gramaturaOffsetY", v)} />
-                <SliderField label={`Preço Y – ${posterStyle.priceOffsetY}px`} value={posterStyle.priceOffsetY} min={-80} max={80} onChange={(v) => updateStyle("priceOffsetY", v)} />
-                <SliderField label={`Descrição Y – ${posterStyle.descriptionOffsetY}px`} value={posterStyle.descriptionOffsetY} min={-80} max={80} onChange={(v) => updateStyle("descriptionOffsetY", v)} />
-                <SliderField label={`Validade Y – ${posterStyle.validityOffsetY}px`} value={posterStyle.validityOffsetY} min={-80} max={80} onChange={(v) => updateStyle("validityOffsetY", v)} />
-                <SliderField label={`Unidade X – ${posterStyle.unitOffsetX}px`} value={posterStyle.unitOffsetX} min={-120} max={120} onChange={(v) => updateStyle("unitOffsetX", v)} />
-              </div>
-            </div>
-
-            {/* Tamanho de Folha */}
-            <div className="p-4 rounded-lg border border-border bg-background">
-              <h3 className="text-sm font-bold text-foreground mb-3">Tamanho da Folha</h3>
-              <div className="flex flex-wrap gap-2">
-                {PAPER_SIZES.map((ps) => (
-                  <button
-                    key={ps.value}
-                    onClick={() => setPaperSize(ps.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold snap-active transition-colors ${
-                      paperSize === ps.value
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-accent"
-                    }`}
-                  >
-                    {ps.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Extras */}
-            <div className="p-4 rounded-lg border border-border bg-background">
-              <h3 className="text-sm font-bold text-foreground mb-3">Extras</h3>
-              <div className="space-y-3">
-                <Field label="WhatsApp (DDD + Número)" value={data.whatsappNumber || ""} onChange={(v) => update("whatsappNumber", v)} placeholder="11999998888" />
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setShowQR(!showQR)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold snap-active transition-colors ${showQR ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-                  >
-                    <QrCode className="w-3.5 h-3.5" /> QR Code
-                  </button>
                 </div>
               </div>
             </div>
+          </TabsContent>
 
-            {/* Export */}
-            <div className="p-4 rounded-lg border border-border bg-background">
-              <h3 className="text-sm font-bold text-foreground mb-3">Exportar</h3>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={exportPNG} className="flex-1 snap-active gap-1.5">
-                  <FileImage className="w-4 h-4" /> PNG
-                </Button>
-              <Button onClick={exportPDF} className="flex-1 snap-active gap-1.5">
-                  <Download className="w-4 h-4" /> PDF {paperSize}
-                </Button>
-                <Button variant="secondary" onClick={() => window.print()} className="flex-1 snap-active gap-1.5">
-                  <Printer className="w-4 h-4" /> Imprimir
-                </Button>
+          {/* TAB: Cartazes Salvos */}
+          <TabsContent value="saved">
+            {presets.length === 0 ? (
+              <div className="text-center py-16">
+                <BookOpen className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" />
+                <h3 className="text-lg font-bold text-foreground mb-2">Nenhum cartaz salvo</h3>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                  Crie um cartaz na aba Editor, preencha os dados e clique em "Salvar" para guardar como preset reutilizável.
+                </p>
               </div>
-            </div>
-          </div>
-
-          {/* Poster Preview */}
-          <div className="order-1 lg:order-2 lg:sticky lg:top-20 self-start">
-            <p className="text-xs text-muted-foreground mb-2 font-mono">PREVIEW – {paperSize}</p>
-            <div className="poster-shadow rounded-lg overflow-hidden inline-block w-full max-w-md mx-auto">
-              <PosterPreview
-                ref={posterRef}
-                template={template}
-                data={data}
-                showQR={showQR}
-                qrUrl={qrUrl}
-                style={posterStyle}
-                paperSize={paperSize}
-                customBackground={customBackground || undefined}
-              />
-            </div>
-          </div>
-        </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {presets.map((preset) => {
+                  const presetTemplate = TEMPLATES.find((t) => t.id === preset.templateId) || TEMPLATES[0];
+                  const presetData: PosterData = preset.posterData || { ...DEFAULT_POSTER_DATA, templateId: preset.templateId };
+                  return (
+                    <div key={preset.id} className="rounded-xl border border-border bg-background overflow-hidden group hover:shadow-lg transition-shadow">
+                      {/* Mini preview */}
+                      <div className="w-full aspect-[3/4] overflow-hidden">
+                        <PosterPreview
+                          template={presetTemplate}
+                          data={presetData}
+                          showQR={false}
+                          qrUrl=""
+                          style={preset.style}
+                          paperSize={preset.paperSize}
+                          customBackground={preset.backgroundImage}
+                        />
+                      </div>
+                      <div className="p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-bold text-foreground truncate flex-1">{preset.name}</h4>
+                          <span className="text-[10px] text-muted-foreground ml-2 shrink-0">{preset.paperSize}</span>
+                        </div>
+                        {preset.posterData && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            {preset.posterData.productName || "Sem produto"} – R$ {preset.posterData.newPrice || "0,00"}
+                          </p>
+                        )}
+                        <div className="flex gap-1.5">
+                          <Button variant="outline" size="sm" className="flex-1 text-xs gap-1" onClick={() => handleLoadPreset(preset)}>
+                            <Edit className="w-3 h-3" /> Carregar
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-destructive px-2" onClick={() => handleDeletePreset(preset.id)}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
