@@ -194,9 +194,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
           {data.brandName || "Marca"}
         </div>
 
-        {/* Gramatura */}
+        {/* Gramatura with optional lines */}
         <div
-          className="font-medium leading-tight px-2 mb-2"
+          className="font-medium leading-tight px-2 mb-2 flex items-center justify-center w-full"
           style={{
             color: template.textColor,
             fontSize: `${style.gramaturaFontSize}px`,
@@ -205,7 +205,25 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             textShadow: smsShadow(style.fontFamily, sGram),
           }}
         >
-          {data.gramatura || "000g / 000ml"}
+          {style.gramaturaLines && (
+            <span style={{
+              flex: '0 0 33%',
+              height: '2px',
+              background: template.textColor,
+              opacity: 0.5,
+              marginRight: '8px',
+            }} />
+          )}
+          <span className="whitespace-nowrap">{data.gramatura || "000g / 000ml"}</span>
+          {style.gramaturaLines && (
+            <span style={{
+              flex: '0 0 33%',
+              height: '2px',
+              background: template.textColor,
+              opacity: 0.5,
+              marginLeft: '8px',
+            }} />
+          )}
         </div>
 
         {/* Description */}
@@ -234,22 +252,39 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             )}
           </div>
           {/* Split price: R$ reais , centavos */}
-          <div className="flex items-baseline" style={{
+          <div className="flex" style={{
             color: template.priceColor,
             fontFamily: priceFont,
             textShadow: smsShadow(pFont, sPrice),
             transform: smsSkew(pFont),
+            alignItems: style.centsAlignTop ? 'flex-start' : 'baseline',
           }}>
-            <span className="font-black" style={{ fontSize: `${style.centsFontSize}px` }}>R$</span>
+            {!style.hideCurrencySymbol && (
+              <span className="font-black" style={{ fontSize: `${style.centsFontSize}px` }}>R$</span>
+            )}
             <span className="font-black" style={{ fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>
               {reais}
             </span>
-            <span className="font-black" style={{ fontSize: `${style.centsFontSize}px` }}>
+            <span className="font-black" style={{
+              fontSize: `${style.centsFontSize}px`,
+              borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
+              paddingBottom: style.centsUnderline ? '2px' : '0',
+            }}>
               ,{centavos}
             </span>
           </div>
-          {data.unit && (
+          {/* Unit - below underline when centsUnderline is active */}
+          {data.unit && !style.centsUnderline && (
             <span className="text-xs mt-1 opacity-70" style={{ color: template.textColor, transform: `translateX(${style.unitOffsetX}px)`, display: 'inline-block' }}>/{data.unit}</span>
+          )}
+          {data.unit && style.centsUnderline && (
+            <span className="text-xs opacity-70" style={{
+              color: template.textColor,
+              transform: `translateX(${style.unitOffsetX}px)`,
+              display: 'inline-block',
+              alignSelf: 'flex-end',
+              marginTop: '0px',
+            }}>/{data.unit}</span>
           )}
         </div>
 
