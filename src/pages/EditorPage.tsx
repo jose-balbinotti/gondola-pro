@@ -171,6 +171,7 @@ export default function EditorPage() {
     setPosterStyle(preset.style);
     setPaperSize(preset.paperSize);
     if (preset.backgroundImage) setCustomBackground(preset.backgroundImage);
+    if (preset.posterData) setData(preset.posterData);
     toast({ title: `Preset "${preset.name}" carregado!` });
   };
 
