@@ -330,59 +330,84 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               transform: `translateY(${style.priceOffsetY}px)`,
             }}>
               {data.oldPrice && (
-                <div className="preco-original" style={{
-                  fontSize: '16px',
-                  textDecoration: 'line-through double 3px',
-                  opacity: 0.6,
-                  color: template.textColor,
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '12px',
                   marginBottom: '4px',
                 }}>
-                  {!style.hideCurrencySymbol && 'R$ '}{data.oldPrice}
+                  <span style={{
+                    fontSize: '16px',
+                    textDecoration: 'line-through',
+                    opacity: 0.6,
+                    color: template.textColor,
+                  }}>
+                    {!style.hideCurrencySymbol && 'R$ '}{data.oldPrice}
+                  </span>
                 </div>
               )}
 
-              {/* Split price - flex baseline, no absolute positioning */}
-              <div className="preco-promo" style={{
+              {/* Split price */}
+              <div style={{
                 display: 'flex',
-                alignItems: 'baseline',
-                gap: '0.1em',
                 color: template.priceColor,
                 fontFamily: priceFont,
-                fontWeight: 900,
                 textShadow: sPrice,
                 transform: smsSkew(pFont),
+                alignItems: 'flex-end',
+                height: `${style.priceFontSize}px`,
               }}>
                 {!style.hideCurrencySymbol && (
-                  <span className="inteiro" style={{ fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>R$</span>
+                  <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>R$</span>
                 )}
-                <span className="inteiro" style={{ fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>
+                <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>
                   {reais}
                 </span>
-                <span className="inteiro" style={{ fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>
+                <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>
                   ,
                 </span>
-                <span className="centavos" style={{
-                  fontSize: `${style.centsFontSize}px`,
+                <span style={{
+                  display: 'inline-flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
+                  alignSelf: 'stretch',
                   lineHeight: 1,
-                  marginLeft: '-0.05em',
-                  borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
-                  paddingBottom: style.centsUnderline ? '1px' : '0',
-                  alignSelf: style.centsAlignTop ? 'flex-start' : 'baseline',
                 }}>
-                  {centavos}
+                  <span style={{
+                    fontWeight: 900,
+                    fontSize: `${style.centsFontSize}px`,
+                    lineHeight: 1,
+                    borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
+                    paddingBottom: style.centsUnderline ? '1px' : '0',
+                  }}>
+                    {centavos}
+                  </span>
+                  {data.unit && style.unitBelowCents && (
+                    <span style={{
+                      color: template.textColor,
+                      opacity: 0.7,
+                      fontSize: `${Math.max(Math.min(style.centsFontSize * 0.45, style.priceFontSize * 0.22), 9)}px`,
+                      lineHeight: 1,
+                      whiteSpace: 'nowrap',
+                      marginTop: '2px',
+                      transform: `translateX(${style.unitOffsetX}px)`,
+                    }}>{data.unit}</span>
+                  )}
                 </span>
               </div>
 
-              {/* Unit below price */}
-              {data.unit && (
-                <div className="unidade" style={{
-                  fontSize: `${Math.max(Math.min(style.centsFontSize * 0.45, style.priceFontSize * 0.22), 9)}px`,
-                  color: template.textColor,
+              {/* Unit - default position */}
+              {data.unit && !style.unitBelowCents && (
+                <span style={{
+                  fontSize: '12px',
+                  marginTop: '4px',
                   opacity: 0.7,
-                  marginTop: '0.2em',
-                  textAlign: 'center',
+                  color: template.textColor,
                   transform: `translateX(${style.unitOffsetX}px)`,
-                }}>{data.unit}</div>
+                  display: 'inline-block',
+                }}>{data.unit}</span>
               )}
             </div>
           )}
