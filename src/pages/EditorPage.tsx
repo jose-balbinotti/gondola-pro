@@ -400,6 +400,7 @@ export default function EditorPage() {
                 qrUrl={qrUrl}
                 style={posterStyle}
                 paperSize={paperSize}
+                customBackground={customBackground || undefined}
               />
             </div>
           </div>
