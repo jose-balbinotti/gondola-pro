@@ -44,6 +44,7 @@ export default function EditorPage() {
   const [posterStyle, setPosterStyle] = useState<PosterStyle>({ ...DEFAULT_POSTER_STYLE });
   const [paperSize, setPaperSize] = useState(template.size === "gondola" ? "gondola" : "A4");
   const [customBackground, setCustomBackground] = useState<string>("");
+  const [bgBaseOnly, setBgBaseOnly] = useState(false);
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<PosterPreset[]>(() => loadPresets());
 
@@ -55,16 +56,32 @@ export default function EditorPage() {
     setPosterStyle((prev) => ({ ...prev, [field]: value }));
   }, []);
 
+  const stripBgForExport = () => {
+    if (bgBaseOnly && customBackground && posterRef.current) {
+      posterRef.current.style.backgroundImage = 'none';
+      posterRef.current.style.backgroundColor = '#ffffff';
+    }
+  };
+  const restoreBgAfterExport = () => {
+    if (bgBaseOnly && customBackground && posterRef.current) {
+      posterRef.current.style.backgroundImage = `url(${customBackground})`;
+      posterRef.current.style.backgroundColor = '';
+    }
+  };
+
   const exportPNG = async () => {
     if (!posterRef.current) return;
     try {
-      const canvas = await html2canvas(posterRef.current, { scale: 3, useCORS: true, backgroundColor: null });
+      stripBgForExport();
+      const canvas = await html2canvas(posterRef.current, { scale: 3, useCORS: true, backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null });
+      restoreBgAfterExport();
       const link = document.createElement("a");
       link.download = `cartaz-${data.productName || "gondolapro"}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
       toast({ title: "PNG exportado!", description: "Seu cartaz foi salvo." });
     } catch {
+      restoreBgAfterExport();
       toast({ title: "Erro ao exportar", variant: "destructive" });
     }
   };
@@ -72,7 +89,9 @@ export default function EditorPage() {
   const exportPDF = async () => {
     if (!posterRef.current) return;
     try {
-      const canvas = await html2canvas(posterRef.current, { scale: 3, useCORS: true, backgroundColor: null });
+      stripBgForExport();
+      const canvas = await html2canvas(posterRef.current, { scale: 3, useCORS: true, backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null });
+      restoreBgAfterExport();
       const imgData = canvas.toDataURL("image/png");
       const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
       const isLandscape = fmt[0] > fmt[1];
@@ -87,6 +106,7 @@ export default function EditorPage() {
       pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
       toast({ title: "PDF exportado!", description: `Formato ${paperSize} – 300dpi.` });
     } catch {
+      restoreBgAfterExport();
       toast({ title: "Erro ao exportar", variant: "destructive" });
     }
   };
@@ -185,7 +205,13 @@ export default function EditorPage() {
             <Button size="sm" onClick={exportPDF} className="snap-active gap-1.5">
               <FileText className="w-3.5 h-3.5" /> PDF
             </Button>
-            <Button variant="outline" size="sm" onClick={() => window.print()} className="snap-active gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => {
+              if (bgBaseOnly && customBackground && posterRef.current) {
+                posterRef.current.style.backgroundImage = 'none';
+                posterRef.current.style.backgroundColor = '#ffffff';
+                setTimeout(() => { window.print(); setTimeout(() => { if (posterRef.current) { posterRef.current.style.backgroundImage = `url(${customBackground})`; posterRef.current.style.backgroundColor = ''; }}, 500); }, 100);
+              } else { window.print(); }
+            }} className="snap-active gap-1.5">
               <Printer className="w-3.5 h-3.5" /> Imprimir
             </Button>
           </div>
@@ -240,9 +266,15 @@ export default function EditorPage() {
                 )}
               </div>
               {customBackground && (
-                <div className="mt-2 w-16 h-22 rounded border border-border overflow-hidden">
-                  <img src={customBackground} alt="Fundo" className="w-full h-full object-cover" />
-                </div>
+                <>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mt-2">
+                    <Switch checked={bgBaseOnly} onCheckedChange={setBgBaseOnly} />
+                    Usar só como base (não imprime o fundo)
+                  </label>
+                  <div className="mt-2 w-16 h-22 rounded border border-border overflow-hidden">
+                    <img src={customBackground} alt="Fundo" className="w-full h-full object-cover" />
+                  </div>
+                </>
               )}
             </div>
 
