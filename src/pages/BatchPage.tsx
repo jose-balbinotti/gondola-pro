@@ -705,126 +705,108 @@ export default function BatchPage() {
               </p>
             </div>
 
-            {/* Editing panel for selected poster */}
-            {editingPosterIdx !== null && (
-              <div className="p-4 rounded-xl border-2 border-primary bg-primary/5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-foreground">
-                    ✏️ Editando Cartaz #{editingPosterIdx + 1} – {getDataForPoster(editingPosterIdx).productName || "Sem nome"}
-                  </h3>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => resetPosterOverride(editingPosterIdx)} className="text-xs gap-1">
-                      Resetar
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setEditingPosterIdx(null)} className="gap-1">
-                      <X className="w-3 h-3" /> Fechar
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Product data fields */}
-                <div className="p-3 rounded-lg border border-border bg-background">
-                  <h4 className="text-xs font-bold text-foreground mb-2">Dados do Produto</h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <PosterDataField label="Produto" field="productName" idx={editingPosterIdx} />
-                    <PosterDataField label="Marca" field="brandName" idx={editingPosterIdx} />
-                    <PosterDataField label="Gramatura" field="gramatura" idx={editingPosterIdx} />
-                    <PosterDataField label="Preço Novo" field="newPrice" idx={editingPosterIdx} />
-                    <PosterDataField label="Preço Antigo" field="oldPrice" idx={editingPosterIdx} />
-                    <PosterDataField label="Desconto %" field="discount" idx={editingPosterIdx} />
-                    <PosterDataField label="Validade" field="validity" idx={editingPosterIdx} />
-                    <PosterDataField label="Unidade" field="unit" idx={editingPosterIdx} />
-                  </div>
-                </div>
-
-                {/* Style controls for this poster */}
-                <PosterStyleControls
-                  style={getStyleForPoster(editingPosterIdx)}
-                  updateStyle={(field, value) => updatePerPosterStyle(editingPosterIdx!, field, value)}
-                />
-              </div>
-            )}
-
             {isDuplo ? (
               <div className="space-y-6">
                 {Array.from({ length: Math.ceil(validProducts.length / 2) }).map((_, pageIdx) => {
                   const idx1 = pageIdx * 2;
                   const idx2 = pageIdx * 2 + 1;
+                  const isEditing1 = editingPosterIdx === idx1;
+                  const isEditing2 = editingPosterIdx === idx2;
                   return (
-                    <div key={pageIdx} className="rounded-lg border border-border overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)]">
-                      <p className="text-[10px] text-muted-foreground px-3 py-1 bg-muted font-mono">Folha {pageIdx + 1}</p>
-                      <div className="relative group">
-                        <button
-                          onClick={() => setEditingPosterIdx(editingPosterIdx === idx1 ? null : idx1)}
-                          className={`absolute top-2 right-2 z-10 p-1.5 rounded-lg transition-all ${editingPosterIdx === idx1 ? "bg-primary text-primary-foreground" : "bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground"}`}
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                        </button>
-                        <div id={`batch-poster-${idx1}`}>
-                          <PosterPreview
-                            template={template}
-                            data={{ ...getDataForPoster(idx1), templateId: selectedTemplate }}
-                            showQR={false}
-                            qrUrl=""
-                            style={getStyleForPoster(idx1)}
-                            paperSize={paperSize.replace("-duplo", "")}
-                            customBackground={customBackground || undefined}
-                          />
-                        </div>
-                      </div>
-                      {idx2 < validProducts.length && (
-                        <div className="border-t-2 border-dashed border-border relative group">
+                    <div key={pageIdx}>
+                      <div className="rounded-lg border border-border overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)]">
+                        <p className="text-[10px] text-muted-foreground px-3 py-1 bg-muted font-mono">Folha {pageIdx + 1}</p>
+                        <div className="relative group">
                           <button
-                            onClick={() => setEditingPosterIdx(editingPosterIdx === idx2 ? null : idx2)}
-                            className={`absolute top-2 right-2 z-10 p-1.5 rounded-lg transition-all ${editingPosterIdx === idx2 ? "bg-primary text-primary-foreground" : "bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground"}`}
+                            onClick={() => setEditingPosterIdx(isEditing1 ? null : idx1)}
+                            className={`absolute top-2 right-2 z-10 p-1.5 rounded-lg transition-all ${isEditing1 ? "bg-primary text-primary-foreground" : "bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground"}`}
                           >
                             <Edit className="w-3.5 h-3.5" />
                           </button>
-                          <div id={`batch-poster-${idx2}`}>
-                            <PosterPreview
-                              template={template}
-                              data={{ ...getDataForPoster(idx2), templateId: selectedTemplate }}
-                              showQR={false}
-                              qrUrl=""
-                              style={getStyleForPoster(idx2)}
-                              paperSize={paperSize.replace("-duplo", "")}
-                              customBackground={customBackground || undefined}
-                            />
+                          <div id={`batch-poster-${idx1}`}>
+                            <PosterPreview template={template} data={{ ...getDataForPoster(idx1), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPoster(idx1)} paperSize={paperSize.replace("-duplo", "")} customBackground={customBackground || undefined} />
                           </div>
                         </div>
+                        {idx2 < validProducts.length && (
+                          <div className="border-t-2 border-dashed border-border relative group">
+                            <button
+                              onClick={() => setEditingPosterIdx(isEditing2 ? null : idx2)}
+                              className={`absolute top-2 right-2 z-10 p-1.5 rounded-lg transition-all ${isEditing2 ? "bg-primary text-primary-foreground" : "bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground"}`}
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <div id={`batch-poster-${idx2}`}>
+                              <PosterPreview template={template} data={{ ...getDataForPoster(idx2), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPoster(idx2)} paperSize={paperSize.replace("-duplo", "")} customBackground={customBackground || undefined} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {(isEditing1 || isEditing2) && (
+                        <InlineEditPanel
+                          idx={isEditing1 ? idx1 : idx2}
+                          getDataForPoster={getDataForPoster}
+                          getStyleForPoster={getStyleForPoster}
+                          updatePerPosterData={updatePerPosterData}
+                          updatePerPosterStyle={updatePerPosterStyle}
+                          resetPosterOverride={resetPosterOverride}
+                          setEditingPosterIdx={setEditingPosterIdx}
+                        />
                       )}
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {validProducts.map((product, i) => (
-                  <div key={i} className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)] relative group">
-                    <button
-                      onClick={() => setEditingPosterIdx(editingPosterIdx === i ? null : i)}
-                      className={`absolute top-2 right-2 z-10 p-1.5 rounded-lg transition-all ${editingPosterIdx === i ? "bg-primary text-primary-foreground" : "bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground"}`}
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                    </button>
-                    {perPosterStyles[i] && (
-                      <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">
-                        Editado
-                      </div>
-                    )}
-                    <div id={`batch-poster-${i}`}>
-                      <PosterPreview
-                        template={template}
-                        data={{ ...getDataForPoster(i), templateId: selectedTemplate }}
-                        showQR={false}
-                        qrUrl=""
-                        style={getStyleForPoster(i)}
-                        paperSize={paperSize}
-                        customBackground={customBackground || undefined}
-                      />
+              <div className="space-y-4">
+                {validProducts.map((product, i) => {
+                  const isEditing = editingPosterIdx === i;
+                  return (
+                    <div key={i} className={`grid gap-4 ${isEditing ? "grid-cols-1 lg:grid-cols-[1fr_360px]" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}>
+                      {isEditing ? (
+                        <>
+                          <div className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)] relative group">
+                            <button
+                              onClick={() => setEditingPosterIdx(null)}
+                              className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-primary text-primary-foreground"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            {perPosterStyles[i] && (
+                              <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">Editado</div>
+                            )}
+                            <div id={`batch-poster-${i}`}>
+                              <PosterPreview template={template} data={{ ...getDataForPoster(i), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPoster(i)} paperSize={paperSize} customBackground={customBackground || undefined} />
+                            </div>
+                          </div>
+                          <InlineEditPanel
+                            idx={i}
+                            getDataForPoster={getDataForPoster}
+                            getStyleForPoster={getStyleForPoster}
+                            updatePerPosterData={updatePerPosterData}
+                            updatePerPosterStyle={updatePerPosterStyle}
+                            resetPosterOverride={resetPosterOverride}
+                            setEditingPosterIdx={setEditingPosterIdx}
+                          />
+                        </>
+                      ) : (
+                        <div className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)] relative group">
+                          <button
+                            onClick={() => setEditingPosterIdx(i)}
+                            className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground transition-all"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          {perPosterStyles[i] && (
+                            <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">Editado</div>
+                          )}
+                          <div id={`batch-poster-${i}`}>
+                            <PosterPreview template={template} data={{ ...getDataForPoster(i), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPoster(i)} paperSize={paperSize} customBackground={customBackground || undefined} />
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
