@@ -5,11 +5,12 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TEMPLATES, DEFAULT_POSTER_DATA, type PosterData } from "@/lib/templates";
-import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode, Type, Move } from "lucide-react";
+import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode, Type, Move, Save, FolderOpen, Upload, Trash2, Image as ImageIcon } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
 import PosterPreview, { DEFAULT_POSTER_STYLE, FONT_OPTIONS, type PosterStyle } from "@/components/poster/PosterPreview";
+import { loadPresets, savePreset, deletePreset, type PosterPreset } from "@/lib/presets";
 
 const PAPER_SIZES = [
   { value: "A4", label: "A4 (210×297mm)" },
@@ -31,6 +32,7 @@ export default function EditorPage() {
   const { templateId } = useParams<{ templateId: string }>();
   const template = TEMPLATES.find((t) => t.id === templateId) || TEMPLATES[0];
   const posterRef = useRef<HTMLDivElement>(null);
+  const bgFileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const [data, setData] = useState<PosterData>({
@@ -41,6 +43,9 @@ export default function EditorPage() {
   const [showQR, setShowQR] = useState(false);
   const [posterStyle, setPosterStyle] = useState<PosterStyle>({ ...DEFAULT_POSTER_STYLE });
   const [paperSize, setPaperSize] = useState(template.size === "gondola" ? "gondola" : "A4");
+  const [customBackground, setCustomBackground] = useState<string>("");
+  const [presetName, setPresetName] = useState("");
+  const [presets, setPresets] = useState<PosterPreset[]>(() => loadPresets());
 
   const update = useCallback((field: keyof PosterData, value: string) => {
     setData((prev) => ({ ...prev, [field]: value }));
@@ -86,6 +91,52 @@ export default function EditorPage() {
     }
   };
 
+  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setCustomBackground(ev.target?.result as string);
+      toast({ title: "Imagem de fundo carregada!" });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleSavePreset = () => {
+    if (!presetName.trim()) {
+      toast({ title: "Digite um nome para o preset", variant: "destructive" });
+      return;
+    }
+    const result = savePreset({
+      name: presetName.trim(),
+      templateId: template.id,
+      paperSize,
+      style: posterStyle,
+      backgroundImage: customBackground || undefined,
+    });
+    if (result) {
+      setPresets(loadPresets());
+      setPresetName("");
+      toast({ title: `Preset "${result.name}" salvo!` });
+    } else {
+      toast({ title: "Limite de 20 presets atingido", variant: "destructive" });
+    }
+  };
+
+  const handleLoadPreset = (preset: PosterPreset) => {
+    setPosterStyle(preset.style);
+    setPaperSize(preset.paperSize);
+    if (preset.backgroundImage) setCustomBackground(preset.backgroundImage);
+    toast({ title: `Preset "${preset.name}" carregado!` });
+  };
+
+  const handleDeletePreset = (id: string) => {
+    deletePreset(id);
+    setPresets(loadPresets());
+    toast({ title: "Preset removido" });
+  };
+
   const qrUrl = data.whatsappNumber
     ? `https://wa.me/55${data.whatsappNumber.replace(/\D/g, "")}`
     : "";
@@ -121,6 +172,56 @@ export default function EditorPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Editor Panel */}
           <div className="space-y-4 order-2 lg:order-1">
+            {/* Presets */}
+            <div className="p-4 rounded-lg border border-border bg-background">
+              <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                <FolderOpen className="w-4 h-4" /> Presets Salvos
+              </h3>
+              {presets.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  {presets.map((p) => (
+                    <div key={p.id} className="flex items-center gap-1 p-2 rounded-lg border border-border bg-muted/30 text-xs">
+                      <button onClick={() => handleLoadPreset(p)} className="flex-1 text-left font-semibold text-foreground truncate hover:text-primary transition-colors">
+                        {p.name}
+                      </button>
+                      <button onClick={() => handleDeletePreset(p.id)} className="text-muted-foreground hover:text-destructive transition-colors p-0.5">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground mb-3">Nenhum preset salvo.</p>
+              )}
+              <div className="flex gap-2">
+                <input type="text" value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="Nome do preset..." className="flex-1 h-8 px-3 rounded-lg border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                <Button variant="outline" size="sm" onClick={handleSavePreset} className="gap-1">
+                  <Save className="w-3 h-3" /> Salvar
+                </Button>
+              </div>
+            </div>
+
+            {/* Background Image */}
+            <div className="p-4 rounded-lg border border-border bg-background">
+              <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                <ImageIcon className="w-4 h-4" /> Fundo Personalizado
+              </h3>
+              <div className="flex gap-2">
+                <input ref={bgFileRef} type="file" accept="image/*" onChange={handleBgUpload} className="hidden" />
+                <Button variant="outline" size="sm" onClick={() => bgFileRef.current?.click()} className="gap-1.5">
+                  <Upload className="w-3.5 h-3.5" /> Importar Fundo
+                </Button>
+                {customBackground && (
+                  <Button variant="ghost" size="sm" onClick={() => setCustomBackground("")} className="text-destructive">Remover</Button>
+                )}
+              </div>
+              {customBackground && (
+                <div className="mt-2 w-16 h-22 rounded border border-border overflow-hidden">
+                  <img src={customBackground} alt="Fundo" className="w-full h-full object-cover" />
+                </div>
+              )}
+            </div>
+
             {/* Product Info */}
             <div className="p-4 rounded-lg border border-border bg-background">
               <h3 className="text-sm font-bold text-foreground mb-3">Informações do Produto</h3>
@@ -299,6 +400,7 @@ export default function EditorPage() {
                 qrUrl={qrUrl}
                 style={posterStyle}
                 paperSize={paperSize}
+                customBackground={customBackground || undefined}
               />
             </div>
           </div>

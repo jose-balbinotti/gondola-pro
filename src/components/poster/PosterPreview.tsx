@@ -86,6 +86,7 @@ interface Props {
   qrUrl: string;
   style: PosterStyle;
   paperSize: string;
+  customBackground?: string;
 }
 
 const ASPECT_RATIOS: Record<string, string> = {
@@ -110,7 +111,7 @@ function isSMS(font: string) { return font === "SuperMarketSlant"; }
 function resolveSMS(font: string) { return isSMS(font) ? SUPER_MARKET_SLANT_FONT : font; }
 
 const PosterPreview = forwardRef<HTMLDivElement, Props>(
-  ({ template, data, showQR, qrUrl, style, paperSize }, ref) => {
+  ({ template, data, showQR, qrUrl, style, paperSize, customBackground }, ref) => {
     const aspect = ASPECT_RATIOS[paperSize] || ASPECT_RATIOS[template.size] || "aspect-[3/4]";
     const { reais, centavos } = splitPrice(data.newPrice);
 
@@ -131,11 +132,17 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
     const smsSkew = (font: string) => isSMS(font) ? "skewX(-12deg)" : undefined;
     const smsShadow = (font: string, baseShadow: string) => baseShadow;
 
+    const bgImage = customBackground || template.backgroundImage;
+    const hasBgImage = !!bgImage;
+
     return (
       <div
         ref={ref}
         className={`relative ${aspect} w-full flex flex-col items-center justify-center text-center p-6`}
-        style={{ background: template.bgColor, fontFamily: mainFont }}
+        style={{
+          background: hasBgImage ? `url(${bgImage}) center/cover no-repeat` : template.bgColor,
+          fontFamily: mainFont,
+        }}
       >
         {/* Diagonal accent */}
         {template.layout === "diagonal" && (

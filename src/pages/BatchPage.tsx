@@ -5,12 +5,13 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TEMPLATES, DEFAULT_POSTER_DATA, type PosterData } from "@/lib/templates";
 import PosterPreview, { DEFAULT_POSTER_STYLE, FONT_OPTIONS, type PosterStyle } from "@/components/poster/PosterPreview";
-import { Tag, ArrowLeft, Download, FileText, Loader2, Plus, Trash2, Upload, Table, Type as TypeIcon } from "lucide-react";
+import { Tag, ArrowLeft, Download, FileText, Loader2, Plus, Trash2, Upload, Table, Type as TypeIcon, Save, FolderOpen, Image as ImageIcon } from "lucide-react";
 import Papa from "papaparse";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
+import { loadPresets, savePreset, deletePreset, type PosterPreset } from "@/lib/presets";
 
 const PDF_FORMATS: Record<string, [number, number]> = {
   A4: [210, 297],
@@ -18,12 +19,16 @@ const PDF_FORMATS: Record<string, [number, number]> = {
   A3: [297, 420],
   gondola: [297, 74],
   "10x15": [100, 150],
+  "A4-duplo": [210, 297],
+  "A3-duplo": [297, 420],
 };
 
 const PAPER_SIZES = [
   { value: "A4", label: "A4" },
   { value: "A5", label: "A5" },
   { value: "A3", label: "A3" },
+  { value: "A4-duplo", label: "A4 Duplo (2/folha)" },
+  { value: "A3-duplo", label: "A3 Duplo (2/folha)" },
   { value: "gondola", label: "Gôndola" },
   { value: "10x15", label: "10×15cm" },
 ];
@@ -48,22 +53,23 @@ const emptyProduct = (): PosterData => ({
 export default function BatchPage() {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+  const bgFileRef = useRef<HTMLInputElement>(null);
 
-  // Step control
   const [step, setStep] = useState<Step>("config");
-
-  // Config (pre-definition)
   const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0].id);
   const [paperSize, setPaperSize] = useState("A4");
   const [posterStyle, setPosterStyle] = useState<PosterStyle>({ ...DEFAULT_POSTER_STYLE });
   const [inputMode, setInputMode] = useState<InputMode>("table");
+  const [customBackground, setCustomBackground] = useState<string>("");
+  const [presetName, setPresetName] = useState("");
+  const [presets, setPresets] = useState<PosterPreset[]>(() => loadPresets());
 
-  // Data
   const [products, setProducts] = useState<PosterData[]>([emptyProduct()]);
   const [textInput, setTextInput] = useState("");
   const [exporting, setExporting] = useState(false);
 
   const template = TEMPLATES.find((t) => t.id === selectedTemplate) || TEMPLATES[0];
+  const isDuplo = paperSize === "A4-duplo" || paperSize === "A3-duplo";
 
   const updateStyle = useCallback(<K extends keyof PosterStyle>(field: K, value: PosterStyle[K]) => {
     setPosterStyle((prev) => ({ ...prev, [field]: value }));
@@ -126,25 +132,92 @@ export default function BatchPage() {
     e.target.value = "";
   };
 
+  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setCustomBackground(ev.target?.result as string);
+      toast({ title: "Imagem de fundo carregada!" });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleSavePreset = () => {
+    if (!presetName.trim()) {
+      toast({ title: "Digite um nome para o preset", variant: "destructive" });
+      return;
+    }
+    const result = savePreset({
+      name: presetName.trim(),
+      templateId: selectedTemplate,
+      paperSize,
+      style: posterStyle,
+      backgroundImage: customBackground || undefined,
+    });
+    if (result) {
+      setPresets(loadPresets());
+      setPresetName("");
+      toast({ title: `Preset "${result.name}" salvo!` });
+    } else {
+      toast({ title: "Limite de 20 presets atingido", variant: "destructive" });
+    }
+  };
+
+  const handleLoadPreset = (preset: PosterPreset) => {
+    setSelectedTemplate(preset.templateId);
+    setPaperSize(preset.paperSize);
+    setPosterStyle(preset.style);
+    if (preset.backgroundImage) setCustomBackground(preset.backgroundImage);
+    toast({ title: `Preset "${preset.name}" carregado!` });
+  };
+
+  const handleDeletePreset = (id: string) => {
+    deletePreset(id);
+    setPresets(loadPresets());
+    toast({ title: "Preset removido" });
+  };
+
   const validProducts = products.filter((p) => p.productName.trim() || p.newPrice.trim());
 
   const exportAllPDF = async () => {
     if (validProducts.length === 0) return;
     setExporting(true);
     try {
-      const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
+      const baseFmt = paperSize.replace("-duplo", "") as string;
+      const fmt = PDF_FORMATS[baseFmt] || PDF_FORMATS.A4;
       const isLandscape = fmt[0] > fmt[1];
       const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
 
-      for (let i = 0; i < validProducts.length; i++) {
-        const el = document.getElementById(`batch-poster-${i}`);
-        if (!el) continue;
-        const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: null });
-        const imgData = canvas.toDataURL("image/png");
-        if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+      if (isDuplo) {
+        // 2 posters per page (top + bottom)
+        const halfH = pdfH / 2;
+        for (let i = 0; i < validProducts.length; i += 2) {
+          const el1 = document.getElementById(`batch-poster-${i}`);
+          if (i > 0) pdf.addPage();
+          if (el1) {
+            const canvas1 = await html2canvas(el1, { scale: 3, useCORS: true, backgroundColor: null });
+            pdf.addImage(canvas1.toDataURL("image/png"), "PNG", 0, 0, pdfW, halfH);
+          }
+          if (i + 1 < validProducts.length) {
+            const el2 = document.getElementById(`batch-poster-${i + 1}`);
+            if (el2) {
+              const canvas2 = await html2canvas(el2, { scale: 3, useCORS: true, backgroundColor: null });
+              pdf.addImage(canvas2.toDataURL("image/png"), "PNG", 0, halfH, pdfW, halfH);
+            }
+          }
+        }
+      } else {
+        for (let i = 0; i < validProducts.length; i++) {
+          const el = document.getElementById(`batch-poster-${i}`);
+          if (!el) continue;
+          const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: null });
+          if (i > 0) pdf.addPage();
+          pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pdfW, pdfH);
+        }
       }
 
       pdf.save(`cartazes-lote-${validProducts.length}.pdf`);
@@ -155,9 +228,14 @@ export default function BatchPage() {
     setExporting(false);
   };
 
+  // Preview data for step 1
+  const previewData: PosterData = {
+    ...DEFAULT_POSTER_DATA,
+    templateId: selectedTemplate,
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <nav className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50">
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-3">
@@ -185,7 +263,7 @@ export default function BatchPage() {
         </div>
       </nav>
 
-      <div className="container py-6 max-w-5xl mx-auto">
+      <div className="container py-6 max-w-6xl mx-auto">
         {/* Steps indicator */}
         <div className="flex items-center gap-2 mb-6">
           {(["config", "data", "preview"] as Step[]).map((s, i) => (
@@ -199,100 +277,191 @@ export default function BatchPage() {
           ))}
         </div>
 
-        {/* STEP 1: Config */}
+        {/* STEP 1: Config with Preview */}
         {step === "config" && (
-          <div className="space-y-4 max-w-2xl">
-            <div className="p-4 rounded-lg border border-border bg-background">
-              <h3 className="text-sm font-bold text-foreground mb-3">Template</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {TEMPLATES.filter((t) => !t.premium).map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setSelectedTemplate(t.id)}
-                    className={`p-2 rounded-lg text-xs font-semibold text-left transition-colors border ${selectedTemplate === t.id ? "border-primary bg-primary/10 text-foreground" : "border-border bg-muted/30 text-muted-foreground hover:bg-accent"}`}
-                  >
-                    <div className="w-full h-6 rounded mb-1" style={{ background: t.bgColor }} />
-                    {t.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-4 rounded-lg border border-border bg-background">
-              <h3 className="text-sm font-bold text-foreground mb-3">Tamanho da Folha</h3>
-              <div className="flex flex-wrap gap-2">
-                {PAPER_SIZES.map((ps) => (
-                  <button key={ps.value} onClick={() => setPaperSize(ps.value)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${paperSize === ps.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>
-                    {ps.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-4 rounded-lg border border-border bg-background">
-              <h3 className="text-sm font-bold text-foreground mb-3">Fontes</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">Fonte geral</label>
-                  <Select value={posterStyle.fontFamily} onValueChange={(v) => updateStyle("fontFamily", v)}>
-                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                    <SelectContent>{FONT_OPTIONS.map((f) => (<SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>))}</SelectContent>
-                  </Select>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+            <div className="space-y-4">
+              {/* Presets */}
+              <div className="p-4 rounded-lg border border-border bg-background">
+                <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                  <FolderOpen className="w-4 h-4" /> Presets Salvos
+                </h3>
+                {presets.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                    {presets.map((p) => (
+                      <div key={p.id} className="flex items-center gap-1 p-2 rounded-lg border border-border bg-muted/30 text-xs">
+                        <button onClick={() => handleLoadPreset(p)} className="flex-1 text-left font-semibold text-foreground truncate hover:text-primary transition-colors">
+                          {p.name}
+                        </button>
+                        <button onClick={() => handleDeletePreset(p.id)} className="text-muted-foreground hover:text-destructive transition-colors p-0.5">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground mb-3">Nenhum preset salvo ainda.</p>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={presetName}
+                    onChange={(e) => setPresetName(e.target.value)}
+                    placeholder="Nome do preset..."
+                    className="flex-1 h-8 px-3 rounded-lg border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <Button variant="outline" size="sm" onClick={handleSavePreset} className="gap-1">
+                    <Save className="w-3 h-3" /> Salvar
+                  </Button>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">Fonte do preço</label>
-                  <Select value={posterStyle.priceFontFamily || "__default__"} onValueChange={(v) => updateStyle("priceFontFamily", v === "__default__" ? "" : v)}>
-                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__default__">Mesma da geral</SelectItem>
-                      {FONT_OPTIONS.map((f) => (<SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-muted-foreground">Sombreamento Individual</label>
-                  {([["shadowProduct", "Produto"], ["shadowBrand", "Marca"], ["shadowGramatura", "Gramatura"], ["shadowPrice", "Preço"], ["shadowDescription", "Descrição"]] as const).map(([key, label]) => (
-                    <div key={key} className="flex items-center justify-between">
-                      <label className="text-xs text-muted-foreground">{label}</label>
-                      <Switch checked={posterStyle[key] as boolean} onCheckedChange={(v) => updateStyle(key, v)} />
-                    </div>
+              </div>
+
+              {/* Template */}
+              <div className="p-4 rounded-lg border border-border bg-background">
+                <h3 className="text-sm font-bold text-foreground mb-3">Template</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {TEMPLATES.filter((t) => !t.premium).map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => setSelectedTemplate(t.id)}
+                      className={`p-2 rounded-lg text-xs font-semibold text-left transition-colors border ${selectedTemplate === t.id ? "border-primary bg-primary/10 text-foreground" : "border-border bg-muted/30 text-muted-foreground hover:bg-accent"}`}
+                    >
+                      <div className="w-full h-6 rounded mb-1 relative overflow-hidden" style={{ background: t.bgColor }}>
+                        {t.backgroundImage && (
+                          <img src={t.backgroundImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                        )}
+                      </div>
+                      {t.name}
+                      {t.seasonal && <span className="ml-1 text-[9px] opacity-60">🎉</span>}
+                    </button>
                   ))}
                 </div>
               </div>
+
+              {/* Background Image */}
+              <div className="p-4 rounded-lg border border-border bg-background">
+                <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4" /> Fundo Personalizado
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Importe uma imagem de fundo para cartazes pré-impressos. Somente as escritas editáveis serão impressas sobre o fundo.
+                </p>
+                <div className="flex gap-2">
+                  <input ref={bgFileRef} type="file" accept="image/*" onChange={handleBgUpload} className="hidden" />
+                  <Button variant="outline" size="sm" onClick={() => bgFileRef.current?.click()} className="gap-1.5">
+                    <Upload className="w-3.5 h-3.5" /> Importar Fundo
+                  </Button>
+                  {customBackground && (
+                    <Button variant="ghost" size="sm" onClick={() => setCustomBackground("")} className="text-destructive">
+                      Remover
+                    </Button>
+                  )}
+                </div>
+                {customBackground && (
+                  <div className="mt-2 w-20 h-28 rounded border border-border overflow-hidden">
+                    <img src={customBackground} alt="Fundo" className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
+
+              {/* Paper Size */}
+              <div className="p-4 rounded-lg border border-border bg-background">
+                <h3 className="text-sm font-bold text-foreground mb-3">Tamanho da Folha</h3>
+                <div className="flex flex-wrap gap-2">
+                  {PAPER_SIZES.map((ps) => (
+                    <button key={ps.value} onClick={() => setPaperSize(ps.value)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${paperSize === ps.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>
+                      {ps.label}
+                    </button>
+                  ))}
+                </div>
+                {isDuplo && (
+                  <p className="text-xs text-muted-foreground mt-2">📄 2 cartazes diferentes por folha (metade superior + inferior)</p>
+                )}
+              </div>
+
+              {/* Fonts */}
+              <div className="p-4 rounded-lg border border-border bg-background">
+                <h3 className="text-sm font-bold text-foreground mb-3">Fontes</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">Fonte geral</label>
+                    <Select value={posterStyle.fontFamily} onValueChange={(v) => updateStyle("fontFamily", v)}>
+                      <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                      <SelectContent>{FONT_OPTIONS.map((f) => (<SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>))}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">Fonte do preço</label>
+                    <Select value={posterStyle.priceFontFamily || "__default__"} onValueChange={(v) => updateStyle("priceFontFamily", v === "__default__" ? "" : v)}>
+                      <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__default__">Mesma da geral</SelectItem>
+                        {FONT_OPTIONS.map((f) => (<SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground">Sombreamento Individual</label>
+                    {([["shadowProduct", "Produto"], ["shadowBrand", "Marca"], ["shadowGramatura", "Gramatura"], ["shadowPrice", "Preço"], ["shadowDescription", "Descrição"]] as const).map(([key, label]) => (
+                      <div key={key} className="flex items-center justify-between">
+                        <label className="text-xs text-muted-foreground">{label}</label>
+                        <Switch checked={posterStyle[key] as boolean} onCheckedChange={(v) => updateStyle(key, v)} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Text Sizes */}
+              <div className="p-4 rounded-lg border border-border bg-background">
+                <h3 className="text-sm font-bold text-foreground mb-3">Tamanhos de Texto</h3>
+                <div className="space-y-3">
+                  <SliderField label={`Produto – ${posterStyle.productFontSize}px`} value={posterStyle.productFontSize} min={10} max={120} onChange={(v) => updateStyle("productFontSize", v)} />
+                  <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={120} onChange={(v) => updateStyle("brandFontSize", v)} />
+                  <SliderField label={`Preço (R$) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={200} onChange={(v) => updateStyle("priceFontSize", v)} />
+                  <SliderField label={`Centavos – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={120} onChange={(v) => updateStyle("centsFontSize", v)} />
+                </div>
+              </div>
+
+              {/* Input Mode */}
+              <div className="p-4 rounded-lg border border-border bg-background">
+                <h3 className="text-sm font-bold text-foreground mb-3">Modo de entrada dos produtos</h3>
+                <div className="flex gap-2">
+                  <button onClick={() => setInputMode("table")} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${inputMode === "table" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>
+                    <Table className="w-4 h-4" /> Tabela
+                  </button>
+                  <button onClick={() => setInputMode("text")} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${inputMode === "text" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>
+                    <TypeIcon className="w-4 h-4" /> Texto
+                  </button>
+                </div>
+              </div>
+
+              <Button onClick={() => setStep("data")} className="w-full">
+                Próximo → Adicionar Produtos
+              </Button>
             </div>
 
-            <div className="p-4 rounded-lg border border-border bg-background">
-              <h3 className="text-sm font-bold text-foreground mb-3">Tamanhos de Texto</h3>
-              <div className="space-y-3">
-                <SliderField label={`Produto – ${posterStyle.productFontSize}px`} value={posterStyle.productFontSize} min={10} max={120} onChange={(v) => updateStyle("productFontSize", v)} />
-                <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={120} onChange={(v) => updateStyle("brandFontSize", v)} />
-                <SliderField label={`Preço (R$) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={200} onChange={(v) => updateStyle("priceFontSize", v)} />
-                <SliderField label={`Centavos – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={120} onChange={(v) => updateStyle("centsFontSize", v)} />
+            {/* Preview Panel */}
+            <div className="lg:sticky lg:top-20 self-start">
+              <p className="text-xs text-muted-foreground mb-2 font-mono">PREVIEW</p>
+              <div className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)]">
+                <PosterPreview
+                  template={template}
+                  data={previewData}
+                  showQR={false}
+                  qrUrl=""
+                  style={posterStyle}
+                  paperSize={isDuplo ? paperSize.replace("-duplo", "") : paperSize}
+                  customBackground={customBackground || undefined}
+                />
               </div>
             </div>
-
-            <div className="p-4 rounded-lg border border-border bg-background">
-              <h3 className="text-sm font-bold text-foreground mb-3">Modo de entrada dos produtos</h3>
-              <div className="flex gap-2">
-                <button onClick={() => setInputMode("table")} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${inputMode === "table" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>
-                  <Table className="w-4 h-4" /> Tabela
-                </button>
-                <button onClick={() => setInputMode("text")} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${inputMode === "text" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>
-                  <TypeIcon className="w-4 h-4" /> Texto
-                </button>
-              </div>
-            </div>
-
-            <Button onClick={() => setStep("data")} className="w-full">
-              Próximo → Adicionar Produtos
-            </Button>
           </div>
         )}
 
         {/* STEP 2: Data input */}
         {step === "data" && (
           <div className="space-y-4">
-            {/* CSV import */}
             <div className="p-4 rounded-lg border border-dashed border-border bg-muted/30 flex items-center justify-between">
               <div>
                 <p className="text-sm font-bold text-foreground">Importar CSV</p>
@@ -376,28 +545,70 @@ export default function BatchPage() {
         {step === "preview" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-foreground">{validProducts.length} cartazes</h3>
+              <h3 className="text-sm font-bold text-foreground">
+                {validProducts.length} cartazes {isDuplo && `(${Math.ceil(validProducts.length / 2)} folhas)`}
+              </h3>
               <Button size="sm" onClick={exportAllPDF} disabled={exporting} className="gap-1.5">
                 {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                 Exportar PDF – {paperSize}
               </Button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {validProducts.map((product, i) => (
-                <div key={i} className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)]">
-                  <div id={`batch-poster-${i}`}>
-                    <PosterPreview
-                      template={template}
-                      data={{ ...product, templateId: selectedTemplate }}
-                      showQR={false}
-                      qrUrl=""
-                      style={posterStyle}
-                      paperSize={paperSize}
-                    />
+
+            {isDuplo ? (
+              <div className="space-y-6">
+                {Array.from({ length: Math.ceil(validProducts.length / 2) }).map((_, pageIdx) => {
+                  const idx1 = pageIdx * 2;
+                  const idx2 = pageIdx * 2 + 1;
+                  return (
+                    <div key={pageIdx} className="rounded-lg border border-border overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)]">
+                      <p className="text-[10px] text-muted-foreground px-3 py-1 bg-muted font-mono">Folha {pageIdx + 1}</p>
+                      <div id={`batch-poster-${idx1}`}>
+                        <PosterPreview
+                          template={template}
+                          data={{ ...validProducts[idx1], templateId: selectedTemplate }}
+                          showQR={false}
+                          qrUrl=""
+                          style={posterStyle}
+                          paperSize={paperSize.replace("-duplo", "")}
+                          customBackground={customBackground || undefined}
+                        />
+                      </div>
+                      {idx2 < validProducts.length && (
+                        <div id={`batch-poster-${idx2}`} className="border-t-2 border-dashed border-border">
+                          <PosterPreview
+                            template={template}
+                            data={{ ...validProducts[idx2], templateId: selectedTemplate }}
+                            showQR={false}
+                            qrUrl=""
+                            style={posterStyle}
+                            paperSize={paperSize.replace("-duplo", "")}
+                            customBackground={customBackground || undefined}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {validProducts.map((product, i) => (
+                  <div key={i} className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)]">
+                    <div id={`batch-poster-${i}`}>
+                      <PosterPreview
+                        template={template}
+                        data={{ ...product, templateId: selectedTemplate }}
+                        showQR={false}
+                        qrUrl=""
+                        style={posterStyle}
+                        paperSize={paperSize}
+                        customBackground={customBackground || undefined}
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
