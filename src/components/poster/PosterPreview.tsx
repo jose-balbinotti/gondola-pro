@@ -251,9 +251,6 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               </span>
             )}
           </div>
-              </span>
-            )}
-          </div>
           {/* Split price: R$ reais , centavos */}
           <div className="flex" style={{
             color: template.priceColor,
