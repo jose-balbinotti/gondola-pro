@@ -243,26 +243,26 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             textShadow: sGram,
           }}>
             {style.gramaturaLines && (
-              <span style={{
-                flex: '0 0 33%',
-                height: '2px',
-                background: template.textColor,
+              <div style={{
+                width: '33%',
+                height: '0px',
+                borderTop: `2px solid ${template.textColor}`,
                 opacity: 0.5,
                 marginRight: '8px',
-                display: 'block',
+                flexShrink: 0,
               }} />
             )}
             {data.gramatura && (
               <span style={{ whiteSpace: 'nowrap' }}>{data.gramatura}</span>
             )}
             {style.gramaturaLines && (
-              <span style={{
-                flex: '0 0 33%',
-                height: '2px',
-                background: template.textColor,
+              <div style={{
+                width: '33%',
+                height: '0px',
+                borderTop: `2px solid ${template.textColor}`,
                 opacity: 0.5,
                 marginLeft: '8px',
-                display: 'block',
+                flexShrink: 0,
               }} />
             )}
           </div>

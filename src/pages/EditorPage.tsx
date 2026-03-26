@@ -85,44 +85,6 @@ export default function EditorPage() {
     }
   };
 
-  /** Clone poster DOM with all computed styles inlined for vectorized output */
-  const clonePosterWithStyles = (): HTMLElement | null => {
-    const el = posterRef.current;
-    if (!el) return null;
-
-    const deepClone = (source: HTMLElement): HTMLElement => {
-      const clone = source.cloneNode(false) as HTMLElement;
-      if (source.nodeType === Node.TEXT_NODE) return source.cloneNode(true) as HTMLElement;
-      if (source.nodeType !== Node.ELEMENT_NODE) return clone;
-
-      // Copy all computed styles as inline
-      const cs = window.getComputedStyle(source);
-      for (let i = 0; i < cs.length; i++) {
-        const prop = cs[i];
-        clone.style.setProperty(prop, cs.getPropertyValue(prop));
-      }
-
-      // Recurse children
-      source.childNodes.forEach((child) => {
-        if (child.nodeType === Node.TEXT_NODE) {
-          clone.appendChild(child.cloneNode(true));
-        } else if (child.nodeType === Node.ELEMENT_NODE) {
-          clone.appendChild(deepClone(child as HTMLElement));
-        }
-      });
-
-      return clone;
-    };
-
-    const cloned = deepClone(el);
-    // Strip bg if base only
-    if (bgBaseOnly && customBackground) {
-      cloned.style.backgroundImage = 'none';
-      cloned.style.backgroundColor = '#ffffff';
-    }
-    return cloned;
-  };
-
   const exportPNG = async () => {
     try {
       const canvas = await capturePosterCanvas(4);
@@ -161,28 +123,17 @@ export default function EditorPage() {
 
   const handleDirectPrint = async () => {
     try {
-      const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
-
-      // Clone poster DOM with all styles inlined (vectorized)
-      const cloned = clonePosterWithStyles();
-      if (!cloned) {
+      const canvas = await capturePosterCanvas(4);
+      if (!canvas) {
         toast({ title: "Erro ao preparar impressão", variant: "destructive" });
         return;
       }
 
-      // Set fixed dimensions on clone to match paper proportions
+      const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
       const widthMM = fmt[0];
       const heightMM = fmt[1];
-      cloned.style.width = `${widthMM}mm`;
-      cloned.style.height = `${heightMM}mm`;
-      cloned.style.aspectRatio = 'auto';
-      cloned.style.position = 'relative';
-      cloned.style.margin = '0';
-      cloned.style.padding = cloned.style.padding || '24px';
-      cloned.style.boxSizing = 'border-box';
-      cloned.style.overflow = 'hidden';
+      const imageData = canvas.toDataURL("image/png", 1.0);
 
-      // Remove iframe if exists
       let iframe = document.getElementById("print-iframe") as HTMLIFrameElement | null;
       if (iframe) iframe.remove();
 
@@ -191,8 +142,8 @@ export default function EditorPage() {
       iframe.style.position = "fixed";
       iframe.style.top = "-10000px";
       iframe.style.left = "-10000px";
-      iframe.style.width = `${widthMM + 10}mm`;
-      iframe.style.height = `${heightMM + 10}mm`;
+      iframe.style.width = "0";
+      iframe.style.height = "0";
       iframe.style.border = "none";
       document.body.appendChild(iframe);
 
@@ -202,53 +153,30 @@ export default function EditorPage() {
         return;
       }
 
-      // Build fonts import
-      const fontsLink = document.querySelector('link[href*="fonts.googleapis.com"]');
-      const fontsHref = fontsLink?.getAttribute('href') || '';
-
       iframeDoc.open();
-      iframeDoc.write(`<!doctype html><html><head>
-        ${fontsHref ? `<link rel="stylesheet" href="${fontsHref}" />` : ''}
-        <style>
-          @page { size: ${widthMM}mm ${heightMM}mm; margin: 0; }
-          html, body { margin:0; padding:0; width:${widthMM}mm; height:${heightMM}mm; background:white; overflow:hidden; }
-        </style>
-      </head><body></body></html>`);
+      iframeDoc.write(`<!doctype html><html><head><style>
+        @page { size: ${widthMM}mm ${heightMM}mm; margin: 0; }
+        html, body { margin:0; padding:0; width:${widthMM}mm; height:${heightMM}mm; background:white; overflow:hidden; }
+        img { width:${widthMM}mm; height:${heightMM}mm; display:block; object-fit:fill; }
+      </style></head><body><img src="${imageData}" /></body></html>`);
       iframeDoc.close();
 
-      // Inject cloned DOM
-      iframeDoc.body.appendChild(cloned);
-
-      // Also copy any @font-face rules from the main document
-      for (const sheet of Array.from(document.styleSheets)) {
-        try {
-          for (const rule of Array.from(sheet.cssRules)) {
-            if (rule instanceof CSSFontFaceRule) {
-              const style = iframeDoc.createElement('style');
-              style.textContent = rule.cssText;
-              iframeDoc.head.appendChild(style);
-            }
-          }
-        } catch { /* cross-origin sheets */ }
-      }
-
-      // Wait for fonts to load then print
+      const img = iframeDoc.querySelector("img");
       const doPrint = () => {
         setTimeout(() => {
           iframe!.contentWindow?.focus();
           iframe!.contentWindow?.print();
           setTimeout(() => iframe?.remove(), 2000);
-        }, 300);
+        }, 200);
       };
-
-      // Wait for fonts
-      if (iframe.contentDocument?.fonts) {
-        iframe.contentDocument.fonts.ready.then(doPrint);
+      if (img) {
+        img.onload = doPrint;
+        if (img.complete) doPrint();
       } else {
         doPrint();
       }
 
-      toast({ title: `Impressão vetorizada pronta!` });
+      toast({ title: "Impressão pronta!" });
     } catch {
       toast({ title: "Erro ao imprimir", variant: "destructive" });
     }
