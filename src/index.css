@@ -215,10 +215,21 @@
     text-decoration: line-through double 3px #999 !important;
   }
 
+  .preco-promo {
+    font-size: 10pt !important;
+  }
+
   .preco-promo .centavos {
-    position: absolute;
-    top: -0.2em;
-    right: -0.1em;
-    font-size: 0.8em;
+    position: static !important;
+    margin-left: -0.05em;
+    font-size: 80%;
+  }
+
+  [data-print-poster] * {
+    position: static !important;
+  }
+
+  [data-print-poster] {
+    position: fixed !important;
   }
 }
