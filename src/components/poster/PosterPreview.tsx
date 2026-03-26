@@ -52,6 +52,10 @@ export interface PosterStyle {
   shadowGramatura: boolean;
   shadowPrice: boolean;
   shadowDescription: boolean;
+  hideCurrencySymbol: boolean;
+  centsAlignTop: boolean;
+  centsUnderline: boolean;
+  gramaturaLines: boolean;
 }
 
 export const DEFAULT_POSTER_STYLE: PosterStyle = {
@@ -77,6 +81,10 @@ export const DEFAULT_POSTER_STYLE: PosterStyle = {
   shadowGramatura: false,
   shadowPrice: false,
   shadowDescription: false,
+  hideCurrencySymbol: false,
+  centsAlignTop: false,
+  centsUnderline: false,
+  gramaturaLines: false,
 };
 
 interface Props {
