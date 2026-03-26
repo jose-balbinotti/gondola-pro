@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&family=Roboto:wght@300;400;700&display=swap');
 
 @font-face {
   font-family: 'Balmy';
@@ -149,6 +149,10 @@
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
+    font-family: 'Roboto', sans-serif;
+  }
+
+  * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
@@ -163,9 +167,6 @@
   [data-print-poster],
   [data-print-poster] * {
     visibility: visible !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    color-adjust: exact !important;
   }
 
   [data-print-poster] {
@@ -175,7 +176,7 @@
     width: 21cm !important;
     height: 29.7cm !important;
     margin: 0 !important;
-    padding: 0.5cm !important;
+    padding: 2cm !important;
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -183,5 +184,16 @@
     transform-origin: top left !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
+  }
+
+  .preco-original {
+    text-decoration: line-through double 3px #999 !important;
+  }
+
+  .preco-promo .centavos {
+    position: absolute;
+    top: -0.2em;
+    right: -0.1em;
+    font-size: 0.8em;
   }
 }
