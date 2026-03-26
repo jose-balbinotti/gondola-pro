@@ -293,6 +293,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               transform: `translateY(${style.gramaturaOffsetY}px) ${smsSkew(style.fontFamily) || ''}`,
               opacity: 0.7,
               textShadow: sGram,
+              flexShrink: 0,
             }}>
               {style.gramaturaLines && (
                 <div style={{
@@ -345,6 +346,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               flexDirection: 'column',
               alignItems: 'center',
               transform: `translateY(${style.priceOffsetY}px)`,
+              flexShrink: 0,
             }}>
               {data.oldPrice && (
                 <div style={{
