@@ -150,6 +150,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
     return (
       <div
         ref={ref}
+        data-print-poster
         className={`relative ${aspect} w-full flex flex-col items-center justify-center text-center p-6`}
         style={{
           background: hasBgImage ? `url(${bgImage}) center/cover no-repeat` : template.bgColor,

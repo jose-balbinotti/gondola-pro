@@ -136,3 +136,34 @@
     background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
   }
 }
+
+@media print {
+  /* Hide everything except the poster */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Show only the poster preview */
+  [data-print-poster],
+  [data-print-poster] * {
+    visibility: visible !important;
+  }
+
+  [data-print-poster] {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    aspect-ratio: auto !important;
+  }
+
+  @page {
+    margin: 0;
+  }
+}

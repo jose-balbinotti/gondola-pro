@@ -5,7 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TEMPLATES, DEFAULT_POSTER_DATA, type PosterData } from "@/lib/templates";
-import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode, Type, Move, Save, FolderOpen, Upload, Trash2, Image as ImageIcon } from "lucide-react";
+import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode, Type, Move, Save, FolderOpen, Upload, Trash2, Image as ImageIcon, Printer } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
@@ -184,6 +184,9 @@ export default function EditorPage() {
             </Button>
             <Button size="sm" onClick={exportPDF} className="snap-active gap-1.5">
               <FileText className="w-3.5 h-3.5" /> PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => window.print()} className="snap-active gap-1.5">
+              <Printer className="w-3.5 h-3.5" /> Imprimir
             </Button>
           </div>
         </div>
@@ -438,8 +441,11 @@ export default function EditorPage() {
                 <Button variant="outline" onClick={exportPNG} className="flex-1 snap-active gap-1.5">
                   <FileImage className="w-4 h-4" /> PNG
                 </Button>
-                <Button onClick={exportPDF} className="flex-1 snap-active gap-1.5">
+              <Button onClick={exportPDF} className="flex-1 snap-active gap-1.5">
                   <Download className="w-4 h-4" /> PDF {paperSize}
+                </Button>
+                <Button variant="secondary" onClick={() => window.print()} className="flex-1 snap-active gap-1.5">
+                  <Printer className="w-4 h-4" /> Imprimir
                 </Button>
               </div>
             </div>
