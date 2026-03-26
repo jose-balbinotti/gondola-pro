@@ -70,30 +70,52 @@ export default function EditorPage() {
     }
   };
 
-  const exportPNG = async () => {
-    if (!posterRef.current) return;
+  const capturePosterCanvas = async () => {
+    if (!posterRef.current) return null;
+
+    const el = posterRef.current;
+
+    // The inner poster div is always rendered at the fixed REFERENCE_WIDTH (800px).
+    // Remove CSS scale transform temporarily so html2canvas captures at native size.
+    const origTransform = el.style.transform;
+    el.style.transform = 'none';
+
+    stripBgForExport();
     try {
-      stripBgForExport();
-      const canvas = await html2canvas(posterRef.current, { scale: 3, useCORS: true, backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null });
+      // Capture at scale 4 → effective resolution ~3200px wide (high DPI print quality)
+      const canvas = await html2canvas(el, {
+        scale: 4,
+        useCORS: true,
+        backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null,
+        width: el.offsetWidth,
+        height: el.offsetHeight,
+      });
+      return canvas;
+    } finally {
+      el.style.transform = origTransform;
       restoreBgAfterExport();
+    }
+  };
+
+  const exportPNG = async () => {
+    try {
+      const canvas = await capturePosterCanvas();
+      if (!canvas) return;
       const link = document.createElement("a");
       link.download = `cartaz-${data.productName || "gondolapro"}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
-      toast({ title: "PNG exportado!", description: "Seu cartaz foi salvo." });
+      toast({ title: "PNG exportado!", description: "Seu cartaz foi salvo em alta resolução." });
     } catch {
-      restoreBgAfterExport();
       toast({ title: "Erro ao exportar", variant: "destructive" });
     }
   };
 
   const exportPDF = async () => {
-    if (!posterRef.current) return;
     try {
-      stripBgForExport();
-      const canvas = await html2canvas(posterRef.current, { scale: 3, useCORS: true, backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null });
-      restoreBgAfterExport();
-      const imgData = canvas.toDataURL("image/png");
+      const canvas = await capturePosterCanvas();
+      if (!canvas) return;
+      const imgData = canvas.toDataURL("image/png", 1.0);
       const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
       const isLandscape = fmt[0] > fmt[1];
       const pdf = new jsPDF({
@@ -105,10 +127,70 @@ export default function EditorPage() {
       const pdfH = pdf.internal.pageSize.getHeight();
       pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
       pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
-      toast({ title: "PDF exportado!", description: `Formato ${paperSize} – 300dpi.` });
+      toast({ title: "PDF exportado!", description: `Formato ${paperSize} – alta resolução.` });
     } catch {
-      restoreBgAfterExport();
       toast({ title: "Erro ao exportar", variant: "destructive" });
+    }
+  };
+
+  const handleDirectPrint = async () => {
+    try {
+      const canvas = await capturePosterCanvas();
+      if (!canvas) {
+        toast({ title: "Erro ao preparar impressão", variant: "destructive" });
+        return;
+      }
+
+      const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
+      const widthMM = fmt[0];
+      const heightMM = fmt[1];
+      const imageData = canvas.toDataURL("image/png", 1.0);
+
+      let iframe = document.getElementById("print-iframe") as HTMLIFrameElement | null;
+      if (iframe) iframe.remove();
+
+      iframe = document.createElement("iframe");
+      iframe.id = "print-iframe";
+      iframe.style.position = "fixed";
+      iframe.style.top = "-10000px";
+      iframe.style.left = "-10000px";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        toast({ title: "Erro ao preparar impressão", variant: "destructive" });
+        return;
+      }
+
+      iframeDoc.open();
+      iframeDoc.write(`<!doctype html><html><head><style>
+        @page { size: ${widthMM}mm ${heightMM}mm; margin: 0; }
+        html, body { margin:0; padding:0; width:${widthMM}mm; height:${heightMM}mm; background:white; overflow:hidden; }
+        img { width:${widthMM}mm; height:${heightMM}mm; display:block; object-fit:fill; }
+      </style></head><body><img src="${imageData}" /></body></html>`);
+      iframeDoc.close();
+
+      const img = iframeDoc.querySelector("img");
+      const doPrint = () => {
+        setTimeout(() => {
+          iframe!.contentWindow?.focus();
+          iframe!.contentWindow?.print();
+          setTimeout(() => iframe?.remove(), 2000);
+        }, 200);
+      };
+      if (img) {
+        img.onload = doPrint;
+        if (img.complete) doPrint();
+      } else {
+        doPrint();
+      }
+
+      toast({ title: "Impressão pronta!" });
+    } catch {
+      toast({ title: "Erro ao imprimir", variant: "destructive" });
     }
   };
 
@@ -208,13 +290,7 @@ export default function EditorPage() {
             <Button size="sm" onClick={exportPDF} className="snap-active gap-1.5">
               <FileText className="w-3.5 h-3.5" /> PDF
             </Button>
-            <Button variant="outline" size="sm" onClick={() => {
-              if (bgBaseOnly && customBackground && posterRef.current) {
-                posterRef.current.style.backgroundImage = 'none';
-                posterRef.current.style.backgroundColor = '#ffffff';
-                setTimeout(() => { window.print(); setTimeout(() => { if (posterRef.current) { posterRef.current.style.backgroundImage = `url(${customBackground})`; posterRef.current.style.backgroundColor = ''; }}, 500); }, 100);
-              } else { window.print(); }
-            }} className="snap-active gap-1.5">
+            <Button variant="outline" size="sm" onClick={handleDirectPrint} className="snap-active gap-1.5">
               <Printer className="w-3.5 h-3.5" /> Imprimir
             </Button>
           </div>
@@ -407,12 +483,12 @@ export default function EditorPage() {
                         placeholder="Ex: Super Oferta, Só Hoje..."
                       />
                     )}
-                    <SliderField label={`Nome do produto – ${posterStyle.productFontSize}px`} value={posterStyle.productFontSize} min={10} max={120} onChange={(v) => updateStyle("productFontSize", v)} />
-                    <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={120} onChange={(v) => updateStyle("brandFontSize", v)} />
-                    <SliderField label={`Gramatura – ${posterStyle.gramaturaFontSize}px`} value={posterStyle.gramaturaFontSize} min={8} max={72} onChange={(v) => updateStyle("gramaturaFontSize", v)} />
-                    <SliderField label={`Preço (reais) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={200} onChange={(v) => updateStyle("priceFontSize", v)} />
-                    <SliderField label={`Preço (centavos/R$) – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={120} onChange={(v) => updateStyle("centsFontSize", v)} />
-                    <SliderField label={`Descrição – ${posterStyle.descriptionFontSize}px`} value={posterStyle.descriptionFontSize} min={8} max={64} onChange={(v) => updateStyle("descriptionFontSize", v)} />
+                    <SliderField label={`Nome do produto – ${posterStyle.productFontSize}px`} value={posterStyle.productFontSize} min={10} max={200} onChange={(v) => updateStyle("productFontSize", v)} />
+                    <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={200} onChange={(v) => updateStyle("brandFontSize", v)} />
+                    <SliderField label={`Gramatura – ${posterStyle.gramaturaFontSize}px`} value={posterStyle.gramaturaFontSize} min={8} max={120} onChange={(v) => updateStyle("gramaturaFontSize", v)} />
+                    <SliderField label={`Preço (reais) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={300} onChange={(v) => updateStyle("priceFontSize", v)} />
+                    <SliderField label={`Preço (centavos/R$) – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={200} onChange={(v) => updateStyle("centsFontSize", v)} />
+                    <SliderField label={`Descrição – ${posterStyle.descriptionFontSize}px`} value={posterStyle.descriptionFontSize} min={8} max={120} onChange={(v) => updateStyle("descriptionFontSize", v)} />
                   </div>
                 </div>
 
@@ -422,13 +498,13 @@ export default function EditorPage() {
                     <Move className="w-4 h-4" /> Posição dos Elementos
                   </h3>
                   <div className="space-y-4">
-                    <SliderField label={`Nome Y – ${posterStyle.productOffsetY}px`} value={posterStyle.productOffsetY} min={-80} max={80} onChange={(v) => updateStyle("productOffsetY", v)} />
-                    <SliderField label={`Marca Y – ${posterStyle.brandOffsetY}px`} value={posterStyle.brandOffsetY} min={-80} max={80} onChange={(v) => updateStyle("brandOffsetY", v)} />
-                    <SliderField label={`Gramatura Y – ${posterStyle.gramaturaOffsetY}px`} value={posterStyle.gramaturaOffsetY} min={-80} max={80} onChange={(v) => updateStyle("gramaturaOffsetY", v)} />
-                    <SliderField label={`Preço Y – ${posterStyle.priceOffsetY}px`} value={posterStyle.priceOffsetY} min={-80} max={80} onChange={(v) => updateStyle("priceOffsetY", v)} />
-                    <SliderField label={`Descrição Y – ${posterStyle.descriptionOffsetY}px`} value={posterStyle.descriptionOffsetY} min={-80} max={80} onChange={(v) => updateStyle("descriptionOffsetY", v)} />
-                    <SliderField label={`Validade Y – ${posterStyle.validityOffsetY}px`} value={posterStyle.validityOffsetY} min={-80} max={80} onChange={(v) => updateStyle("validityOffsetY", v)} />
-                    <SliderField label={`Unidade X – ${posterStyle.unitOffsetX}px`} value={posterStyle.unitOffsetX} min={-120} max={120} onChange={(v) => updateStyle("unitOffsetX", v)} />
+                    <SliderField label={`Nome Y – ${posterStyle.productOffsetY}px`} value={posterStyle.productOffsetY} min={-200} max={200} onChange={(v) => updateStyle("productOffsetY", v)} />
+                    <SliderField label={`Marca Y – ${posterStyle.brandOffsetY}px`} value={posterStyle.brandOffsetY} min={-200} max={200} onChange={(v) => updateStyle("brandOffsetY", v)} />
+                    <SliderField label={`Gramatura Y – ${posterStyle.gramaturaOffsetY}px`} value={posterStyle.gramaturaOffsetY} min={-200} max={200} onChange={(v) => updateStyle("gramaturaOffsetY", v)} />
+                    <SliderField label={`Preço Y – ${posterStyle.priceOffsetY}px`} value={posterStyle.priceOffsetY} min={-200} max={200} onChange={(v) => updateStyle("priceOffsetY", v)} />
+                    <SliderField label={`Descrição Y – ${posterStyle.descriptionOffsetY}px`} value={posterStyle.descriptionOffsetY} min={-200} max={200} onChange={(v) => updateStyle("descriptionOffsetY", v)} />
+                    <SliderField label={`Validade Y – ${posterStyle.validityOffsetY}px`} value={posterStyle.validityOffsetY} min={-200} max={200} onChange={(v) => updateStyle("validityOffsetY", v)} />
+                    <SliderField label={`Unidade X – ${posterStyle.unitOffsetX}px`} value={posterStyle.unitOffsetX} min={-200} max={200} onChange={(v) => updateStyle("unitOffsetX", v)} />
                   </div>
                 </div>
 
@@ -478,7 +554,7 @@ export default function EditorPage() {
                     <Button onClick={exportPDF} className="flex-1 snap-active gap-1.5">
                       <Download className="w-4 h-4" /> PDF {paperSize}
                     </Button>
-                    <Button variant="secondary" onClick={() => window.print()} className="flex-1 snap-active gap-1.5">
+                    <Button variant="secondary" onClick={handleDirectPrint} className="flex-1 snap-active gap-1.5">
                       <Printer className="w-4 h-4" /> Imprimir
                     </Button>
                   </div>
