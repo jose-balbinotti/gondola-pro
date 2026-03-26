@@ -221,33 +221,12 @@ export default function BatchPage() {
     setExporting(true);
     try {
       const baseFmt = paperSize.replace("-duplo", "") as string;
-      const fmtMM = PDF_FORMATS[baseFmt] || PDF_FORMATS.A4;
-      const widthCM = fmtMM[0] / 10;
-      const heightCM = fmtMM[1] / 10;
-      const isLandscape = fmtMM[0] > fmtMM[1];
-      const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "cm", format: [widthCM, heightCM] });
+      const fmt = PDF_FORMATS[baseFmt] || PDF_FORMATS.A4;
+      const isLandscape = fmt[0] > fmt[1];
+      const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
       const bgColor = bgBaseOnly && customBackground ? '#ffffff' : null;
-
-      // Helper: capture the inner fixed-size poster div directly (removing CSS scale)
-      const capturePoster = async (containerEl: HTMLElement) => {
-        const posterEl = containerEl.querySelector('[data-print-poster]') as HTMLElement;
-        const target = posterEl || containerEl;
-        const origTransform = target.style.transform;
-        target.style.transform = 'none';
-        if (posterEl) stripBgForExport(posterEl);
-        const canvas = await html2canvas(target, {
-          scale: 4,
-          useCORS: true,
-          backgroundColor: bgColor,
-          width: target.offsetWidth,
-          height: target.offsetHeight,
-        });
-        target.style.transform = origTransform;
-        if (posterEl) restoreBgAfterExport(posterEl);
-        return canvas;
-      };
 
       if (isDuplo) {
         const halfH = pdfH / 2;
@@ -255,13 +234,19 @@ export default function BatchPage() {
           const el1 = document.getElementById(`batch-poster-${i}`);
           if (i > 0) pdf.addPage();
           if (el1) {
-            const canvas1 = await capturePoster(el1);
+            const posterEl1 = el1.querySelector('[data-print-poster]') as HTMLElement;
+            if (posterEl1) stripBgForExport(posterEl1);
+            const canvas1 = await html2canvas(el1, { scale: 3, useCORS: true, backgroundColor: bgColor });
+            if (posterEl1) restoreBgAfterExport(posterEl1);
             pdf.addImage(canvas1.toDataURL("image/png"), "PNG", 0, 0, pdfW, halfH);
           }
           if (i + 1 < validProducts.length) {
             const el2 = document.getElementById(`batch-poster-${i + 1}`);
             if (el2) {
-              const canvas2 = await capturePoster(el2);
+              const posterEl2 = el2.querySelector('[data-print-poster]') as HTMLElement;
+              if (posterEl2) stripBgForExport(posterEl2);
+              const canvas2 = await html2canvas(el2, { scale: 3, useCORS: true, backgroundColor: bgColor });
+              if (posterEl2) restoreBgAfterExport(posterEl2);
               pdf.addImage(canvas2.toDataURL("image/png"), "PNG", 0, halfH, pdfW, halfH);
             }
           }
@@ -270,7 +255,10 @@ export default function BatchPage() {
         for (let i = 0; i < validProducts.length; i++) {
           const el = document.getElementById(`batch-poster-${i}`);
           if (!el) continue;
-          const canvas = await capturePoster(el);
+          const posterEl = el.querySelector('[data-print-poster]') as HTMLElement;
+          if (posterEl) stripBgForExport(posterEl);
+          const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: bgColor });
+          if (posterEl) restoreBgAfterExport(posterEl);
           if (i > 0) pdf.addPage();
           pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pdfW, pdfH);
         }
@@ -478,10 +466,10 @@ export default function BatchPage() {
               <div className="p-4 rounded-lg border border-border bg-background">
                 <h3 className="text-sm font-bold text-foreground mb-3">Tamanhos de Texto</h3>
                 <div className="space-y-3">
-                  <SliderField label={`Produto – ${posterStyle.productFontSize}px`} value={posterStyle.productFontSize} min={10} max={200} onChange={(v) => updateStyle("productFontSize", v)} />
-                  <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={200} onChange={(v) => updateStyle("brandFontSize", v)} />
-                  <SliderField label={`Preço (R$) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={300} onChange={(v) => updateStyle("priceFontSize", v)} />
-                  <SliderField label={`Centavos – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={200} onChange={(v) => updateStyle("centsFontSize", v)} />
+                  <SliderField label={`Produto – ${posterStyle.productFontSize}px`} value={posterStyle.productFontSize} min={10} max={120} onChange={(v) => updateStyle("productFontSize", v)} />
+                  <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={120} onChange={(v) => updateStyle("brandFontSize", v)} />
+                  <SliderField label={`Preço (R$) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={200} onChange={(v) => updateStyle("priceFontSize", v)} />
+                  <SliderField label={`Centavos – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={120} onChange={(v) => updateStyle("centsFontSize", v)} />
                 </div>
               </div>
 
