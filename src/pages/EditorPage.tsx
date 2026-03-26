@@ -172,6 +172,56 @@ export default function EditorPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Editor Panel */}
           <div className="space-y-4 order-2 lg:order-1">
+            {/* Presets */}
+            <div className="p-4 rounded-lg border border-border bg-background">
+              <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                <FolderOpen className="w-4 h-4" /> Presets Salvos
+              </h3>
+              {presets.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  {presets.map((p) => (
+                    <div key={p.id} className="flex items-center gap-1 p-2 rounded-lg border border-border bg-muted/30 text-xs">
+                      <button onClick={() => handleLoadPreset(p)} className="flex-1 text-left font-semibold text-foreground truncate hover:text-primary transition-colors">
+                        {p.name}
+                      </button>
+                      <button onClick={() => handleDeletePreset(p.id)} className="text-muted-foreground hover:text-destructive transition-colors p-0.5">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground mb-3">Nenhum preset salvo.</p>
+              )}
+              <div className="flex gap-2">
+                <input type="text" value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="Nome do preset..." className="flex-1 h-8 px-3 rounded-lg border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                <Button variant="outline" size="sm" onClick={handleSavePreset} className="gap-1">
+                  <Save className="w-3 h-3" /> Salvar
+                </Button>
+              </div>
+            </div>
+
+            {/* Background Image */}
+            <div className="p-4 rounded-lg border border-border bg-background">
+              <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                <ImageIcon className="w-4 h-4" /> Fundo Personalizado
+              </h3>
+              <div className="flex gap-2">
+                <input ref={bgFileRef} type="file" accept="image/*" onChange={handleBgUpload} className="hidden" />
+                <Button variant="outline" size="sm" onClick={() => bgFileRef.current?.click()} className="gap-1.5">
+                  <Upload className="w-3.5 h-3.5" /> Importar Fundo
+                </Button>
+                {customBackground && (
+                  <Button variant="ghost" size="sm" onClick={() => setCustomBackground("")} className="text-destructive">Remover</Button>
+                )}
+              </div>
+              {customBackground && (
+                <div className="mt-2 w-16 h-22 rounded border border-border overflow-hidden">
+                  <img src={customBackground} alt="Fundo" className="w-full h-full object-cover" />
+                </div>
+              )}
+            </div>
+
             {/* Product Info */}
             <div className="p-4 rounded-lg border border-border bg-background">
               <h3 className="text-sm font-bold text-foreground mb-3">Informações do Produto</h3>
