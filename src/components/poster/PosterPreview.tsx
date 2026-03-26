@@ -402,7 +402,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                       lineHeight: 1,
                       whiteSpace: 'nowrap',
                       marginTop: `${Math.round(style.centsFontSize * 0.08)}px`,
-                      transform: `translateX(${style.unitOffsetX}px)`,
+                      transform: `translateX(${style.unitOffsetX}px) translateY(${style.unitOffsetY}px)`,
                     }}>{data.unit}</span>
                   )}
                 </span>
