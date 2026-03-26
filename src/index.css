@@ -135,6 +135,31 @@
   .bg-promo-gradient {
     background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
   }
+
+  .preco-promo {
+    display: flex !important;
+    align-items: baseline;
+    gap: 0.1em;
+    font-weight: 700;
+  }
+
+  .preco-promo .inteiro {
+    font-size: 100%;
+  }
+
+  .preco-promo .centavos {
+    font-size: 80%;
+    margin-left: -0.05em;
+  }
+
+  .preco-original {
+    text-decoration: line-through double 3px #999 !important;
+  }
+
+  .unidade {
+    text-align: center;
+    margin-top: 0.2em;
+  }
 }
 
 @media print {
@@ -190,10 +215,21 @@
     text-decoration: line-through double 3px #999 !important;
   }
 
+  .preco-promo {
+    font-size: 10pt !important;
+  }
+
   .preco-promo .centavos {
-    position: absolute;
-    top: -0.2em;
-    right: -0.1em;
-    font-size: 0.8em;
+    position: static !important;
+    margin-left: -0.05em;
+    font-size: 80%;
+  }
+
+  [data-print-poster] * {
+    position: static !important;
+  }
+
+  [data-print-poster] {
+    position: fixed !important;
   }
 }
