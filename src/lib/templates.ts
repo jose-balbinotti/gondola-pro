@@ -1,7 +1,7 @@
 export interface PosterTemplate {
   id: string;
   name: string;
-  category: 'promo' | 'gondola' | 'oferta-dia' | 'leve-pague' | 'destaque' | 'faixa';
+  category: 'promo' | 'gondola' | 'oferta-dia' | 'leve-pague' | 'destaque' | 'faixa' | 'sazonal';
   size: 'A4' | 'A5' | 'gondola';
   bgColor: string;
   accentColor: string;
@@ -9,6 +9,8 @@ export interface PosterTemplate {
   priceColor: string;
   layout: 'centered' | 'split' | 'banner' | 'diagonal';
   premium: boolean;
+  backgroundImage?: string;
+  seasonal?: 'pascoa' | 'natal' | 'consumidor' | 'black-friday';
 }
 
 export interface PosterData {
@@ -58,6 +60,13 @@ export const TEMPLATES: PosterTemplate[] = [
   { id: 'padaria', name: 'Padaria', category: 'oferta-dia', size: 'A5', bgColor: '#92400E', accentColor: '#FFD700', textColor: '#FFFFFF', priceColor: '#FFFFFF', layout: 'centered', premium: false },
   { id: 'bebidas', name: 'Bebidas', category: 'promo', size: 'A4', bgColor: '#1E40AF', accentColor: '#E31C1C', textColor: '#FFFFFF', priceColor: '#FFD700', layout: 'diagonal', premium: false },
   { id: 'faixa-clean', name: 'Faixa Clean', category: 'faixa', size: 'A5', bgColor: '#FFFFFF', accentColor: '#E31C1C', textColor: '#1A1A1B', priceColor: '#E31C1C', layout: 'banner', premium: false },
+  // Seasonal Templates
+  { id: 'pascoa-tema', name: 'Páscoa Temático', category: 'sazonal', size: 'A4', bgColor: '#E8B4F8', accentColor: '#FFD700', textColor: '#4A1A6B', priceColor: '#E31C1C', layout: 'centered', premium: false, backgroundImage: '/templates/pascoa-bg.jpg', seasonal: 'pascoa' },
+  { id: 'natal-tema', name: 'Natal Temático', category: 'sazonal', size: 'A4', bgColor: '#165B33', accentColor: '#FFD700', textColor: '#FFFFFF', priceColor: '#FFD700', layout: 'centered', premium: false, backgroundImage: '/templates/natal-bg.jpg', seasonal: 'natal' },
+  { id: 'consumidor-tema', name: 'Dia do Consumidor', category: 'sazonal', size: 'A4', bgColor: '#2196F3', accentColor: '#FF8A00', textColor: '#FFFFFF', priceColor: '#FF8A00', layout: 'centered', premium: false, backgroundImage: '/templates/consumidor-bg.jpg', seasonal: 'consumidor' },
+  { id: 'pascoa-simples', name: 'Páscoa Simples', category: 'sazonal', size: 'A4', bgColor: '#7C3AED', accentColor: '#FFD700', textColor: '#FFFFFF', priceColor: '#FFD700', layout: 'centered', premium: false, seasonal: 'pascoa' },
+  { id: 'natal-elegante', name: 'Natal Elegante', category: 'sazonal', size: 'A4', bgColor: '#991B1B', accentColor: '#FFD700', textColor: '#FFFFFF', priceColor: '#FFD700', layout: 'split', premium: false, seasonal: 'natal' },
+  { id: 'consumidor-moderno', name: 'Consumidor Moderno', category: 'sazonal', size: 'A4', bgColor: '#1E40AF', accentColor: '#FF8A00', textColor: '#FFFFFF', priceColor: '#FFFFFF', layout: 'diagonal', premium: false, seasonal: 'consumidor' },
 ];
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -67,6 +76,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   'leve-pague': 'Leve e Pague',
   'destaque': 'Destaque',
   'faixa': 'Faixas',
+  'sazonal': 'Sazonais',
 };
 
 export const DEFAULT_POSTER_DATA: PosterData = {
