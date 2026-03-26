@@ -65,6 +65,10 @@ export default function BatchPage() {
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<PosterPreset[]>(() => loadPresets());
 
+  useEffect(() => {
+    loadPresetsFromDB().then(setPresets);
+  }, []);
+
   const [products, setProducts] = useState<PosterData[]>([emptyProduct()]);
   const [textInput, setTextInput] = useState("");
   const [exporting, setExporting] = useState(false);
@@ -166,12 +170,12 @@ export default function BatchPage() {
     e.target.value = "";
   };
 
-  const handleSavePreset = () => {
+  const handleSavePreset = async () => {
     if (!presetName.trim()) {
       toast({ title: "Digite um nome para o preset", variant: "destructive" });
       return;
     }
-    const result = savePreset({
+    const result = await savePresetToDB({
       name: presetName.trim(),
       templateId: selectedTemplate,
       paperSize,
@@ -179,11 +183,12 @@ export default function BatchPage() {
       backgroundImage: customBackground || undefined,
     });
     if (result) {
-      setPresets(loadPresets());
+      const updated = await loadPresetsFromDB();
+      setPresets(updated);
       setPresetName("");
       toast({ title: `Preset "${result.name}" salvo!` });
     } else {
-      toast({ title: "Limite de 20 presets atingido", variant: "destructive" });
+      toast({ title: "Limite de presets atingido", variant: "destructive" });
     }
   };
 
@@ -195,9 +200,10 @@ export default function BatchPage() {
     toast({ title: `Preset "${preset.name}" carregado!` });
   };
 
-  const handleDeletePreset = (id: string) => {
-    deletePreset(id);
-    setPresets(loadPresets());
+  const handleDeletePreset = async (id: string) => {
+    await deletePresetFromDB(id);
+    const updated = await loadPresetsFromDB();
+    setPresets(updated);
     toast({ title: "Preset removido" });
   };
 
