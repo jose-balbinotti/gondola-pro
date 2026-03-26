@@ -290,7 +290,13 @@ export default function EditorPage() {
                 <Field label="Descrição" value={data.description} onChange={(v) => update("description", v)} />
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Quantidade" value={data.quantity} onChange={(v) => update("quantity", v)} placeholder="Ex: 3" />
-                  <Field label="Unidade" value={data.unit} onChange={(v) => update("unit", v)} placeholder="un, kg, L" />
+                  <div>
+                    <Field label="Unidade" value={data.unit} onChange={(v) => update("unit", v)} placeholder="un, kg, L" />
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mt-1.5">
+                      <Switch checked={posterStyle.unitBelowCents} onCheckedChange={(v) => updateStyle("unitBelowCents", v)} />
+                      Abaixo dos centavos
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -383,6 +389,7 @@ export default function EditorPage() {
                 <SliderField label={`Marca Y – ${posterStyle.brandOffsetY}px`} value={posterStyle.brandOffsetY} min={-80} max={80} onChange={(v) => updateStyle("brandOffsetY", v)} />
                 <SliderField label={`Gramatura Y – ${posterStyle.gramaturaOffsetY}px`} value={posterStyle.gramaturaOffsetY} min={-80} max={80} onChange={(v) => updateStyle("gramaturaOffsetY", v)} />
                 <SliderField label={`Preço Y – ${posterStyle.priceOffsetY}px`} value={posterStyle.priceOffsetY} min={-80} max={80} onChange={(v) => updateStyle("priceOffsetY", v)} />
+                <SliderField label={`Descrição Y – ${posterStyle.descriptionOffsetY}px`} value={posterStyle.descriptionOffsetY} min={-80} max={80} onChange={(v) => updateStyle("descriptionOffsetY", v)} />
                 <SliderField label={`Validade Y – ${posterStyle.validityOffsetY}px`} value={posterStyle.validityOffsetY} min={-80} max={80} onChange={(v) => updateStyle("validityOffsetY", v)} />
                 <SliderField label={`Unidade X – ${posterStyle.unitOffsetX}px`} value={posterStyle.unitOffsetX} min={-120} max={120} onChange={(v) => updateStyle("unitOffsetX", v)} />
               </div>
