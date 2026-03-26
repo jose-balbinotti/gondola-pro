@@ -434,10 +434,16 @@ export default function BatchPage() {
               </Button>
             )}
             {step === "preview" && validProducts.length > 0 && (
-              <Button size="sm" onClick={exportAllPDF} disabled={exporting} className="gap-1.5">
-                {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                Exportar PDF ({validProducts.length})
-              </Button>
+              <>
+                <Button size="sm" onClick={exportAllPDF} disabled={exporting} className="gap-1.5">
+                  {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                  Exportar PDF ({validProducts.length})
+                </Button>
+                <Button size="sm" variant="outline" onClick={printAll} disabled={exporting} className="gap-1.5">
+                  {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
+                  Imprimir ({validProducts.length})
+                </Button>
+              </>
             )}
           </div>
         </div>
