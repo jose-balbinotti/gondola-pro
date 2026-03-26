@@ -49,6 +49,11 @@ export default function EditorPage() {
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<PosterPreset[]>(() => loadPresets());
 
+  // Load presets from DB on mount
+  useEffect(() => {
+    loadPresetsFromDB().then(setPresets);
+  }, []);
+
   const update = useCallback((field: keyof PosterData, value: string) => {
     setData((prev) => ({ ...prev, [field]: value }));
   }, []);
