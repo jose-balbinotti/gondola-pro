@@ -99,7 +99,7 @@ export default function EditorPage() {
 
   const exportPNG = async () => {
     try {
-      const canvas = await capturePosterCanvas(4);
+      const canvas = await capturePosterCanvas();
       if (!canvas) return;
       const link = document.createElement("a");
       link.download = `cartaz-${data.productName || "gondolapro"}.png`;
@@ -113,7 +113,7 @@ export default function EditorPage() {
 
   const exportPDF = async () => {
     try {
-      const canvas = await capturePosterCanvas(4);
+      const canvas = await capturePosterCanvas();
       if (!canvas) return;
       const imgData = canvas.toDataURL("image/png", 1.0);
       const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
@@ -135,7 +135,7 @@ export default function EditorPage() {
 
   const handleDirectPrint = async () => {
     try {
-      const canvas = await capturePosterCanvas(4);
+      const canvas = await capturePosterCanvas();
       if (!canvas) {
         toast({ title: "Erro ao preparar impressão", variant: "destructive" });
         return;
