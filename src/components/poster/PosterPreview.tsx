@@ -247,7 +247,10 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
           <div className="flex items-center justify-center gap-3 mb-1">
             {data.oldPrice && (
               <span className="text-base line-through opacity-60" style={{ color: template.textColor }}>
-                R$ {data.oldPrice}
+                {!style.hideCurrencySymbol && 'R$ '}{data.oldPrice}
+              </span>
+            )}
+          </div>
               </span>
             )}
           </div>
