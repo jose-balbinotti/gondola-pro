@@ -228,25 +228,38 @@ export default function BatchPage() {
       const pdfH = pdf.internal.pageSize.getHeight();
       const bgColor = bgBaseOnly && customBackground ? '#ffffff' : null;
 
+      // Helper: capture the inner fixed-size poster div directly (removing CSS scale)
+      const capturePoster = async (containerEl: HTMLElement) => {
+        const posterEl = containerEl.querySelector('[data-print-poster]') as HTMLElement;
+        const target = posterEl || containerEl;
+        const origTransform = target.style.transform;
+        target.style.transform = 'none';
+        if (posterEl) stripBgForExport(posterEl);
+        const canvas = await html2canvas(target, {
+          scale: 4,
+          useCORS: true,
+          backgroundColor: bgColor,
+          width: target.offsetWidth,
+          height: target.offsetHeight,
+        });
+        target.style.transform = origTransform;
+        if (posterEl) restoreBgAfterExport(posterEl);
+        return canvas;
+      };
+
       if (isDuplo) {
         const halfH = pdfH / 2;
         for (let i = 0; i < validProducts.length; i += 2) {
           const el1 = document.getElementById(`batch-poster-${i}`);
           if (i > 0) pdf.addPage();
           if (el1) {
-            const posterEl1 = el1.querySelector('[data-print-poster]') as HTMLElement;
-            if (posterEl1) stripBgForExport(posterEl1);
-            const canvas1 = await html2canvas(el1, { scale: 3, useCORS: true, backgroundColor: bgColor });
-            if (posterEl1) restoreBgAfterExport(posterEl1);
+            const canvas1 = await capturePoster(el1);
             pdf.addImage(canvas1.toDataURL("image/png"), "PNG", 0, 0, pdfW, halfH);
           }
           if (i + 1 < validProducts.length) {
             const el2 = document.getElementById(`batch-poster-${i + 1}`);
             if (el2) {
-              const posterEl2 = el2.querySelector('[data-print-poster]') as HTMLElement;
-              if (posterEl2) stripBgForExport(posterEl2);
-              const canvas2 = await html2canvas(el2, { scale: 3, useCORS: true, backgroundColor: bgColor });
-              if (posterEl2) restoreBgAfterExport(posterEl2);
+              const canvas2 = await capturePoster(el2);
               pdf.addImage(canvas2.toDataURL("image/png"), "PNG", 0, halfH, pdfW, halfH);
             }
           }
@@ -255,10 +268,7 @@ export default function BatchPage() {
         for (let i = 0; i < validProducts.length; i++) {
           const el = document.getElementById(`batch-poster-${i}`);
           if (!el) continue;
-          const posterEl = el.querySelector('[data-print-poster]') as HTMLElement;
-          if (posterEl) stripBgForExport(posterEl);
-          const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: bgColor });
-          if (posterEl) restoreBgAfterExport(posterEl);
+          const canvas = await capturePoster(el);
           if (i > 0) pdf.addPage();
           pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pdfW, pdfH);
         }
