@@ -364,7 +364,8 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                 textShadow: sPrice,
                 transform: smsSkew(pFont),
                 alignItems: 'flex-end',
-                height: `${style.priceFontSize}px`,
+                minHeight: `${style.priceFontSize}px`,
+                overflow: 'visible',
               }}>
                 {!style.hideCurrencySymbol && (
                   <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>R$</span>
