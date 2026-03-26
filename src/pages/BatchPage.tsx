@@ -228,23 +228,49 @@ export default function BatchPage() {
       const pdfH = pdf.internal.pageSize.getHeight();
       const bgColor = bgBaseOnly && customBackground ? '#ffffff' : null;
 
-      // Helper: capture the inner fixed-size poster div directly (removing CSS scale)
+      // Helper: clone the poster at full reference size to avoid clipping
       const capturePoster = async (containerEl: HTMLElement) => {
         const posterEl = containerEl.querySelector('[data-print-poster]') as HTMLElement;
         const target = posterEl || containerEl;
-        const origTransform = target.style.transform;
-        target.style.transform = 'none';
-        if (posterEl) stripBgForExport(posterEl);
-        const canvas = await html2canvas(target, {
-          scale: 4,
-          useCORS: true,
-          backgroundColor: bgColor,
-          width: target.offsetWidth,
-          height: target.offsetHeight,
-        });
-        target.style.transform = origTransform;
-        if (posterEl) restoreBgAfterExport(posterEl);
-        return canvas;
+
+        const clone = target.cloneNode(true) as HTMLElement;
+        clone.style.transform = 'none';
+        clone.style.position = 'absolute';
+        clone.style.top = '0';
+        clone.style.left = '0';
+        clone.style.width = target.style.width;
+        clone.style.height = target.style.height;
+
+        if (bgBaseOnly && customBackground) {
+          clone.style.backgroundImage = 'none';
+          clone.style.backgroundColor = '#ffffff';
+        }
+
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'fixed';
+        wrapper.style.top = '-20000px';
+        wrapper.style.left = '-20000px';
+        wrapper.style.width = target.style.width;
+        wrapper.style.height = target.style.height;
+        wrapper.style.overflow = 'visible';
+        wrapper.style.zIndex = '-9999';
+        wrapper.appendChild(clone);
+        document.body.appendChild(wrapper);
+
+        await new Promise(r => setTimeout(r, 50));
+
+        try {
+          const canvas = await html2canvas(clone, {
+            scale: 4,
+            useCORS: true,
+            backgroundColor: bgColor,
+            width: parseInt(target.style.width),
+            height: parseInt(target.style.height),
+          });
+          return canvas;
+        } finally {
+          document.body.removeChild(wrapper);
+        }
       };
 
       if (isDuplo) {
