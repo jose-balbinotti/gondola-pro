@@ -828,11 +828,56 @@ export default function BatchPage() {
   );
 }
 
-function SliderField({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (v: number) => void }) {
+function InlineEditPanel({
+  idx,
+  getDataForPoster,
+  getStyleForPoster,
+  updatePerPosterData,
+  updatePerPosterStyle,
+  resetPosterOverride,
+  setEditingPosterIdx,
+}: {
+  idx: number;
+  getDataForPoster: (i: number) => PosterData;
+  getStyleForPoster: (i: number) => PosterStyle;
+  updatePerPosterData: (i: number, field: keyof PosterData, value: string) => void;
+  updatePerPosterStyle: <K extends keyof PosterStyle>(i: number, field: K, value: PosterStyle[K]) => void;
+  resetPosterOverride: (i: number) => void;
+  setEditingPosterIdx: (i: number | null) => void;
+}) {
+  const d = getDataForPoster(idx);
+
   return (
-    <div>
-      <label className="text-xs font-semibold text-muted-foreground mb-2 block">{label}</label>
-      <Slider value={[value]} min={min} max={max} step={1} onValueChange={([v]) => onChange(v)} />
+    <div className="p-4 rounded-xl border-2 border-primary bg-primary/5 space-y-4 max-h-[80vh] overflow-y-auto lg:sticky lg:top-20 self-start">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-foreground">✏️ Cartaz #{idx + 1}</h3>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={() => resetPosterOverride(idx)} className="text-xs gap-1">Resetar</Button>
+          <Button variant="outline" size="sm" onClick={() => setEditingPosterIdx(null)} className="gap-1">
+            <X className="w-3 h-3" /> Fechar
+          </Button>
+        </div>
+      </div>
+      <div className="p-3 rounded-lg border border-border bg-background">
+        <h4 className="text-xs font-bold text-foreground mb-2">Dados do Produto</h4>
+        <div className="grid grid-cols-2 gap-2">
+          {([["Produto", "productName"], ["Marca", "brandName"], ["Gramatura", "gramatura"], ["Preço Novo", "newPrice"], ["Preço Antigo", "oldPrice"], ["Desconto %", "discount"], ["Validade", "validity"], ["Unidade", "unit"]] as [string, keyof PosterData][]).map(([label, field]) => (
+            <div key={field}>
+              <label className="text-xs font-semibold text-muted-foreground mb-1 block">{label}</label>
+              <input
+                type="text"
+                value={(d[field] as string) || ""}
+                onChange={(e) => updatePerPosterData(idx, field, e.target.value)}
+                className="w-full h-8 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+      <PosterStyleControls
+        style={getStyleForPoster(idx)}
+        updateStyle={(field, value) => updatePerPosterStyle(idx, field, value)}
+      />
     </div>
   );
 }
