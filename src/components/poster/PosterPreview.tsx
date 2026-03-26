@@ -182,7 +182,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             textShadow: smsShadow(style.fontFamily, sProd),
           }}
         >
-          {data.productName || "Nome do Produto"}
+          {data.productName || ""}
         </div>
 
         {/* Brand */}
@@ -196,7 +196,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             textShadow: smsShadow(style.fontFamily, sBrand),
           }}
         >
-          {data.brandName || "Marca"}
+          {data.brandName || ""}
         </div>
 
         {/* Gramatura with optional lines */}
@@ -219,7 +219,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               marginRight: '8px',
             }} />
           )}
-          <span className="whitespace-nowrap">{data.gramatura || "000g / 000ml"}</span>
+          <span className="whitespace-nowrap">{data.gramatura || ""}</span>
           {style.gramaturaLines && (
             <span style={{
               flex: '0 0 33%',
