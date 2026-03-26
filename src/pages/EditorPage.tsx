@@ -70,24 +70,36 @@ export default function EditorPage() {
     }
   };
 
-  const capturePosterCanvas = async (scale = 4) => {
+  const capturePosterCanvas = async () => {
     if (!posterRef.current) return null;
+
+    const el = posterRef.current;
+
+    // The inner poster div is always rendered at the fixed REFERENCE_WIDTH (800px).
+    // Remove CSS scale transform temporarily so html2canvas captures at native size.
+    const origTransform = el.style.transform;
+    el.style.transform = 'none';
 
     stripBgForExport();
     try {
-      return await html2canvas(posterRef.current, {
-        scale,
+      // Capture at scale 4 → effective resolution ~3200px wide (high DPI print quality)
+      const canvas = await html2canvas(el, {
+        scale: 4,
         useCORS: true,
         backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null,
+        width: el.offsetWidth,
+        height: el.offsetHeight,
       });
+      return canvas;
     } finally {
+      el.style.transform = origTransform;
       restoreBgAfterExport();
     }
   };
 
   const exportPNG = async () => {
     try {
-      const canvas = await capturePosterCanvas(4);
+      const canvas = await capturePosterCanvas();
       if (!canvas) return;
       const link = document.createElement("a");
       link.download = `cartaz-${data.productName || "gondolapro"}.png`;
@@ -101,7 +113,7 @@ export default function EditorPage() {
 
   const exportPDF = async () => {
     try {
-      const canvas = await capturePosterCanvas(4);
+      const canvas = await capturePosterCanvas();
       if (!canvas) return;
       const imgData = canvas.toDataURL("image/png", 1.0);
       const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
@@ -123,7 +135,7 @@ export default function EditorPage() {
 
   const handleDirectPrint = async () => {
     try {
-      const canvas = await capturePosterCanvas(4);
+      const canvas = await capturePosterCanvas();
       if (!canvas) {
         toast({ title: "Erro ao preparar impressão", variant: "destructive" });
         return;
