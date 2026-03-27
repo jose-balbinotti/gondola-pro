@@ -674,9 +674,16 @@ export default function EditorPage() {
               </div>
 
               {/* Poster Preview */}
-              <div className="order-1 lg:order-2 lg:sticky lg:top-20 self-start">
+              <div className="order-1 lg:order-2 lg:sticky lg:top-20 self-start w-full">
                 <p className="text-xs text-muted-foreground mb-2 font-mono">PREVIEW – {paperSize}</p>
-                <div className="poster-shadow rounded-lg overflow-hidden inline-block w-full max-w-md mx-auto">
+                <div className={`poster-shadow rounded-lg overflow-hidden inline-block w-full mx-auto ${
+                  paperSize === "gondola" ? "max-w-2xl" :
+                  paperSize === "A3" ? "max-w-lg" :
+                  paperSize === "A4-duplo" ? "max-w-md" :
+                  paperSize === "A4-duplo-v" ? "max-w-sm" :
+                  paperSize === "10x15" ? "max-w-xs" :
+                  "max-w-md"
+                }`}>
                   <PosterPreview
                     ref={posterRef}
                     template={template}
