@@ -220,7 +220,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
           }}
         >
           {/* Diagonal accent */}
-          {template.layout === "diagonal" && (
+          {template.layout === "diagonal" && !isAtacadoVarejo && (
             <div style={{
               position: 'absolute',
               top: 0,
@@ -232,6 +232,112 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             }} />
           )}
 
+          {isAtacadoVarejo ? (
+            <>
+              {/* TERÇO SUPERIOR — Produto, Marca, Gramatura */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '33.33%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '16px 24px',
+                boxSizing: 'border-box',
+              }}>
+                {style.showPromoLabel && (
+                  <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '4px', color: template.accentColor }}>
+                    ★ {style.promoText || 'Promoção'} ★
+                  </div>
+                )}
+                {data.productName && (
+                  <div style={{ fontWeight: 900, lineHeight: 1.1, padding: '0 8px', color: template.textColor, fontSize: `${style.productFontSize}px`, transform: `translateY(${style.productOffsetY}px) ${smsSkew(style.fontFamily) || ''}`, textShadow: sProd }}>{data.productName}</div>
+                )}
+                {data.brandName && (
+                  <div style={{ fontWeight: 600, lineHeight: 1.1, padding: '0 8px', color: template.textColor, fontSize: `${style.brandFontSize}px`, transform: `translateY(${style.brandOffsetY}px) ${smsSkew(style.fontFamily) || ''}`, opacity: 0.85, textShadow: sBrand }}>{data.brandName}</div>
+                )}
+                {data.gramatura && (
+                  <div style={{ fontWeight: 500, lineHeight: 1.1, padding: '0 8px', color: template.textColor, fontSize: `${style.gramaturaFontSize}px`, transform: `translateY(${style.gramaturaOffsetY}px) ${smsSkew(style.fontFamily) || ''}`, opacity: 0.7, textShadow: sGram }}>{data.gramatura}</div>
+                )}
+                {data.description && (
+                  <div style={{ marginTop: '4px', opacity: 0.8, color: template.textColor, fontSize: `${style.descriptionFontSize}px`, fontFamily: descFont, textShadow: sDesc, transform: `translateY(${style.descriptionOffsetY}px) ${smsSkew(dFont) || ''}` }}>{data.description}</div>
+                )}
+              </div>
+
+              {/* TERÇO MÉDIO — Quantidade (esquerda) + Preço Atacado (direita) */}
+              <div style={{
+                position: 'absolute',
+                top: '33.33%',
+                left: 0,
+                width: '100%',
+                height: '33.33%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px 32px',
+                boxSizing: 'border-box',
+                transform: `translateY(${style.priceOffsetY}px)`,
+              }}>
+                {data.quantity && (
+                  <div style={{ flex: '0 0 40%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: template.priceColor, fontFamily: mainFont, transform: 'translateY(15%)' }}>
+                    <span style={{ fontSize: `${style.priceFontSize}px`, fontWeight: 900, lineHeight: 1 }}>{data.quantity}</span>
+                  </div>
+                )}
+                {hasAtacadoPrice && (
+                  <div style={{ flex: '0 0 55%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span style={{ fontSize: `${Math.round(style.priceFontSize * 0.28)}px`, fontWeight: 700, color: template.textColor, opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>Atacado</span>
+                    <div style={{ display: 'flex', color: template.priceColor, fontFamily: priceFont, textShadow: sPrice, alignItems: 'flex-end' }}>
+                      {!style.hideCurrencySymbol && <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>R$</span>}
+                      <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>{atacadoReais}</span>
+                      <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>,{atacadoCentavos}</span>
+                      {data.unit && <span style={{ fontSize: `${Math.round(style.centsFontSize * 0.5)}px`, opacity: 0.7, marginLeft: '4px', color: template.textColor }}>{data.unit}</span>}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* TERÇO INFERIOR — Preço Varejo (direita) + Validade */}
+              <div style={{
+                position: 'absolute',
+                top: '66.66%',
+                left: 0,
+                width: '100%',
+                height: '33.33%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                justifyContent: 'center',
+                padding: '16px 32px',
+                boxSizing: 'border-box',
+              }}>
+                {hasPrice && (
+                  <div style={{ width: '55%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span style={{ fontSize: `${Math.round(style.priceFontSize * 0.28)}px`, fontWeight: 700, color: template.textColor, opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>Varejo</span>
+                    <div style={{ display: 'flex', color: template.priceColor, fontFamily: priceFont, textShadow: sPrice, alignItems: 'flex-end' }}>
+                      {!style.hideCurrencySymbol && <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>R$</span>}
+                      <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>{reais}</span>
+                      <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>,{centavos}</span>
+                      {data.unit && <span style={{ fontSize: `${Math.round(style.centsFontSize * 0.5)}px`, opacity: 0.7, marginLeft: '4px', color: template.textColor }}>{data.unit}</span>}
+                    </div>
+                  </div>
+                )}
+                {data.validity && (
+                  <div style={{ fontSize: '10px', marginTop: '8px', opacity: 0.6, fontFamily: "'JetBrains Mono', monospace", color: template.textColor, transform: `translateY(${style.validityOffsetY}px)`, width: '100%', textAlign: 'center' }}>
+                    Válido até {data.validity}
+                  </div>
+                )}
+                {showQR && qrUrl && (
+                  <div style={{ marginTop: '8px', padding: '6px', background: '#ffffff', borderRadius: '4px', display: 'inline-block', alignSelf: 'center' }}>
+                    <QRCodeSVG value={qrUrl} size={56} />
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
           {/* Header tag */}
           {style.showPromoLabel && (
             <div style={{
