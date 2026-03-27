@@ -32,6 +32,7 @@ const PDF_FORMATS: Record<string, [number, number]> = {
   "A4-duplo-v": [210, 297],
   gondola: [297, 74],
   "10x15": [100, 150],
+  "atacado-varejo": [210, 297],
 };
 
 export default function EditorPage() {
