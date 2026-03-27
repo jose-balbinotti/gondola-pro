@@ -148,6 +148,7 @@ export default function PosterStyleControls({ style, updateStyle, compact }: Pro
           <SliderField label={`Preço (reais) – ${style.priceFontSize}px`} value={style.priceFontSize} min={24} max={300} onChange={(v) => updateStyle("priceFontSize", v)} />
           <SliderField label={`Centavos/R$ – ${style.centsFontSize}px`} value={style.centsFontSize} min={12} max={200} onChange={(v) => updateStyle("centsFontSize", v)} />
           <SliderField label={`Descrição – ${style.descriptionFontSize}px`} value={style.descriptionFontSize} min={8} max={120} onChange={(v) => updateStyle("descriptionFontSize", v)} />
+          <SliderField label={`Quantidade – ${style.quantityFontSize}px`} value={style.quantityFontSize} min={12} max={300} onChange={(v) => updateStyle("quantityFontSize", v)} />
         </div>
       </div>
 

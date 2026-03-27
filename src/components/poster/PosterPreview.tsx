@@ -62,6 +62,7 @@ export interface PosterStyle {
   gramaturaLinesOffsetY: number;
   unitOffsetY: number;
   centsOffsetY: number;
+  quantityFontSize: number;
   quantityOffsetX: number;
   quantityOffsetY: number;
   atacadoOffsetX: number;
@@ -103,6 +104,7 @@ export const DEFAULT_POSTER_STYLE: PosterStyle = {
   gramaturaLinesOffsetY: 0,
   unitOffsetY: 0,
   centsOffsetY: 0,
+  quantityFontSize: 56,
   quantityOffsetX: 0,
   quantityOffsetY: 0,
   atacadoOffsetX: 0,
@@ -299,7 +301,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                     fontFamily: mainFont,
                     transform: `translate(${style.quantityOffsetX}px, ${style.quantityOffsetY}px)`,
                   }}>
-                    <span style={{ fontSize: `${style.priceFontSize}px`, fontWeight: 900, lineHeight: 1 }}>{data.quantity}</span>
+                    <span style={{ fontSize: `${style.quantityFontSize}px`, fontWeight: 900, lineHeight: 1 }}>{data.quantity}</span>
                   </div>
                 )}
                 {/* Preço Atacado - direita com formatação completa */}
