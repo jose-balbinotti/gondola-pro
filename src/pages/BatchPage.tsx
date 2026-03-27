@@ -358,8 +358,7 @@ export default function BatchPage() {
     if (validProducts.length === 0) return;
     setExporting(true);
     try {
-      const baseFmt = paperSize.replace("-duplo", "");
-      const fmt = PDF_FORMATS[baseFmt] || PDF_FORMATS.A4;
+      const fmt = PDF_FORMATS[isDuplo ? "A4" : paperSize] || PDF_FORMATS.A4;
       const isLandscape = fmt[0] > fmt[1];
       const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
       const pdfW = pdf.internal.pageSize.getWidth();
@@ -369,9 +368,9 @@ export default function BatchPage() {
         const halfH = pdfH / 2;
         for (let i = 0; i < validProducts.length; i += 2) {
           if (i > 0) pdf.addPage();
-          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH);
+          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH, true);
           if (i + 1 < validProducts.length) {
-            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH);
+            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH, true);
           }
         }
       } else {
@@ -393,7 +392,6 @@ export default function BatchPage() {
           setTimeout(() => printWindow.print(), 500);
         };
       } else {
-        // Fallback: download
         const a = document.createElement('a');
         a.href = pdfUrl;
         a.download = `cartazes-lote-${validProducts.length}.pdf`;
