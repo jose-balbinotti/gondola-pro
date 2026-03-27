@@ -237,9 +237,11 @@ export default function EditorPage() {
 
       const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
-      const printWindow = window.open(pdfUrl, '_blank');
+      const printWindow = window.open('', '_blank');
       if (printWindow) {
-        printWindow.onload = () => setTimeout(() => printWindow.print(), 500);
+        printWindow.document.write(`<html><head><style>@page{margin:0;size:auto}*{margin:0;padding:0}</style></head><body><embed src="${pdfUrl}" type="application/pdf" width="100%" height="100%" style="position:fixed;top:0;left:0;width:100%;height:100%"/></body></html>`);
+        printWindow.document.close();
+        printWindow.onload = () => setTimeout(() => printWindow.print(), 600);
       } else {
         const a = document.createElement('a');
         a.href = pdfUrl;
