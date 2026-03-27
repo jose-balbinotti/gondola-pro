@@ -36,6 +36,40 @@ const PDF_FORMATS: Record<string, [number, number]> = {
 };
 
 export default function EditorPage() {
+  const openPdfPrint = useCallback((pdf: jsPDF, fallbackFilename: string) => {
+    const pdfBlob = pdf.output("blob");
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.src = pdfUrl;
+
+    iframe.onload = () => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          URL.revokeObjectURL(pdfUrl);
+          iframe.remove();
+        }, 30000);
+      } catch {
+        const a = document.createElement("a");
+        a.href = pdfUrl;
+        a.download = fallbackFilename;
+        a.click();
+        setTimeout(() => {
+          URL.revokeObjectURL(pdfUrl);
+          iframe.remove();
+        }, 1000);
+      }
+    };
+
+    document.body.appendChild(iframe);
+  }, []);
   const { templateId } = useParams<{ templateId: string }>();
   const template = TEMPLATES.find((t) => t.id === templateId) || TEMPLATES[0];
   const posterRef = useRef<HTMLDivElement>(null);
