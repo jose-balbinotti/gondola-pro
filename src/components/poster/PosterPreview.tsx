@@ -27,6 +27,7 @@ export const FONT_OPTIONS = [
   { value: "'Consolas', monospace", label: "Consolas" },
   { value: "SuperMarketSlant", label: "Super Market Slant" },
   { value: "'Balmy', cursive", label: "Balmy" },
+  { value: "'Target2000', sans-serif", label: "Target 2000" },
 ];
 
 export interface PosterStyle {
