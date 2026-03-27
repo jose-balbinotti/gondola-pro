@@ -325,19 +325,21 @@ export default function BatchPage() {
     if (validProducts.length === 0) return;
     setExporting(true);
     try {
-      const fmt = PDF_FORMATS[isDuplo ? "A4" : paperSize] || PDF_FORMATS.A4;
+      const baseFmt = paperSize.includes("A4-duplo") ? "A4" : (paperSize === "A3-duplo" ? "A3" : paperSize);
+      const fmt = PDF_FORMATS[baseFmt] || PDF_FORMATS.A4;
       const isLandscape = fmt[0] > fmt[1];
       const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
 
       if (isDuplo) {
+        const shouldRotate = paperSize === "A4-duplo" || paperSize === "A3-duplo";
         const halfH = pdfH / 2;
         for (let i = 0; i < validProducts.length; i += 2) {
           if (i > 0) pdf.addPage();
-          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH, true);
+          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH, shouldRotate);
           if (i + 1 < validProducts.length) {
-            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH, true);
+            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH, shouldRotate);
           }
         }
       } else {
