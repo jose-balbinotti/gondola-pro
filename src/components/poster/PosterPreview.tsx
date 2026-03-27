@@ -62,6 +62,12 @@ export interface PosterStyle {
   gramaturaLinesOffsetY: number;
   unitOffsetY: number;
   centsOffsetY: number;
+  quantityOffsetX: number;
+  quantityOffsetY: number;
+  atacadoOffsetX: number;
+  atacadoOffsetY: number;
+  varejoOffsetX: number;
+  varejoOffsetY: number;
 }
 
 export const DEFAULT_POSTER_STYLE: PosterStyle = {
