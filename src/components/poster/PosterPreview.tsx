@@ -62,6 +62,7 @@ export interface PosterStyle {
   gramaturaLinesOffsetY: number;
   unitOffsetY: number;
   centsOffsetY: number;
+  quantityFontSize: number;
   quantityOffsetX: number;
   quantityOffsetY: number;
   atacadoOffsetX: number;
