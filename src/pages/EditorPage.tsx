@@ -132,32 +132,46 @@ export default function EditorPage() {
     }
   };
 
+  // Rotate a canvas 90° clockwise and return a new canvas
+  const rotateCanvas90 = (src: HTMLCanvasElement): HTMLCanvasElement => {
+    const rotated = document.createElement("canvas");
+    rotated.width = src.height;
+    rotated.height = src.width;
+    const ctx = rotated.getContext("2d")!;
+    ctx.translate(rotated.width, 0);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(src, 0, 0);
+    return rotated;
+  };
+
   const exportPDF = async () => {
     try {
       const canvas = await capturePosterCanvas();
       if (!canvas) return;
-      const imgData = canvas.toDataURL("image/png", 1.0);
-      const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
-      const isLandscape = fmt[0] > fmt[1];
-      const pdf = new jsPDF({
-        orientation: isLandscape ? "landscape" : "portrait",
-        unit: "mm",
-        format: fmt,
-      });
-      const pdfW = pdf.internal.pageSize.getWidth();
-      const pdfH = pdf.internal.pageSize.getHeight();
 
       if (paperSize === "A4-duplo") {
-        // 2 posters on A4: each takes half the height (148.5mm)
-        const halfH = pdfH / 2;
+        // A4 portrait: 210×297mm, two A5 posters rotated 90° stacked vertically
+        const rotated = rotateCanvas90(canvas);
+        const imgData = rotated.toDataURL("image/png", 1.0);
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
+        const pdfW = 210;
+        const halfH = 297 / 2;
         pdf.addImage(imgData, "PNG", 0, 0, pdfW, halfH);
         pdf.addImage(imgData, "PNG", 0, halfH, pdfW, halfH);
+        rotated.width = 0; rotated.height = 0;
+        pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
+        toast({ title: "PDF exportado!", description: "A4 Duplo – 2 cartazes por folha." });
       } else {
+        const imgData = canvas.toDataURL("image/png", 1.0);
+        const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
+        const isLandscape = fmt[0] > fmt[1];
+        const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
+        const pdfW = pdf.internal.pageSize.getWidth();
+        const pdfH = pdf.internal.pageSize.getHeight();
         pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+        pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
+        toast({ title: "PDF exportado!", description: `Formato ${paperSize} – alta resolução.` });
       }
-
-      pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
-      toast({ title: "PDF exportado!", description: `Formato ${paperSize} – alta resolução.` });
     } catch {
       toast({ title: "Erro ao exportar", variant: "destructive" });
     }
