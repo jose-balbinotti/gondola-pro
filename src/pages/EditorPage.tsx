@@ -36,6 +36,40 @@ const PDF_FORMATS: Record<string, [number, number]> = {
 };
 
 export default function EditorPage() {
+  const openPdfPrint = useCallback((pdf: jsPDF, fallbackFilename: string) => {
+    const pdfBlob = pdf.output("blob");
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.src = pdfUrl;
+
+    iframe.onload = () => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          URL.revokeObjectURL(pdfUrl);
+          iframe.remove();
+        }, 30000);
+      } catch {
+        const a = document.createElement("a");
+        a.href = pdfUrl;
+        a.download = fallbackFilename;
+        a.click();
+        setTimeout(() => {
+          URL.revokeObjectURL(pdfUrl);
+          iframe.remove();
+        }, 1000);
+      }
+    };
+
+    document.body.appendChild(iframe);
+  }, []);
   const { templateId } = useParams<{ templateId: string }>();
   const template = TEMPLATES.find((t) => t.id === templateId) || TEMPLATES[0];
   const posterRef = useRef<HTMLDivElement>(null);
@@ -210,11 +244,7 @@ export default function EditorPage() {
         const halfH = 297 / 2;
         pdf.addImage(imgData, "JPEG", 0, 0, 210, halfH);
         pdf.addImage(imgData, "JPEG", 0, halfH, 210, halfH);
-        pdf.autoPrint();
-
-        const pdfBlob = pdf.output('blob');
-        const pdfUrl = URL.createObjectURL(pdfBlob);
-        window.open(pdfUrl, '_blank');
+        openPdfPrint(pdf, `cartaz-duplo-${data.productName || "gondolapro"}.pdf`);
         toast({ title: "Impressão pronta!" });
         return;
       }
@@ -225,11 +255,7 @@ export default function EditorPage() {
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
       pdf.addImage(imgData, "JPEG", 0, 0, pdfW, pdfH);
-      pdf.autoPrint();
-
-      const pdfBlob = pdf.output('blob');
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      window.open(pdfUrl, '_blank');
+      openPdfPrint(pdf, `cartaz-${data.productName || "gondolapro"}.pdf`);
       toast({ title: "Impressão pronta!" });
     } catch {
       toast({ title: "Erro ao imprimir", variant: "destructive" });
