@@ -103,6 +103,12 @@ export const DEFAULT_POSTER_STYLE: PosterStyle = {
   gramaturaLinesOffsetY: 0,
   unitOffsetY: 0,
   centsOffsetY: 0,
+  quantityOffsetX: 0,
+  quantityOffsetY: 0,
+  atacadoOffsetX: 0,
+  atacadoOffsetY: 0,
+  varejoOffsetX: 0,
+  varejoOffsetY: 0,
 };
 
 interface Props {
