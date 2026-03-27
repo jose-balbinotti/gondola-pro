@@ -7,6 +7,8 @@ import Index from "./pages/Index.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import EditorPage from "./pages/EditorPage.tsx";
 import BatchPage from "./pages/BatchPage.tsx";
+import AuthPage from "./pages/AuthPage.tsx";
+import AdminPage from "./pages/AdminPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -19,6 +21,8 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/login" element={<AuthPage />} />
+          <Route path="/admin" element={<AdminPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/editor/:templateId" element={<EditorPage />} />
           <Route path="/batch" element={<BatchPage />} />
