@@ -21,6 +21,7 @@ const PAPER_SIZES = [
   { value: "A4-duplo-v", label: "A4 Duplo Vertical (2×metade)" },
   { value: "gondola", label: "Gôndola (faixa)" },
   { value: "10x15", label: "10×15 cm" },
+  { value: "atacado-varejo", label: "Atacado/Varejo" },
 ];
 
 const PDF_FORMATS: Record<string, [number, number]> = {
@@ -31,6 +32,7 @@ const PDF_FORMATS: Record<string, [number, number]> = {
   "A4-duplo-v": [210, 297],
   gondola: [297, 74],
   "10x15": [100, 150],
+  "atacado-varejo": [210, 297],
 };
 
 export default function EditorPage() {
@@ -478,13 +480,13 @@ export default function EditorPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="text-xs font-semibold text-muted-foreground">Preço Antigo (R$)</label>
+                          <label className="text-xs font-semibold text-muted-foreground">{paperSize === "atacado-varejo" ? "Preço Atacado (R$)" : "Preço Antigo (R$)"}</label>
                         </div>
                         <input type="text" value={data.oldPrice} onChange={(e) => update("oldPrice", e.target.value)} className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
                       </div>
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="text-xs font-semibold text-muted-foreground">Preço Novo (R$)</label>
+                          <label className="text-xs font-semibold text-muted-foreground">{paperSize === "atacado-varejo" ? "Preço Varejo (R$)" : "Preço Novo (R$)"}</label>
                         </div>
                         <input type="text" value={data.newPrice} onChange={(e) => update("newPrice", e.target.value)} placeholder="Ex: 12,99" className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
                       </div>

@@ -20,6 +20,7 @@ const PDF_FORMATS: Record<string, [number, number]> = {
   A3: [297, 420],
   gondola: [297, 74],
   "10x15": [100, 150],
+  "atacado-varejo": [210, 297],
   "A4-duplo": [210, 297],
   "A4-duplo-v": [210, 297],
   "A3-duplo": [297, 420],
@@ -34,6 +35,7 @@ const PAPER_SIZES = [
   { value: "A3-duplo", label: "A3 Duplo (2/folha)" },
   { value: "gondola", label: "Gôndola" },
   { value: "10x15", label: "10×15cm" },
+  { value: "atacado-varejo", label: "Atacado/Varejo" },
 ];
 
 type InputMode = "table" | "text";

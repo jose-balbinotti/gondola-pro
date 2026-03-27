@@ -121,6 +121,7 @@ const ASPECT_RATIOS: Record<string, number> = {
   "10x15": 10 / 15,
   "A4-duplo": 148 / 210,
   "A4-duplo-v": 210 / (297 / 2), // each poster takes half A4 height
+  "atacado-varejo": 210 / 297,
   custom: 3 / 4,
 };
 
@@ -163,6 +164,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
 
     const { reais, centavos } = splitPrice(data.newPrice);
     const hasPrice = !!(reais || centavos);
+    const isAtacadoVarejo = paperSize === "atacado-varejo";
+    const { reais: atacadoReais, centavos: atacadoCentavos } = splitPrice(data.oldPrice);
+    const hasAtacadoPrice = !!(atacadoReais || atacadoCentavos);
 
     const SHADOW = "3px 3px 6px rgba(0,0,0,0.7), 1px 1px 2px rgba(0,0,0,0.9)";
     const sProd = style.shadowProduct ? SHADOW : "none";
@@ -331,97 +335,172 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             </div>
           )}
 
-          {/* Price section */}
-          {hasPrice && (
+          {/* Atacado/Varejo layout */}
+          {isAtacadoVarejo && (hasPrice || hasAtacadoPrice || data.quantity) ? (
             <div style={{
               display: 'flex',
-              flexDirection: 'column',
+              width: '100%',
               alignItems: 'center',
+              justifyContent: 'center',
               transform: `translateY(${style.priceOffsetY}px)`,
+              gap: '16px',
             }}>
-              {data.oldPrice && (
+              {/* Quantidade - left */}
+              {data.quantity && (
                 <div style={{
+                  flex: '0 0 30%',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '12px',
-                  marginBottom: '4px',
+                  color: template.textColor,
+                  fontFamily: mainFont,
                 }}>
-                  <span style={{
-                    fontSize: '16px',
-                    textDecoration: 'line-through',
-                    opacity: 0.6,
-                    color: template.textColor,
-                  }}>
-                    {!style.hideCurrencySymbol && 'R$ '}{data.oldPrice}
-                  </span>
+                  <span style={{ fontSize: `${Math.round(style.priceFontSize * 0.35)}px`, fontWeight: 700, opacity: 0.8 }}>A PARTIR DE</span>
+                  <span style={{ fontSize: `${style.priceFontSize}px`, fontWeight: 900, lineHeight: 1, color: template.priceColor }}>{data.quantity}</span>
+                  <span style={{ fontSize: `${Math.round(style.priceFontSize * 0.3)}px`, fontWeight: 700, opacity: 0.8 }}>UNIDADES</span>
                 </div>
               )}
 
-              {/* Split price */}
+              {/* Prices - right */}
+              <div style={{
+                flex: '1',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px',
+              }}>
+                {/* Atacado price */}
+                {hasAtacadoPrice && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span style={{ fontSize: `${Math.round(style.priceFontSize * 0.25)}px`, fontWeight: 700, color: template.textColor, opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Atacado</span>
+                    <div style={{
+                      display: 'flex',
+                      color: template.priceColor,
+                      fontFamily: priceFont,
+                      textShadow: sPrice,
+                      alignItems: 'flex-end',
+                    }}>
+                      {!style.hideCurrencySymbol && <span style={{ fontWeight: 900, fontSize: `${Math.round(style.centsFontSize * 0.8)}px`, lineHeight: 1 }}>R$</span>}
+                      <span style={{ fontWeight: 900, fontSize: `${Math.round(style.priceFontSize * 0.7)}px`, lineHeight: 1 }}>{atacadoReais}</span>
+                      <span style={{ fontWeight: 900, fontSize: `${Math.round(style.centsFontSize * 0.8)}px`, lineHeight: 1 }}>,{atacadoCentavos}</span>
+                      {data.unit && <span style={{ fontSize: `${Math.round(style.centsFontSize * 0.5)}px`, opacity: 0.7, marginLeft: '4px', color: template.textColor }}>{data.unit}</span>}
+                    </div>
+                  </div>
+                )}
+                {/* Varejo price */}
+                {hasPrice && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span style={{ fontSize: `${Math.round(style.priceFontSize * 0.25)}px`, fontWeight: 700, color: template.textColor, opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Varejo</span>
+                    <div style={{
+                      display: 'flex',
+                      color: template.priceColor,
+                      fontFamily: priceFont,
+                      textShadow: sPrice,
+                      alignItems: 'flex-end',
+                    }}>
+                      {!style.hideCurrencySymbol && <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>R$</span>}
+                      <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>{reais}</span>
+                      <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>,{centavos}</span>
+                      {data.unit && <span style={{ fontSize: `${Math.round(style.centsFontSize * 0.5)}px`, opacity: 0.7, marginLeft: '4px', color: template.textColor }}>{data.unit}</span>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* Standard price section */
+            hasPrice && (
               <div style={{
                 display: 'flex',
-                color: template.priceColor,
-                fontFamily: priceFont,
-                textShadow: sPrice,
-                transform: smsSkew(pFont),
-                alignItems: 'flex-end',
-                minHeight: `${style.priceFontSize}px`,
-                overflow: 'visible',
+                flexDirection: 'column',
+                alignItems: 'center',
+                transform: `translateY(${style.priceOffsetY}px)`,
               }}>
-                {!style.hideCurrencySymbol && (
-                  <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>R$</span>
-                )}
-                <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>
-                  {reais}
-                </span>
-                <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>
-                  ,
-                </span>
-                <span style={{
-                  display: 'inline-flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
-                  alignSelf: style.centsAlignTop ? 'flex-start' : 'stretch',
-                  lineHeight: 1,
-                  transform: `translateY(${style.centsOffsetY}px)`,
-                }}>
-                  <span style={{
-                    fontWeight: 900,
-                    fontSize: `${style.centsFontSize}px`,
-                    lineHeight: 1,
-                    borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
-                    paddingBottom: style.centsUnderline ? '1px' : '0',
+                {data.oldPrice && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '12px',
+                    marginBottom: '4px',
                   }}>
-                    {centavos}
-                  </span>
-                  {data.unit && style.unitBelowCents && (
                     <span style={{
+                      fontSize: '16px',
+                      textDecoration: 'line-through',
+                      opacity: 0.6,
                       color: template.textColor,
-                      opacity: 0.7,
-                      fontSize: `${Math.round(style.centsFontSize * 0.5)}px`,
-                      lineHeight: 1,
-                      whiteSpace: 'nowrap',
-                      marginTop: `${Math.round(style.centsFontSize * 0.08)}px`,
-                      transform: `translateX(${style.unitOffsetX}px) translateY(${style.unitOffsetY}px)`,
-                    }}>{data.unit}</span>
-                  )}
-                </span>
-              </div>
+                    }}>
+                      {!style.hideCurrencySymbol && 'R$ '}{data.oldPrice}
+                    </span>
+                  </div>
+                )}
 
-              {/* Unit - default position */}
-              {data.unit && !style.unitBelowCents && (
-                <span style={{
-                  fontSize: '12px',
-                  marginTop: '4px',
-                  opacity: 0.7,
-                  color: template.textColor,
-                  transform: `translateX(${style.unitOffsetX}px)`,
-                  display: 'inline-block',
-                }}>{data.unit}</span>
-              )}
-            </div>
+                {/* Split price */}
+                <div style={{
+                  display: 'flex',
+                  color: template.priceColor,
+                  fontFamily: priceFont,
+                  textShadow: sPrice,
+                  transform: smsSkew(pFont),
+                  alignItems: 'flex-end',
+                  minHeight: `${style.priceFontSize}px`,
+                  overflow: 'visible',
+                }}>
+                  {!style.hideCurrencySymbol && (
+                    <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>R$</span>
+                  )}
+                  <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>
+                    {reais}
+                  </span>
+                  <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>
+                    ,
+                  </span>
+                  <span style={{
+                    display: 'inline-flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
+                    alignSelf: style.centsAlignTop ? 'flex-start' : 'stretch',
+                    lineHeight: 1,
+                    transform: `translateY(${style.centsOffsetY}px)`,
+                  }}>
+                    <span style={{
+                      fontWeight: 900,
+                      fontSize: `${style.centsFontSize}px`,
+                      lineHeight: 1,
+                      borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
+                      paddingBottom: style.centsUnderline ? '1px' : '0',
+                    }}>
+                      {centavos}
+                    </span>
+                    {data.unit && style.unitBelowCents && (
+                      <span style={{
+                        color: template.textColor,
+                        opacity: 0.7,
+                        fontSize: `${Math.round(style.centsFontSize * 0.5)}px`,
+                        lineHeight: 1,
+                        whiteSpace: 'nowrap',
+                        marginTop: `${Math.round(style.centsFontSize * 0.08)}px`,
+                        transform: `translateX(${style.unitOffsetX}px) translateY(${style.unitOffsetY}px)`,
+                      }}>{data.unit}</span>
+                    )}
+                  </span>
+                </div>
+
+                {/* Unit - default position */}
+                {data.unit && !style.unitBelowCents && (
+                  <span style={{
+                    fontSize: '12px',
+                    marginTop: '4px',
+                    opacity: 0.7,
+                    color: template.textColor,
+                    transform: `translateX(${style.unitOffsetX}px)`,
+                    display: 'inline-block',
+                  }}>{data.unit}</span>
+                )}
+              </div>
+            )
           )}
 
           {/* Discount badge */}
