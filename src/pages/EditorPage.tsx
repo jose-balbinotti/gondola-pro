@@ -244,11 +244,7 @@ export default function EditorPage() {
         const halfH = 297 / 2;
         pdf.addImage(imgData, "JPEG", 0, 0, 210, halfH);
         pdf.addImage(imgData, "JPEG", 0, halfH, 210, halfH);
-        pdf.autoPrint();
-
-        const pdfBlob = pdf.output('blob');
-        const pdfUrl = URL.createObjectURL(pdfBlob);
-        window.open(pdfUrl, '_blank');
+        openPdfPrint(pdf, `cartaz-duplo-${data.productName || "gondolapro"}.pdf`);
         toast({ title: "Impressão pronta!" });
         return;
       }
