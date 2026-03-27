@@ -166,6 +166,21 @@ export default function PosterStyleControls({ style, updateStyle, compact }: Pro
           <SliderField label={`Unidade X – ${style.unitOffsetX}px`} value={style.unitOffsetX} min={-200} max={200} onChange={(v) => updateStyle("unitOffsetX", v)} />
         </div>
       </div>
+
+      {/* Atacado/Varejo Position Offsets */}
+      <div className="p-4 rounded-lg border border-border bg-background">
+        <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+          <Move className="w-4 h-4" /> Posição Atacado/Varejo
+        </h3>
+        <div className="space-y-4">
+          <SliderField label={`Quantidade X – ${style.quantityOffsetX}px`} value={style.quantityOffsetX} min={-400} max={400} onChange={(v) => updateStyle("quantityOffsetX", v)} />
+          <SliderField label={`Quantidade Y – ${style.quantityOffsetY}px`} value={style.quantityOffsetY} min={-400} max={400} onChange={(v) => updateStyle("quantityOffsetY", v)} />
+          <SliderField label={`Atacado X – ${style.atacadoOffsetX}px`} value={style.atacadoOffsetX} min={-400} max={400} onChange={(v) => updateStyle("atacadoOffsetX", v)} />
+          <SliderField label={`Atacado Y – ${style.atacadoOffsetY}px`} value={style.atacadoOffsetY} min={-400} max={400} onChange={(v) => updateStyle("atacadoOffsetY", v)} />
+          <SliderField label={`Varejo X – ${style.varejoOffsetX}px`} value={style.varejoOffsetX} min={-400} max={400} onChange={(v) => updateStyle("varejoOffsetX", v)} />
+          <SliderField label={`Varejo Y – ${style.varejoOffsetY}px`} value={style.varejoOffsetY} min={-400} max={400} onChange={(v) => updateStyle("varejoOffsetY", v)} />
+        </div>
+      </div>
     </div>
   );
 }
