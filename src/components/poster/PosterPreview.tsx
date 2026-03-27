@@ -311,7 +311,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                     alignItems: 'center',
                     transform: `translate(${style.atacadoOffsetX}px, ${style.atacadoOffsetY}px)`,
                   }}>
-                    <span style={{ fontSize: `${Math.round(style.priceFontSize * 0.28)}px`, fontWeight: 700, color: template.textColor, opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>Atacado</span>
+                    
                     <div style={{ display: 'flex', color: template.priceColor, fontFamily: priceFont, textShadow: sPrice, alignItems: 'flex-end' }}>
                       {!style.hideCurrencySymbol && <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>R$</span>}
                       <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>{atacadoReais}</span>
