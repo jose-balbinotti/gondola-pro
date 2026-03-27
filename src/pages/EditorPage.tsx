@@ -132,32 +132,46 @@ export default function EditorPage() {
     }
   };
 
+  // Rotate a canvas 90° clockwise and return a new canvas
+  const rotateCanvas90 = (src: HTMLCanvasElement): HTMLCanvasElement => {
+    const rotated = document.createElement("canvas");
+    rotated.width = src.height;
+    rotated.height = src.width;
+    const ctx = rotated.getContext("2d")!;
+    ctx.translate(rotated.width, 0);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(src, 0, 0);
+    return rotated;
+  };
+
   const exportPDF = async () => {
     try {
       const canvas = await capturePosterCanvas();
       if (!canvas) return;
-      const imgData = canvas.toDataURL("image/png", 1.0);
-      const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
-      const isLandscape = fmt[0] > fmt[1];
-      const pdf = new jsPDF({
-        orientation: isLandscape ? "landscape" : "portrait",
-        unit: "mm",
-        format: fmt,
-      });
-      const pdfW = pdf.internal.pageSize.getWidth();
-      const pdfH = pdf.internal.pageSize.getHeight();
 
       if (paperSize === "A4-duplo") {
-        // 2 posters on A4: each takes half the height (148.5mm)
-        const halfH = pdfH / 2;
+        // A4 portrait: 210×297mm, two A5 posters rotated 90° stacked vertically
+        const rotated = rotateCanvas90(canvas);
+        const imgData = rotated.toDataURL("image/png", 1.0);
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
+        const pdfW = 210;
+        const halfH = 297 / 2;
         pdf.addImage(imgData, "PNG", 0, 0, pdfW, halfH);
         pdf.addImage(imgData, "PNG", 0, halfH, pdfW, halfH);
+        rotated.width = 0; rotated.height = 0;
+        pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
+        toast({ title: "PDF exportado!", description: "A4 Duplo – 2 cartazes por folha." });
       } else {
+        const imgData = canvas.toDataURL("image/png", 1.0);
+        const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
+        const isLandscape = fmt[0] > fmt[1];
+        const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
+        const pdfW = pdf.internal.pageSize.getWidth();
+        const pdfH = pdf.internal.pageSize.getHeight();
         pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+        pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
+        toast({ title: "PDF exportado!", description: `Formato ${paperSize} – alta resolução.` });
       }
-
-      pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
-      toast({ title: "PDF exportado!", description: `Formato ${paperSize} – alta resolução.` });
     } catch {
       toast({ title: "Erro ao exportar", variant: "destructive" });
     }
@@ -168,6 +182,32 @@ export default function EditorPage() {
       const canvas = await capturePosterCanvas();
       if (!canvas) {
         toast({ title: "Erro ao preparar impressão", variant: "destructive" });
+        return;
+      }
+
+      if (paperSize === "A4-duplo") {
+        // Rotate poster 90° and place 2 on A4 portrait
+        const rotated = rotateCanvas90(canvas);
+        const imgData = rotated.toDataURL("image/png", 1.0);
+        rotated.width = 0; rotated.height = 0;
+
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
+        const halfH = 297 / 2;
+        pdf.addImage(imgData, "PNG", 0, 0, 210, halfH);
+        pdf.addImage(imgData, "PNG", 0, halfH, 210, halfH);
+
+        const pdfBlob = pdf.output('blob');
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        const printWindow = window.open(pdfUrl, '_blank');
+        if (printWindow) {
+          printWindow.onload = () => setTimeout(() => printWindow.print(), 500);
+        } else {
+          const a = document.createElement('a');
+          a.href = pdfUrl;
+          a.download = `cartaz-duplo-${data.productName || "gondolapro"}.pdf`;
+          a.click();
+        }
+        toast({ title: "Impressão pronta!" });
         return;
       }
 
@@ -195,19 +235,15 @@ export default function EditorPage() {
         return;
       }
 
-      const isDuplo = paperSize === "A4-duplo";
-      const imgHTML = isDuplo
-        ? `<img src="${imageData}" style="width:${widthMM}mm;height:${heightMM / 2}mm;display:block;object-fit:fill;" /><img src="${imageData}" style="width:${widthMM}mm;height:${heightMM / 2}mm;display:block;object-fit:fill;" />`
-        : `<img src="${imageData}" style="width:${widthMM}mm;height:${heightMM}mm;display:block;object-fit:fill;" />`;
-
       iframeDoc.open();
       iframeDoc.write(`<!doctype html><html><head><style>
         @page { size: ${widthMM}mm ${heightMM}mm; margin: 0; }
         html, body { margin:0; padding:0; width:${widthMM}mm; height:${heightMM}mm; background:white; overflow:hidden; }
-      </style></head><body>${imgHTML}</body></html>`);
+        img { width:${widthMM}mm; height:${heightMM}mm; display:block; object-fit:fill; }
+      </style></head><body><img src="${imageData}" /></body></html>`);
       iframeDoc.close();
 
-      const imgs = iframeDoc.querySelectorAll("img");
+      const img = iframeDoc.querySelector("img");
       const doPrint = () => {
         setTimeout(() => {
           iframe!.contentWindow?.focus();
@@ -215,10 +251,9 @@ export default function EditorPage() {
           setTimeout(() => iframe?.remove(), 2000);
         }, 200);
       };
-      const lastImg = imgs[imgs.length - 1];
-      if (lastImg) {
-        lastImg.onload = doPrint;
-        if (lastImg.complete) doPrint();
+      if (img) {
+        img.onload = doPrint;
+        if (img.complete) doPrint();
       } else {
         doPrint();
       }

@@ -293,10 +293,26 @@ export default function BatchPage() {
     }
   };
 
-  const addPosterToPDF = async (pdf: jsPDF, elId: string, x: number, y: number, w: number, h: number) => {
+  const rotateCanvas90 = (src: HTMLCanvasElement): HTMLCanvasElement => {
+    const rotated = document.createElement("canvas");
+    rotated.width = src.height;
+    rotated.height = src.width;
+    const ctx = rotated.getContext("2d")!;
+    ctx.translate(rotated.width, 0);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(src, 0, 0);
+    return rotated;
+  };
+
+  const addPosterToPDF = async (pdf: jsPDF, elId: string, x: number, y: number, w: number, h: number, rotate = false) => {
     const el = document.getElementById(elId);
     if (!el) return;
-    const canvas = await capturePoster(el);
+    let canvas = await capturePoster(el);
+    if (rotate) {
+      const rotated = rotateCanvas90(canvas);
+      canvas.width = 0; canvas.height = 0;
+      canvas = rotated;
+    }
     const imgData = canvas.toDataURL("image/jpeg", 0.85);
     pdf.addImage(imgData, "JPEG", x, y, w, h);
     canvas.width = 0;
@@ -307,8 +323,7 @@ export default function BatchPage() {
     if (validProducts.length === 0) return;
     setExporting(true);
     try {
-      const baseFmt = paperSize.replace("-duplo", "");
-      const fmt = PDF_FORMATS[baseFmt] || PDF_FORMATS.A4;
+      const fmt = PDF_FORMATS[isDuplo ? "A4" : paperSize] || PDF_FORMATS.A4;
       const isLandscape = fmt[0] > fmt[1];
       const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
       const pdfW = pdf.internal.pageSize.getWidth();
@@ -318,9 +333,9 @@ export default function BatchPage() {
         const halfH = pdfH / 2;
         for (let i = 0; i < validProducts.length; i += 2) {
           if (i > 0) pdf.addPage();
-          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH);
+          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH, true);
           if (i + 1 < validProducts.length) {
-            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH);
+            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH, true);
           }
         }
       } else {
@@ -343,8 +358,7 @@ export default function BatchPage() {
     if (validProducts.length === 0) return;
     setExporting(true);
     try {
-      const baseFmt = paperSize.replace("-duplo", "");
-      const fmt = PDF_FORMATS[baseFmt] || PDF_FORMATS.A4;
+      const fmt = PDF_FORMATS[isDuplo ? "A4" : paperSize] || PDF_FORMATS.A4;
       const isLandscape = fmt[0] > fmt[1];
       const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
       const pdfW = pdf.internal.pageSize.getWidth();
@@ -354,9 +368,9 @@ export default function BatchPage() {
         const halfH = pdfH / 2;
         for (let i = 0; i < validProducts.length; i += 2) {
           if (i > 0) pdf.addPage();
-          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH);
+          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH, true);
           if (i + 1 < validProducts.length) {
-            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH);
+            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH, true);
           }
         }
       } else {
@@ -378,7 +392,6 @@ export default function BatchPage() {
           setTimeout(() => printWindow.print(), 500);
         };
       } else {
-        // Fallback: download
         const a = document.createElement('a');
         a.href = pdfUrl;
         a.download = `cartazes-lote-${validProducts.length}.pdf`;
