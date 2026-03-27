@@ -104,6 +104,7 @@ export const DEFAULT_POSTER_STYLE: PosterStyle = {
   gramaturaLinesOffsetY: 0,
   unitOffsetY: 0,
   centsOffsetY: 0,
+  quantityFontSize: 56,
   quantityOffsetX: 0,
   quantityOffsetY: 0,
   atacadoOffsetX: 0,
