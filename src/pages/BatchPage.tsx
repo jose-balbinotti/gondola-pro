@@ -35,7 +35,7 @@ const PAPER_SIZES = [
   { value: "A3-duplo", label: "A3 Duplo (2/folha)" },
   { value: "gondola", label: "Gôndola" },
   { value: "10x15", label: "10×15cm" },
-  { value: "atacado-varejo", label: "Atacado/Varejo" },
+  { value: "atacado-varejo", label: "Atacado/Varejo (A4 – 210×297mm)" },
 ];
 
 type InputMode = "table" | "text";
