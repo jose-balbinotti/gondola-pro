@@ -146,7 +146,16 @@ export default function EditorPage() {
       });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
-      pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+
+      if (paperSize === "A4-duplo") {
+        // 2 posters on A4: each takes half the height (148.5mm)
+        const halfH = pdfH / 2;
+        pdf.addImage(imgData, "PNG", 0, 0, pdfW, halfH);
+        pdf.addImage(imgData, "PNG", 0, halfH, pdfW, halfH);
+      } else {
+        pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+      }
+
       pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
       toast({ title: "PDF exportado!", description: `Formato ${paperSize} – alta resolução.` });
     } catch {
