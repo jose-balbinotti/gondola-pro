@@ -255,11 +255,7 @@ export default function EditorPage() {
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
       pdf.addImage(imgData, "JPEG", 0, 0, pdfW, pdfH);
-      pdf.autoPrint();
-
-      const pdfBlob = pdf.output('blob');
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      window.open(pdfUrl, '_blank');
+      openPdfPrint(pdf, `cartaz-${data.productName || "gondolapro"}.pdf`);
       toast({ title: "Impressão pronta!" });
     } catch {
       toast({ title: "Erro ao imprimir", variant: "destructive" });
