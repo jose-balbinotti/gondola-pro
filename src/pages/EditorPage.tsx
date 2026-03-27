@@ -480,7 +480,7 @@ export default function EditorPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="text-xs font-semibold text-muted-foreground">Preço Antigo (R$)</label>
+                          <label className="text-xs font-semibold text-muted-foreground">{paperSize === "atacado-varejo" ? "Preço Atacado (R$)" : "Preço Antigo (R$)"}</label>
                         </div>
                         <input type="text" value={data.oldPrice} onChange={(e) => update("oldPrice", e.target.value)} className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
                       </div>
