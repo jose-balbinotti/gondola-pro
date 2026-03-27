@@ -152,17 +152,23 @@ export default function EditorPage() {
       if (!canvas) return;
 
       if (paperSize === "A4-duplo") {
-        // A4 portrait: 210×297mm, two A5 posters rotated 90° stacked vertically
         const rotated = rotateCanvas90(canvas);
         const imgData = rotated.toDataURL("image/png", 1.0);
         const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
-        const pdfW = 210;
         const halfH = 297 / 2;
-        pdf.addImage(imgData, "PNG", 0, 0, pdfW, halfH);
-        pdf.addImage(imgData, "PNG", 0, halfH, pdfW, halfH);
+        pdf.addImage(imgData, "PNG", 0, 0, 210, halfH);
+        pdf.addImage(imgData, "PNG", 0, halfH, 210, halfH);
         rotated.width = 0; rotated.height = 0;
         pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
-        toast({ title: "PDF exportado!", description: "A4 Duplo – 2 cartazes por folha." });
+        toast({ title: "PDF exportado!", description: "A4 Duplo Rotacionado – 2 cartazes por folha." });
+      } else if (paperSize === "A4-duplo-v") {
+        const imgData = canvas.toDataURL("image/png", 1.0);
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
+        const halfH = 297 / 2;
+        pdf.addImage(imgData, "PNG", 0, 0, 210, halfH);
+        pdf.addImage(imgData, "PNG", 0, halfH, 210, halfH);
+        pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
+        toast({ title: "PDF exportado!", description: "A4 Duplo Vertical – 2 cartazes por folha." });
       } else {
         const imgData = canvas.toDataURL("image/png", 1.0);
         const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
