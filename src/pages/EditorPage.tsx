@@ -195,18 +195,21 @@ export default function EditorPage() {
         return;
       }
 
+      const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
+      const isLandscape = fmt[0] > fmt[1];
+
       if (paperSize === "A4-duplo" || paperSize === "A4-duplo-v") {
         let imgCanvas = canvas;
         if (paperSize === "A4-duplo") {
           imgCanvas = rotateCanvas90(canvas);
         }
-        const imgData = imgCanvas.toDataURL("image/png", 1.0);
+        const imgData = imgCanvas.toDataURL("image/jpeg", 0.92);
         if (paperSize === "A4-duplo") { imgCanvas.width = 0; imgCanvas.height = 0; }
 
         const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
         const halfH = 297 / 2;
-        pdf.addImage(imgData, "PNG", 0, 0, 210, halfH);
-        pdf.addImage(imgData, "PNG", 0, halfH, 210, halfH);
+        pdf.addImage(imgData, "JPEG", 0, 0, 210, halfH);
+        pdf.addImage(imgData, "JPEG", 0, halfH, 210, halfH);
 
         const pdfBlob = pdf.output('blob');
         const pdfUrl = URL.createObjectURL(pdfBlob);
@@ -223,53 +226,25 @@ export default function EditorPage() {
         return;
       }
 
-      const fmt = PDF_FORMATS[paperSize] || PDF_FORMATS.A4;
-      const widthMM = fmt[0];
-      const heightMM = fmt[1];
-      const imageData = canvas.toDataURL("image/png", 1.0);
+      // Gera PDF sem bordas/margens — imagem preenche 100% da página
+      const imgData = canvas.toDataURL("image/jpeg", 0.92);
+      const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = pdf.internal.pageSize.getHeight();
+      pdf.addImage(imgData, "JPEG", 0, 0, pdfW, pdfH);
 
-      let iframe = document.getElementById("print-iframe") as HTMLIFrameElement | null;
-      if (iframe) iframe.remove();
-
-      iframe = document.createElement("iframe");
-      iframe.id = "print-iframe";
-      iframe.style.position = "fixed";
-      iframe.style.top = "-10000px";
-      iframe.style.left = "-10000px";
-      iframe.style.width = "0";
-      iframe.style.height = "0";
-      iframe.style.border = "none";
-      document.body.appendChild(iframe);
-
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (!iframeDoc) {
-        toast({ title: "Erro ao preparar impressão", variant: "destructive" });
-        return;
-      }
-
-      iframeDoc.open();
-      iframeDoc.write(`<!doctype html><html><head><style>
-        @page { size: ${widthMM}mm ${heightMM}mm; margin: 0; }
-        html, body { margin:0; padding:0; width:${widthMM}mm; height:${heightMM}mm; background:white; overflow:hidden; }
-        img { width:${widthMM}mm; height:${heightMM}mm; display:block; object-fit:fill; }
-      </style></head><body><img src="${imageData}" /></body></html>`);
-      iframeDoc.close();
-
-      const img = iframeDoc.querySelector("img");
-      const doPrint = () => {
-        setTimeout(() => {
-          iframe!.contentWindow?.focus();
-          iframe!.contentWindow?.print();
-          setTimeout(() => iframe?.remove(), 2000);
-        }, 200);
-      };
-      if (img) {
-        img.onload = doPrint;
-        if (img.complete) doPrint();
+      const pdfBlob = pdf.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      const printWindow = window.open(pdfUrl, '_blank');
+      if (printWindow) {
+        printWindow.onload = () => setTimeout(() => printWindow.print(), 500);
       } else {
-        doPrint();
+        const a = document.createElement('a');
+        a.href = pdfUrl;
+        a.download = `cartaz-${data.productName || "gondolapro"}.pdf`;
+        a.click();
+        toast({ title: "Pop-up bloqueado. PDF baixado.", description: "Abra o PDF e imprima manualmente." });
       }
-
       toast({ title: "Impressão pronta!" });
     } catch {
       toast({ title: "Erro ao imprimir", variant: "destructive" });
