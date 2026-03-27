@@ -17,6 +17,7 @@ const PAPER_SIZES = [
   { value: "A4", label: "A4 (210×297mm)" },
   { value: "A5", label: "A5 (148×210mm)" },
   { value: "A3", label: "A3 (297×420mm)" },
+  { value: "A4-duplo", label: "A4 Duplo (2×A5)" },
   { value: "gondola", label: "Gôndola (faixa)" },
   { value: "10x15", label: "10×15 cm" },
 ];
@@ -25,6 +26,7 @@ const PDF_FORMATS: Record<string, [number, number]> = {
   A4: [210, 297],
   A5: [148, 210],
   A3: [297, 420],
+  "A4-duplo": [210, 297], // PDF is A4 but contains 2 posters
   gondola: [297, 74],
   "10x15": [100, 150],
 };
@@ -144,7 +146,16 @@ export default function EditorPage() {
       });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
-      pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+
+      if (paperSize === "A4-duplo") {
+        // 2 posters on A4: each takes half the height (148.5mm)
+        const halfH = pdfH / 2;
+        pdf.addImage(imgData, "PNG", 0, 0, pdfW, halfH);
+        pdf.addImage(imgData, "PNG", 0, halfH, pdfW, halfH);
+      } else {
+        pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+      }
+
       pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
       toast({ title: "PDF exportado!", description: `Formato ${paperSize} – alta resolução.` });
     } catch {
@@ -184,15 +195,19 @@ export default function EditorPage() {
         return;
       }
 
+      const isDuplo = paperSize === "A4-duplo";
+      const imgHTML = isDuplo
+        ? `<img src="${imageData}" style="width:${widthMM}mm;height:${heightMM / 2}mm;display:block;object-fit:fill;" /><img src="${imageData}" style="width:${widthMM}mm;height:${heightMM / 2}mm;display:block;object-fit:fill;" />`
+        : `<img src="${imageData}" style="width:${widthMM}mm;height:${heightMM}mm;display:block;object-fit:fill;" />`;
+
       iframeDoc.open();
       iframeDoc.write(`<!doctype html><html><head><style>
         @page { size: ${widthMM}mm ${heightMM}mm; margin: 0; }
         html, body { margin:0; padding:0; width:${widthMM}mm; height:${heightMM}mm; background:white; overflow:hidden; }
-        img { width:${widthMM}mm; height:${heightMM}mm; display:block; object-fit:fill; }
-      </style></head><body><img src="${imageData}" /></body></html>`);
+      </style></head><body>${imgHTML}</body></html>`);
       iframeDoc.close();
 
-      const img = iframeDoc.querySelector("img");
+      const imgs = iframeDoc.querySelectorAll("img");
       const doPrint = () => {
         setTimeout(() => {
           iframe!.contentWindow?.focus();
@@ -200,9 +215,10 @@ export default function EditorPage() {
           setTimeout(() => iframe?.remove(), 2000);
         }, 200);
       };
-      if (img) {
-        img.onload = doPrint;
-        if (img.complete) doPrint();
+      const lastImg = imgs[imgs.length - 1];
+      if (lastImg) {
+        lastImg.onload = doPrint;
+        if (lastImg.complete) doPrint();
       } else {
         doPrint();
       }
