@@ -21,6 +21,7 @@ const PDF_FORMATS: Record<string, [number, number]> = {
   gondola: [297, 74],
   "10x15": [100, 150],
   "A4-duplo": [210, 297],
+  "A4-duplo-v": [210, 297],
   "A3-duplo": [297, 420],
 };
 
@@ -28,7 +29,8 @@ const PAPER_SIZES = [
   { value: "A4", label: "A4" },
   { value: "A5", label: "A5" },
   { value: "A3", label: "A3" },
-  { value: "A4-duplo", label: "A4 Duplo (2/folha)" },
+  { value: "A4-duplo", label: "A4 Duplo Rotacionado" },
+  { value: "A4-duplo-v", label: "A4 Duplo Vertical" },
   { value: "A3-duplo", label: "A3 Duplo (2/folha)" },
   { value: "gondola", label: "Gôndola" },
   { value: "10x15", label: "10×15cm" },
