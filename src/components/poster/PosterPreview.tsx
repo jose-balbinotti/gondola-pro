@@ -301,7 +301,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                     fontFamily: mainFont,
                     transform: `translate(${style.quantityOffsetX}px, ${style.quantityOffsetY}px)`,
                   }}>
-                    <span style={{ fontSize: `${style.priceFontSize}px`, fontWeight: 900, lineHeight: 1 }}>{data.quantity}</span>
+                    <span style={{ fontSize: `${style.quantityFontSize}px`, fontWeight: 900, lineHeight: 1 }}>{data.quantity}</span>
                   </div>
                 )}
                 {/* Preço Atacado - direita com formatação completa */}
