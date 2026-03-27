@@ -632,6 +632,16 @@ export default function EditorPage() {
                     <SliderField label={`Descrição Y – ${posterStyle.descriptionOffsetY}px`} value={posterStyle.descriptionOffsetY} min={-200} max={200} onChange={(v) => updateStyle("descriptionOffsetY", v)} />
                     <SliderField label={`Validade Y – ${posterStyle.validityOffsetY}px`} value={posterStyle.validityOffsetY} min={-200} max={200} onChange={(v) => updateStyle("validityOffsetY", v)} />
                     <SliderField label={`Unidade X – ${posterStyle.unitOffsetX}px`} value={posterStyle.unitOffsetX} min={-200} max={200} onChange={(v) => updateStyle("unitOffsetX", v)} />
+                    {paperSize === "atacado-varejo" && (
+                      <>
+                        <SliderField label={`Quantidade X – ${posterStyle.quantityOffsetX}px`} value={posterStyle.quantityOffsetX} min={-400} max={400} onChange={(v) => updateStyle("quantityOffsetX", v)} />
+                        <SliderField label={`Quantidade Y – ${posterStyle.quantityOffsetY}px`} value={posterStyle.quantityOffsetY} min={-400} max={400} onChange={(v) => updateStyle("quantityOffsetY", v)} />
+                        <SliderField label={`Atacado X – ${posterStyle.atacadoOffsetX}px`} value={posterStyle.atacadoOffsetX} min={-400} max={400} onChange={(v) => updateStyle("atacadoOffsetX", v)} />
+                        <SliderField label={`Atacado Y – ${posterStyle.atacadoOffsetY}px`} value={posterStyle.atacadoOffsetY} min={-400} max={400} onChange={(v) => updateStyle("atacadoOffsetY", v)} />
+                        <SliderField label={`Varejo X – ${posterStyle.varejoOffsetX}px`} value={posterStyle.varejoOffsetX} min={-400} max={400} onChange={(v) => updateStyle("varejoOffsetX", v)} />
+                        <SliderField label={`Varejo Y – ${posterStyle.varejoOffsetY}px`} value={posterStyle.varejoOffsetY} min={-400} max={400} onChange={(v) => updateStyle("varejoOffsetY", v)} />
+                      </>
+                    )}
                   </div>
                 </div>
 
