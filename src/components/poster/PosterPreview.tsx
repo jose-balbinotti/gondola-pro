@@ -121,6 +121,7 @@ const ASPECT_RATIOS: Record<string, number> = {
   "10x15": 10 / 15,
   "A4-duplo": 148 / 210,
   "A4-duplo-v": 210 / (297 / 2), // each poster takes half A4 height
+  "atacado-varejo": 210 / 297,
   custom: 3 / 4,
 };
 
