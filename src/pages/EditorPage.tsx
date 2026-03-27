@@ -21,6 +21,7 @@ const PAPER_SIZES = [
   { value: "A4-duplo-v", label: "A4 Duplo Vertical (2×metade)" },
   { value: "gondola", label: "Gôndola (faixa)" },
   { value: "10x15", label: "10×15 cm" },
+  { value: "atacado-varejo", label: "Atacado/Varejo" },
 ];
 
 const PDF_FORMATS: Record<string, [number, number]> = {
