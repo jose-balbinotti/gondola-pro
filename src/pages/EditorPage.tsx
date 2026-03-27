@@ -195,15 +195,19 @@ export default function EditorPage() {
         return;
       }
 
+      const isDuplo = paperSize === "A4-duplo";
+      const imgHTML = isDuplo
+        ? `<img src="${imageData}" style="width:${widthMM}mm;height:${heightMM / 2}mm;display:block;object-fit:fill;" /><img src="${imageData}" style="width:${widthMM}mm;height:${heightMM / 2}mm;display:block;object-fit:fill;" />`
+        : `<img src="${imageData}" style="width:${widthMM}mm;height:${heightMM}mm;display:block;object-fit:fill;" />`;
+
       iframeDoc.open();
       iframeDoc.write(`<!doctype html><html><head><style>
         @page { size: ${widthMM}mm ${heightMM}mm; margin: 0; }
         html, body { margin:0; padding:0; width:${widthMM}mm; height:${heightMM}mm; background:white; overflow:hidden; }
-        img { width:${widthMM}mm; height:${heightMM}mm; display:block; object-fit:fill; }
-      </style></head><body><img src="${imageData}" /></body></html>`);
+      </style></head><body>${imgHTML}</body></html>`);
       iframeDoc.close();
 
-      const img = iframeDoc.querySelector("img");
+      const imgs = iframeDoc.querySelectorAll("img");
       const doPrint = () => {
         setTimeout(() => {
           iframe!.contentWindow?.focus();
@@ -211,9 +215,10 @@ export default function EditorPage() {
           setTimeout(() => iframe?.remove(), 2000);
         }, 200);
       };
-      if (img) {
-        img.onload = doPrint;
-        if (img.complete) doPrint();
+      const lastImg = imgs[imgs.length - 1];
+      if (lastImg) {
+        lastImg.onload = doPrint;
+        if (lastImg.complete) doPrint();
       } else {
         doPrint();
       }
