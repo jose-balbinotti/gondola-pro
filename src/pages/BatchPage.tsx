@@ -82,7 +82,7 @@ export default function BatchPage() {
   const [exporting, setExporting] = useState(false);
 
   const template = TEMPLATES.find((t) => t.id === selectedTemplate) || TEMPLATES[0];
-  const isDuplo = paperSize === "A4-duplo" || paperSize === "A3-duplo";
+  const isDuplo = paperSize === "A4-duplo" || paperSize === "A4-duplo-v" || paperSize === "A3-duplo";
 
   const updateStyle = useCallback(<K extends keyof PosterStyle>(field: K, value: PosterStyle[K]) => {
     setPosterStyle((prev) => ({ ...prev, [field]: value }));
