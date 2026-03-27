@@ -287,7 +287,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                 padding: '16px 32px',
                 boxSizing: 'border-box',
               }}>
-                {/* Quantidade - esquerda, levemente abaixo do centro */}
+                {/* Quantidade - esquerda, com offsets */}
                 {data.quantity && (
                   <div style={{
                     flex: '0 0 40%',
@@ -297,26 +297,54 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                     justifyContent: 'center',
                     color: template.priceColor,
                     fontFamily: mainFont,
-                    transform: 'translateY(15%)',
+                    transform: `translate(${style.quantityOffsetX}px, ${style.quantityOffsetY}px)`,
                   }}>
                     <span style={{ fontSize: `${style.priceFontSize}px`, fontWeight: 900, lineHeight: 1 }}>{data.quantity}</span>
                   </div>
                 )}
-                {/* Preço Atacado - direita */}
+                {/* Preço Atacado - direita com formatação completa */}
                 {hasAtacadoPrice && (
                   <div style={{
                     flex: '0 0 55%',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
+                    transform: `translate(${style.atacadoOffsetX}px, ${style.atacadoOffsetY}px)`,
                   }}>
                     <span style={{ fontSize: `${Math.round(style.priceFontSize * 0.28)}px`, fontWeight: 700, color: template.textColor, opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>Atacado</span>
                     <div style={{ display: 'flex', color: template.priceColor, fontFamily: priceFont, textShadow: sPrice, alignItems: 'flex-end' }}>
-                      {!style.hideCurrencySymbol && <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>R$</span>}
-                      <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1 }}>{atacadoReais}</span>
-                      <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1 }}>,{atacadoCentavos}</span>
-                      {data.unit && <span style={{ fontSize: `${Math.round(style.centsFontSize * 0.5)}px`, opacity: 0.7, marginLeft: '4px', color: template.textColor }}>{data.unit}</span>}
+                      {!style.hideCurrencySymbol && <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>R$</span>}
+                      <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>{atacadoReais}</span>
+                      <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>,</span>
+                      <span style={{
+                        display: 'inline-flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
+                        alignSelf: style.centsAlignTop ? 'flex-start' : 'stretch',
+                        lineHeight: 1,
+                        transform: `translateY(${style.centsOffsetY}px)`,
+                      }}>
+                        <span style={{
+                          fontWeight: 900,
+                          fontSize: `${style.centsFontSize}px`,
+                          lineHeight: 1,
+                          borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
+                          paddingBottom: style.centsUnderline ? '1px' : '0',
+                        }}>{atacadoCentavos}</span>
+                        {data.unit && style.unitBelowCents && (
+                          <span style={{
+                            color: template.textColor, opacity: 0.7,
+                            fontSize: `${Math.round(style.centsFontSize * 0.5)}px`, lineHeight: 1,
+                            whiteSpace: 'nowrap', marginTop: `${Math.round(style.centsFontSize * 0.08)}px`,
+                            transform: `translateX(${style.unitOffsetX}px) translateY(${style.unitOffsetY}px)`,
+                          }}>{data.unit}</span>
+                        )}
+                      </span>
                     </div>
+                    {data.unit && !style.unitBelowCents && (
+                      <span style={{ fontSize: '12px', marginTop: '4px', opacity: 0.7, color: template.textColor, transform: `translateX(${style.unitOffsetX}px)` }}>{data.unit}</span>
+                    )}
                   </div>
                 )}
               </div>
