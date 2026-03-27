@@ -20,6 +20,7 @@ const PDF_FORMATS: Record<string, [number, number]> = {
   A3: [297, 420],
   gondola: [297, 74],
   "10x15": [100, 150],
+  "atacado-varejo": [210, 297],
   "A4-duplo": [210, 297],
   "A4-duplo-v": [210, 297],
   "A3-duplo": [297, 420],
