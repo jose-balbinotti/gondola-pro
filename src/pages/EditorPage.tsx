@@ -17,7 +17,8 @@ const PAPER_SIZES = [
   { value: "A4", label: "A4 (210×297mm)" },
   { value: "A5", label: "A5 (148×210mm)" },
   { value: "A3", label: "A3 (297×420mm)" },
-  { value: "A4-duplo", label: "A4 Duplo (2×A5)" },
+  { value: "A4-duplo", label: "A4 Duplo Rotacionado (2×A5)" },
+  { value: "A4-duplo-v", label: "A4 Duplo Vertical (2×metade)" },
   { value: "gondola", label: "Gôndola (faixa)" },
   { value: "10x15", label: "10×15 cm" },
 ];
@@ -26,7 +27,8 @@ const PDF_FORMATS: Record<string, [number, number]> = {
   A4: [210, 297],
   A5: [148, 210],
   A3: [297, 420],
-  "A4-duplo": [210, 297], // PDF is A4 but contains 2 posters
+  "A4-duplo": [210, 297],
+  "A4-duplo-v": [210, 297],
   gondola: [297, 74],
   "10x15": [100, 150],
 };
