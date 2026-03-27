@@ -193,11 +193,13 @@ export default function EditorPage() {
         return;
       }
 
-      if (paperSize === "A4-duplo") {
-        // Rotate poster 90° and place 2 on A4 portrait
-        const rotated = rotateCanvas90(canvas);
-        const imgData = rotated.toDataURL("image/png", 1.0);
-        rotated.width = 0; rotated.height = 0;
+      if (paperSize === "A4-duplo" || paperSize === "A4-duplo-v") {
+        let imgCanvas = canvas;
+        if (paperSize === "A4-duplo") {
+          imgCanvas = rotateCanvas90(canvas);
+        }
+        const imgData = imgCanvas.toDataURL("image/png", 1.0);
+        if (paperSize === "A4-duplo") { imgCanvas.width = 0; imgCanvas.height = 0; }
 
         const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
         const halfH = 297 / 2;
