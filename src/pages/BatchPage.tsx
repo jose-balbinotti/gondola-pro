@@ -21,6 +21,7 @@ const PDF_FORMATS: Record<string, [number, number]> = {
   gondola: [297, 74],
   "10x15": [100, 150],
   "A4-duplo": [210, 297],
+  "A4-duplo-v": [210, 297],
   "A3-duplo": [297, 420],
 };
 
@@ -28,7 +29,8 @@ const PAPER_SIZES = [
   { value: "A4", label: "A4" },
   { value: "A5", label: "A5" },
   { value: "A3", label: "A3" },
-  { value: "A4-duplo", label: "A4 Duplo (2/folha)" },
+  { value: "A4-duplo", label: "A4 Duplo Rotacionado" },
+  { value: "A4-duplo-v", label: "A4 Duplo Vertical" },
   { value: "A3-duplo", label: "A3 Duplo (2/folha)" },
   { value: "gondola", label: "Gôndola" },
   { value: "10x15", label: "10×15cm" },
@@ -80,7 +82,7 @@ export default function BatchPage() {
   const [exporting, setExporting] = useState(false);
 
   const template = TEMPLATES.find((t) => t.id === selectedTemplate) || TEMPLATES[0];
-  const isDuplo = paperSize === "A4-duplo" || paperSize === "A3-duplo";
+  const isDuplo = paperSize === "A4-duplo" || paperSize === "A4-duplo-v" || paperSize === "A3-duplo";
 
   const updateStyle = useCallback(<K extends keyof PosterStyle>(field: K, value: PosterStyle[K]) => {
     setPosterStyle((prev) => ({ ...prev, [field]: value }));
@@ -323,19 +325,21 @@ export default function BatchPage() {
     if (validProducts.length === 0) return;
     setExporting(true);
     try {
-      const fmt = PDF_FORMATS[isDuplo ? "A4" : paperSize] || PDF_FORMATS.A4;
+      const baseFmt = paperSize.includes("A4-duplo") ? "A4" : (paperSize === "A3-duplo" ? "A3" : paperSize);
+      const fmt = PDF_FORMATS[baseFmt] || PDF_FORMATS.A4;
       const isLandscape = fmt[0] > fmt[1];
       const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
 
       if (isDuplo) {
+        const shouldRotate = paperSize === "A4-duplo" || paperSize === "A3-duplo";
         const halfH = pdfH / 2;
         for (let i = 0; i < validProducts.length; i += 2) {
           if (i > 0) pdf.addPage();
-          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH, true);
+          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH, shouldRotate);
           if (i + 1 < validProducts.length) {
-            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH, true);
+            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH, shouldRotate);
           }
         }
       } else {
@@ -358,19 +362,21 @@ export default function BatchPage() {
     if (validProducts.length === 0) return;
     setExporting(true);
     try {
-      const fmt = PDF_FORMATS[isDuplo ? "A4" : paperSize] || PDF_FORMATS.A4;
+      const baseFmt = paperSize.includes("A4-duplo") ? "A4" : (paperSize === "A3-duplo" ? "A3" : paperSize);
+      const fmt = PDF_FORMATS[baseFmt] || PDF_FORMATS.A4;
       const isLandscape = fmt[0] > fmt[1];
       const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
 
       if (isDuplo) {
+        const shouldRotate = paperSize === "A4-duplo" || paperSize === "A3-duplo";
         const halfH = pdfH / 2;
         for (let i = 0; i < validProducts.length; i += 2) {
           if (i > 0) pdf.addPage();
-          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH, true);
+          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH, shouldRotate);
           if (i + 1 < validProducts.length) {
-            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH, true);
+            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH, shouldRotate);
           }
         }
       } else {
