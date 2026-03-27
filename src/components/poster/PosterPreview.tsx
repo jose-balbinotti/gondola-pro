@@ -164,6 +164,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
 
     const { reais, centavos } = splitPrice(data.newPrice);
     const hasPrice = !!(reais || centavos);
+    const isAtacadoVarejo = paperSize === "atacado-varejo";
+    const { reais: atacadoReais, centavos: atacadoCentavos } = splitPrice(data.oldPrice);
+    const hasAtacadoPrice = !!(atacadoReais || atacadoCentavos);
 
     const SHADOW = "3px 3px 6px rgba(0,0,0,0.7), 1px 1px 2px rgba(0,0,0,0.9)";
     const sProd = style.shadowProduct ? SHADOW : "none";
