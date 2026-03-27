@@ -423,10 +423,7 @@ export default function BatchPage() {
         }
       }
 
-      pdf.autoPrint();
-      const pdfBlob = pdf.output('blob');
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      window.open(pdfUrl, '_blank');
+      openPdfPrint(pdf, `cartazes-lote-${validProducts.length}.pdf`);
       toast({ title: "Enviando para impressora...", description: `${validProducts.length} cartazes – ${paperSize}.` });
     } catch (err) {
       console.error("Erro ao imprimir:", err);
