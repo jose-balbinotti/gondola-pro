@@ -613,6 +613,9 @@ export default function EditorPage() {
                     <SliderField label={`Preço (reais) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={300} onChange={(v) => updateStyle("priceFontSize", v)} />
                     <SliderField label={`Preço (centavos/R$) – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={200} onChange={(v) => updateStyle("centsFontSize", v)} />
                     <SliderField label={`Descrição – ${posterStyle.descriptionFontSize}px`} value={posterStyle.descriptionFontSize} min={8} max={120} onChange={(v) => updateStyle("descriptionFontSize", v)} />
+                    {paperSize === "atacado-varejo" && (
+                      <SliderField label={`Quantidade – ${posterStyle.quantityFontSize}px`} value={posterStyle.quantityFontSize} min={12} max={300} onChange={(v) => updateStyle("quantityFontSize", v)} />
+                    )}
                   </div>
                 </div>
 
