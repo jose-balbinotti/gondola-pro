@@ -743,7 +743,7 @@ export default function BatchPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h3 className="text-sm font-bold text-foreground">
-                {validProducts.length} cartazes {isDuplo && `(${Math.ceil(validProducts.length / 2)} folhas)`}
+                {validProducts.length} cartazes, {totalPrintCount} impressões {isDuplo && `(${Math.ceil(totalPrintCount / 2)} folhas)`}
               </h3>
               <p className="text-xs text-muted-foreground">
                 Clique em <Edit className="w-3 h-3 inline" /> para editar cartazes individualmente antes de exportar
