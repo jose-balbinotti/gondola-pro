@@ -200,7 +200,7 @@ export default function BatchPage() {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const parsed: PosterData[] = results.data.map((row: Record<string, string>) => ({
+        const parsed: BatchProduct[] = results.data.map((row: Record<string, string>) => ({
           ...emptyProduct(),
           templateId: selectedTemplate,
           productName: row["Produto"] || row["produto"] || row["PRODUTO"] || row["Nome"] || "",
@@ -211,6 +211,7 @@ export default function BatchPage() {
           discount: row["Desconto %"] || row["desconto"] || row["Desconto"] || "",
           validity: row["Validade"] || row["validade"] || "",
           unit: row["Unidade"] || row["unidade"] || row["un"] || "",
+          copies: parseInt(row["Cópias"] || row["copias"] || row["Copias"] || row["Qtd Impressão"] || "1") || 1,
         }));
         setProducts(parsed);
         toast({ title: `${parsed.length} produtos importados do CSV!` });
