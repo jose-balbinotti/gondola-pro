@@ -293,6 +293,20 @@ export default function BatchPage() {
 
   const validProducts = products.filter((p) => p.productName.trim() || p.newPrice.trim());
 
+  // Expand products by copies for PDF/print generation
+  const expandedProducts: PosterData[] = [];
+  const expandedSourceIdx: number[] = []; // maps expanded index to original validProducts index
+  validProducts.forEach((p, origIdx) => {
+    const copies = p.copies || 1;
+    for (let c = 0; c < copies; c++) {
+      const { copies: _, ...posterData } = p;
+      expandedProducts.push(posterData);
+      expandedSourceIdx.push(origIdx);
+    }
+  });
+
+  const totalPrintCount = expandedProducts.length;
+
   // Adaptive scale: reduce quality for large batches to prevent memory overflow
   const getCaptureScale = () => {
     const count = validProducts.length;
