@@ -731,8 +731,8 @@ export default function BatchPage() {
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep("config")} className="flex-1">Voltar</Button>
-              <Button onClick={() => { setPerPosterStyles({}); setPerPosterData({}); setEditingPosterIdx(null); setStep("preview"); }} className="flex-1" disabled={validProducts.length === 0}>
-                Ver Preview ({validProducts.length} cartazes)
+              <Button onClick={() => { setEditingPosterIdx(null); setStep("preview"); }} className="flex-1" disabled={validProducts.length === 0}>
+                Ver Preview ({validProducts.length} cartazes, {totalPrintCount} impressões)
               </Button>
             </div>
           </div>
