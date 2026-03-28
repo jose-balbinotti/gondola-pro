@@ -460,21 +460,21 @@ export default function EditorPage() {
                 <div className="p-4 rounded-lg border border-border bg-background">
                   <h3 className="text-sm font-bold text-foreground mb-3">Informações do Produto</h3>
                   <div className="space-y-3">
-                    <Field label="Nome do Produto" value={data.productName} onChange={(v) => update("productName", v)} placeholder="Ex: Arroz Integral" />
-                    <Field label="Marca" value={data.brandName} onChange={(v) => update("brandName", v)} placeholder="Ex: Tio João" />
-                    <Field label="Gramatura / Volume" value={data.gramatura} onChange={(v) => update("gramatura", v)} placeholder="Ex: 1kg, 500ml" />
+                    <Field label="Nome do Produto" value={data.productName} onChange={(v) => update("productName", v)} placeholder="Ex: Arroz Integral" fieldKey="productName" />
+                    <Field label="Marca" value={data.brandName} onChange={(v) => update("brandName", v)} placeholder="Ex: Tio João" fieldKey="brandName" />
+                    <Field label="Gramatura / Volume" value={data.gramatura} onChange={(v) => update("gramatura", v)} placeholder="Ex: 1kg, 500ml" fieldKey="gramatura" />
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <label className="text-xs font-semibold text-muted-foreground">{paperSize === "atacado-varejo" ? "Preço Atacado (R$)" : "Preço Antigo (R$)"}</label>
                         </div>
-                        <input type="text" value={data.oldPrice} onChange={(e) => update("oldPrice", e.target.value)} className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                        <input type="text" value={data.oldPrice} onChange={(e) => update("oldPrice", e.target.value)} onFocus={() => { if (data.oldPrice === DEFAULT_POSTER_DATA.oldPrice) update("oldPrice", ""); }} className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
                       </div>
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <label className="text-xs font-semibold text-muted-foreground">{paperSize === "atacado-varejo" ? "Preço Varejo (R$)" : "Preço Novo (R$)"}</label>
                         </div>
-                        <input type="text" value={data.newPrice} onChange={(e) => update("newPrice", e.target.value)} placeholder="Ex: 12,99" className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                        <input type="text" value={data.newPrice} onChange={(e) => update("newPrice", e.target.value)} onFocus={() => { if (data.newPrice === DEFAULT_POSTER_DATA.newPrice) update("newPrice", ""); }} placeholder="Ex: 12,99" className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
                       </div>
                     </div>
                     {/* Price display options */}
@@ -508,7 +508,7 @@ export default function EditorPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <Field label="Quantidade" value={data.quantity} onChange={(v) => update("quantity", v)} placeholder="Ex: 3" />
                       <div>
-                        <Field label="Unidade" value={data.unit} onChange={(v) => update("unit", v)} placeholder="un, kg, L" />
+                        <Field label="Unidade" value={data.unit} onChange={(v) => update("unit", v)} placeholder="un, kg, L" fieldKey="unit" />
                         <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mt-1.5">
                           <Switch checked={posterStyle.unitBelowCents} onCheckedChange={(v) => updateStyle("unitBelowCents", v)} />
                           Abaixo dos centavos
@@ -781,7 +781,21 @@ export default function EditorPage() {
   );
 }
 
-function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+const DEFAULT_FIELD_VALUES: Record<string, string> = {
+  productName: DEFAULT_POSTER_DATA.productName,
+  brandName: DEFAULT_POSTER_DATA.brandName,
+  gramatura: DEFAULT_POSTER_DATA.gramatura,
+  oldPrice: DEFAULT_POSTER_DATA.oldPrice,
+  newPrice: DEFAULT_POSTER_DATA.newPrice,
+  unit: DEFAULT_POSTER_DATA.unit,
+};
+
+function Field({ label, value, onChange, placeholder, fieldKey }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; fieldKey?: string }) {
+  const handleFocus = () => {
+    if (fieldKey && DEFAULT_FIELD_VALUES[fieldKey] && value === DEFAULT_FIELD_VALUES[fieldKey]) {
+      onChange('');
+    }
+  };
   return (
     <div>
       <label className="text-xs font-semibold text-muted-foreground mb-1 block">{label}</label>
@@ -789,6 +803,7 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onFocus={handleFocus}
         placeholder={placeholder}
         className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
       />
