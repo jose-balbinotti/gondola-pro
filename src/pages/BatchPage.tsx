@@ -119,7 +119,7 @@ export default function BatchPage() {
     loadPresetsFromDB().then(setPresets);
   }, []);
 
-  const [products, setProducts] = useState<PosterData[]>([emptyProduct()]);
+  const [products, setProducts] = useState<BatchProduct[]>([emptyProduct()]);
   const [textInput, setTextInput] = useState("");
   const [exporting, setExporting] = useState(false);
 
