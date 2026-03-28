@@ -781,7 +781,21 @@ export default function EditorPage() {
   );
 }
 
-function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+const DEFAULT_FIELD_VALUES: Record<string, string> = {
+  productName: DEFAULT_POSTER_DATA.productName,
+  brandName: DEFAULT_POSTER_DATA.brandName,
+  gramatura: DEFAULT_POSTER_DATA.gramatura,
+  oldPrice: DEFAULT_POSTER_DATA.oldPrice,
+  newPrice: DEFAULT_POSTER_DATA.newPrice,
+  unit: DEFAULT_POSTER_DATA.unit,
+};
+
+function Field({ label, value, onChange, placeholder, fieldKey }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; fieldKey?: string }) {
+  const handleFocus = () => {
+    if (fieldKey && DEFAULT_FIELD_VALUES[fieldKey] && value === DEFAULT_FIELD_VALUES[fieldKey]) {
+      onChange('');
+    }
+  };
   return (
     <div>
       <label className="text-xs font-semibold text-muted-foreground mb-1 block">{label}</label>
@@ -789,6 +803,7 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onFocus={handleFocus}
         placeholder={placeholder}
         className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
       />
