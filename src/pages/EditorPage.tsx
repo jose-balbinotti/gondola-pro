@@ -247,24 +247,24 @@ export default function EditorPage() {
         if (paperSize === "A4-duplo") {
           imgCanvas = rotateCanvas90(canvas);
         }
-        const imgData = imgCanvas.toDataURL("image/jpeg", 0.92);
+        const imgData = imgCanvas.toDataURL("image/png", 1.0);
         if (paperSize === "A4-duplo") { imgCanvas.width = 0; imgCanvas.height = 0; }
 
         const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
         const halfH = 297 / 2;
-        pdf.addImage(imgData, "JPEG", 0, 0, 210, halfH);
-        pdf.addImage(imgData, "JPEG", 0, halfH, 210, halfH);
+        pdf.addImage(imgData, "PNG", 0, 0, 210, halfH);
+        pdf.addImage(imgData, "PNG", 0, halfH, 210, halfH);
         openPdfPrint(pdf, `cartaz-duplo-${data.productName || "gondolapro"}.pdf`);
         toast({ title: "Impressão pronta!" });
         return;
       }
 
       // Gera PDF sem bordas/margens — imagem preenche 100% da página
-      const imgData = canvas.toDataURL("image/jpeg", 0.92);
+      const imgData = canvas.toDataURL("image/png", 1.0);
       const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
-      pdf.addImage(imgData, "JPEG", 0, 0, pdfW, pdfH);
+      pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
       openPdfPrint(pdf, `cartaz-${data.productName || "gondolapro"}.pdf`);
       toast({ title: "Impressão pronta!" });
     } catch {
