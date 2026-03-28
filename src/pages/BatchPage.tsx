@@ -430,22 +430,22 @@ export default function BatchPage() {
       if (isDuplo) {
         const shouldRotate = paperSize === "A4-duplo" || paperSize === "A3-duplo";
         const halfH = pdfH / 2;
-        for (let i = 0; i < validProducts.length; i += 2) {
+        for (let i = 0; i < expandedProducts.length; i += 2) {
           if (i > 0) pdf.addPage();
-          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH, shouldRotate);
-          if (i + 1 < validProducts.length) {
-            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH, shouldRotate);
+          await addPosterToPDF(pdf, `batch-poster-${expandedSourceIdx[i]}`, 0, 0, pdfW, halfH, shouldRotate);
+          if (i + 1 < expandedProducts.length) {
+            await addPosterToPDF(pdf, `batch-poster-${expandedSourceIdx[i + 1]}`, 0, halfH, pdfW, halfH, shouldRotate);
           }
         }
       } else {
-        for (let i = 0; i < validProducts.length; i++) {
+        for (let i = 0; i < expandedProducts.length; i++) {
           if (i > 0) pdf.addPage();
-          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, pdfH);
+          await addPosterToPDF(pdf, `batch-poster-${expandedSourceIdx[i]}`, 0, 0, pdfW, pdfH);
         }
       }
 
-      openPdfPrint(pdf, `cartazes-lote-${validProducts.length}.pdf`);
-      toast({ title: "Enviando para impressora...", description: `${validProducts.length} cartazes – ${paperSize}.` });
+      openPdfPrint(pdf, `cartazes-lote-${totalPrintCount}.pdf`);
+      toast({ title: "Enviando para impressora...", description: `${totalPrintCount} páginas – ${paperSize}.` });
     } catch (err) {
       console.error("Erro ao imprimir:", err);
       toast({ title: "Erro ao imprimir", variant: "destructive" });
