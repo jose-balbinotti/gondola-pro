@@ -41,7 +41,11 @@ const PAPER_SIZES = [
 type InputMode = "table" | "text";
 type Step = "config" | "data" | "preview";
 
-const emptyProduct = (): PosterData => ({
+interface BatchProduct extends PosterData {
+  copies: number;
+}
+
+const emptyProduct = (): BatchProduct => ({
   ...DEFAULT_POSTER_DATA,
   productName: "",
   brandName: "",
@@ -53,6 +57,7 @@ const emptyProduct = (): PosterData => ({
   description: "",
   quantity: "",
   unit: "",
+  copies: 1,
 });
 
 
@@ -114,7 +119,7 @@ export default function BatchPage() {
     loadPresetsFromDB().then(setPresets);
   }, []);
 
-  const [products, setProducts] = useState<PosterData[]>([emptyProduct()]);
+  const [products, setProducts] = useState<BatchProduct[]>([emptyProduct()]);
   const [textInput, setTextInput] = useState("");
   const [exporting, setExporting] = useState(false);
 
@@ -125,7 +130,7 @@ export default function BatchPage() {
     setPosterStyle((prev) => ({ ...prev, [field]: value }));
   }, []);
 
-  const updateProduct = (index: number, field: keyof PosterData, value: string) => {
+  const updateProduct = (index: number, field: keyof BatchProduct, value: string | number) => {
     setProducts((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
   };
 
@@ -166,7 +171,7 @@ export default function BatchPage() {
 
   const parseTextInput = () => {
     const lines = textInput.trim().split("\n").filter(Boolean);
-    const parsed: PosterData[] = lines.map((line) => {
+    const parsed: BatchProduct[] = lines.map((line) => {
       const parts = line.split(";").map((s) => s.trim());
       return {
         ...emptyProduct(),
@@ -179,6 +184,7 @@ export default function BatchPage() {
         discount: parts[5] || "",
         validity: parts[6] || "",
         unit: parts[7] || "",
+        copies: parseInt(parts[8]) || 1,
       };
     });
     if (parsed.length > 0) {
@@ -194,7 +200,7 @@ export default function BatchPage() {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const parsed: PosterData[] = results.data.map((row: Record<string, string>) => ({
+        const parsed: BatchProduct[] = results.data.map((row: Record<string, string>) => ({
           ...emptyProduct(),
           templateId: selectedTemplate,
           productName: row["Produto"] || row["produto"] || row["PRODUTO"] || row["Nome"] || "",
@@ -205,6 +211,7 @@ export default function BatchPage() {
           discount: row["Desconto %"] || row["desconto"] || row["Desconto"] || "",
           validity: row["Validade"] || row["validade"] || "",
           unit: row["Unidade"] || row["unidade"] || row["un"] || "",
+          copies: parseInt(row["Cópias"] || row["copias"] || row["Copias"] || row["Qtd Impressão"] || "1") || 1,
         }));
         setProducts(parsed);
         toast({ title: `${parsed.length} produtos importados do CSV!` });
@@ -285,6 +292,20 @@ export default function BatchPage() {
   };
 
   const validProducts = products.filter((p) => p.productName.trim() || p.newPrice.trim());
+
+  // Expand products by copies for PDF/print generation
+  const expandedProducts: PosterData[] = [];
+  const expandedSourceIdx: number[] = []; // maps expanded index to original validProducts index
+  validProducts.forEach((p, origIdx) => {
+    const copies = p.copies || 1;
+    for (let c = 0; c < copies; c++) {
+      const { copies: _, ...posterData } = p;
+      expandedProducts.push(posterData);
+      expandedSourceIdx.push(origIdx);
+    }
+  });
+
+  const totalPrintCount = expandedProducts.length;
 
   // Adaptive scale: reduce quality for large batches to prevent memory overflow
   const getCaptureScale = () => {
@@ -372,22 +393,22 @@ export default function BatchPage() {
       if (isDuplo) {
         const shouldRotate = paperSize === "A4-duplo" || paperSize === "A3-duplo";
         const halfH = pdfH / 2;
-        for (let i = 0; i < validProducts.length; i += 2) {
+        for (let i = 0; i < expandedProducts.length; i += 2) {
           if (i > 0) pdf.addPage();
-          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH, shouldRotate);
-          if (i + 1 < validProducts.length) {
-            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH, shouldRotate);
+          await addPosterToPDF(pdf, `batch-poster-${expandedSourceIdx[i]}`, 0, 0, pdfW, halfH, shouldRotate);
+          if (i + 1 < expandedProducts.length) {
+            await addPosterToPDF(pdf, `batch-poster-${expandedSourceIdx[i + 1]}`, 0, halfH, pdfW, halfH, shouldRotate);
           }
         }
       } else {
-        for (let i = 0; i < validProducts.length; i++) {
+        for (let i = 0; i < expandedProducts.length; i++) {
           if (i > 0) pdf.addPage();
-          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, pdfH);
+          await addPosterToPDF(pdf, `batch-poster-${expandedSourceIdx[i]}`, 0, 0, pdfW, pdfH);
         }
       }
 
-      pdf.save(`cartazes-lote-${validProducts.length}.pdf`);
-      toast({ title: "PDF em lote exportado!", description: `${validProducts.length} cartazes – ${paperSize}.` });
+      pdf.save(`cartazes-lote-${totalPrintCount}.pdf`);
+      toast({ title: "PDF em lote exportado!", description: `${totalPrintCount} páginas – ${paperSize}.` });
     } catch (err) {
       console.error("Erro ao exportar PDF:", err);
       toast({ title: "Erro ao exportar", variant: "destructive" });
@@ -409,22 +430,22 @@ export default function BatchPage() {
       if (isDuplo) {
         const shouldRotate = paperSize === "A4-duplo" || paperSize === "A3-duplo";
         const halfH = pdfH / 2;
-        for (let i = 0; i < validProducts.length; i += 2) {
+        for (let i = 0; i < expandedProducts.length; i += 2) {
           if (i > 0) pdf.addPage();
-          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, halfH, shouldRotate);
-          if (i + 1 < validProducts.length) {
-            await addPosterToPDF(pdf, `batch-poster-${i + 1}`, 0, halfH, pdfW, halfH, shouldRotate);
+          await addPosterToPDF(pdf, `batch-poster-${expandedSourceIdx[i]}`, 0, 0, pdfW, halfH, shouldRotate);
+          if (i + 1 < expandedProducts.length) {
+            await addPosterToPDF(pdf, `batch-poster-${expandedSourceIdx[i + 1]}`, 0, halfH, pdfW, halfH, shouldRotate);
           }
         }
       } else {
-        for (let i = 0; i < validProducts.length; i++) {
+        for (let i = 0; i < expandedProducts.length; i++) {
           if (i > 0) pdf.addPage();
-          await addPosterToPDF(pdf, `batch-poster-${i}`, 0, 0, pdfW, pdfH);
+          await addPosterToPDF(pdf, `batch-poster-${expandedSourceIdx[i]}`, 0, 0, pdfW, pdfH);
         }
       }
 
-      openPdfPrint(pdf, `cartazes-lote-${validProducts.length}.pdf`);
-      toast({ title: "Enviando para impressora...", description: `${validProducts.length} cartazes – ${paperSize}.` });
+      openPdfPrint(pdf, `cartazes-lote-${totalPrintCount}.pdf`);
+      toast({ title: "Enviando para impressora...", description: `${totalPrintCount} páginas – ${paperSize}.` });
     } catch (err) {
       console.error("Erro ao imprimir:", err);
       toast({ title: "Erro ao imprimir", variant: "destructive" });
@@ -461,11 +482,11 @@ export default function BatchPage() {
               <>
                 <Button size="sm" onClick={exportAllPDF} disabled={exporting} className="gap-1.5">
                   {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                  Exportar PDF ({validProducts.length})
+                  Exportar PDF ({totalPrintCount})
                 </Button>
                 <Button size="sm" variant="outline" onClick={printAll} disabled={exporting} className="gap-1.5">
                   {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
-                  Imprimir ({validProducts.length})
+                  Imprimir ({totalPrintCount})
                 </Button>
               </>
             )}
@@ -674,7 +695,7 @@ export default function BatchPage() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-border">
-                      {["Produto", "Marca", "Gramatura", "Preço Novo", "Preço Antigo", "Desconto %", "Validade", "Un", ""].map((h) => (
+                      {["Produto", "Marca", "Gramatura", "Preço Novo", "Preço Antigo", "Desconto %", "Validade", "Un", "Cópias", ""].map((h) => (
                         <th key={h} className="text-left py-2 px-1 font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -690,6 +711,7 @@ export default function BatchPage() {
                         <td className="py-1 px-1"><input className="w-16 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.discount} onChange={(e) => updateProduct(i, "discount", e.target.value)} placeholder="20" /></td>
                         <td className="py-1 px-1"><input className="w-24 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.validity} onChange={(e) => updateProduct(i, "validity", e.target.value)} placeholder="31/12" /></td>
                         <td className="py-1 px-1"><input className="w-12 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.unit} onChange={(e) => updateProduct(i, "unit", e.target.value)} placeholder="un" /></td>
+                        <td className="py-1 px-1"><input type="number" min="1" className="w-14 h-8 px-2 rounded border border-input bg-background text-foreground text-xs text-center" value={p.copies} onChange={(e) => updateProduct(i, "copies", Math.max(1, parseInt(e.target.value) || 1))} /></td>
                         <td className="py-1 px-1">
                           {products.length > 1 && (
                             <button onClick={() => removeRow(i)} className="p-1 text-muted-foreground hover:text-destructive transition-colors">
@@ -709,8 +731,8 @@ export default function BatchPage() {
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep("config")} className="flex-1">Voltar</Button>
-              <Button onClick={() => { setPerPosterStyles({}); setPerPosterData({}); setEditingPosterIdx(null); setStep("preview"); }} className="flex-1" disabled={validProducts.length === 0}>
-                Ver Preview ({validProducts.length} cartazes)
+              <Button onClick={() => { setEditingPosterIdx(null); setStep("preview"); }} className="flex-1" disabled={validProducts.length === 0}>
+                Ver Preview ({validProducts.length} cartazes, {totalPrintCount} impressões)
               </Button>
             </div>
           </div>
@@ -721,7 +743,7 @@ export default function BatchPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h3 className="text-sm font-bold text-foreground">
-                {validProducts.length} cartazes {isDuplo && `(${Math.ceil(validProducts.length / 2)} folhas)`}
+                {validProducts.length} cartazes, {totalPrintCount} impressões {isDuplo && `(${Math.ceil(totalPrintCount / 2)} folhas)`}
               </h3>
               <p className="text-xs text-muted-foreground">
                 Clique em <Edit className="w-3 h-3 inline" /> para editar cartazes individualmente antes de exportar
@@ -822,6 +844,9 @@ export default function BatchPage() {
                           {perPosterStyles[i] && (
                             <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">Editado</div>
                           )}
+                          {validProducts[i].copies > 1 && (
+                            <div className={`absolute ${perPosterStyles[i] ? 'top-7' : 'top-2'} left-2 z-10 px-1.5 py-0.5 rounded bg-accent text-accent-foreground text-[9px] font-bold`}>×{validProducts[i].copies} cópias</div>
+                          )}
                           <div id={`batch-poster-${i}`}>
                             <PosterPreview template={template} data={{ ...getDataForPoster(i), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPoster(i)} paperSize={paperSize} customBackground={customBackground || undefined} />
                           </div>
@@ -837,11 +862,11 @@ export default function BatchPage() {
             <div className="flex gap-2 pt-4 border-t border-border">
               <Button onClick={exportAllPDF} disabled={exporting} className="flex-1 gap-1.5">
                 {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                Exportar PDF ({validProducts.length} cartazes)
+                Exportar PDF ({totalPrintCount} páginas)
               </Button>
               <Button variant="outline" onClick={printAll} disabled={exporting} className="flex-1 gap-1.5">
                 {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-                Imprimir ({validProducts.length} cartazes)
+                Imprimir ({totalPrintCount} páginas)
               </Button>
             </div>
           </div>
