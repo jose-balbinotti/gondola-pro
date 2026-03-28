@@ -859,11 +859,11 @@ export default function BatchPage() {
             <div className="flex gap-2 pt-4 border-t border-border">
               <Button onClick={exportAllPDF} disabled={exporting} className="flex-1 gap-1.5">
                 {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                Exportar PDF ({validProducts.length} cartazes)
+                Exportar PDF ({totalPrintCount} páginas)
               </Button>
               <Button variant="outline" onClick={printAll} disabled={exporting} className="flex-1 gap-1.5">
                 {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-                Imprimir ({validProducts.length} cartazes)
+                Imprimir ({totalPrintCount} páginas)
               </Button>
             </div>
           </div>
