@@ -508,7 +508,7 @@ export default function EditorPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <Field label="Quantidade" value={data.quantity} onChange={(v) => update("quantity", v)} placeholder="Ex: 3" />
                       <div>
-                        <Field label="Unidade" value={data.unit} onChange={(v) => update("unit", v)} placeholder="un, kg, L" />
+                        <Field label="Unidade" value={data.unit} onChange={(v) => update("unit", v)} placeholder="un, kg, L" fieldKey="unit" />
                         <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mt-1.5">
                           <Switch checked={posterStyle.unitBelowCents} onCheckedChange={(v) => updateStyle("unitBelowCents", v)} />
                           Abaixo dos centavos
