@@ -130,7 +130,7 @@ export default function BatchPage() {
     setPosterStyle((prev) => ({ ...prev, [field]: value }));
   }, []);
 
-  const updateProduct = (index: number, field: keyof PosterData, value: string) => {
+  const updateProduct = (index: number, field: keyof BatchProduct, value: string | number) => {
     setProducts((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
   };
 
