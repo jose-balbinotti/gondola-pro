@@ -695,7 +695,7 @@ export default function BatchPage() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-border">
-                      {["Produto", "Marca", "Gramatura", "Preço Novo", "Preço Antigo", "Desconto %", "Validade", "Un", ""].map((h) => (
+                      {["Produto", "Marca", "Gramatura", "Preço Novo", "Preço Antigo", "Desconto %", "Validade", "Un", "Cópias", ""].map((h) => (
                         <th key={h} className="text-left py-2 px-1 font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -711,6 +711,7 @@ export default function BatchPage() {
                         <td className="py-1 px-1"><input className="w-16 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.discount} onChange={(e) => updateProduct(i, "discount", e.target.value)} placeholder="20" /></td>
                         <td className="py-1 px-1"><input className="w-24 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.validity} onChange={(e) => updateProduct(i, "validity", e.target.value)} placeholder="31/12" /></td>
                         <td className="py-1 px-1"><input className="w-12 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.unit} onChange={(e) => updateProduct(i, "unit", e.target.value)} placeholder="un" /></td>
+                        <td className="py-1 px-1"><input type="number" min="1" className="w-14 h-8 px-2 rounded border border-input bg-background text-foreground text-xs text-center" value={p.copies} onChange={(e) => updateProduct(i, "copies", Math.max(1, parseInt(e.target.value) || 1))} /></td>
                         <td className="py-1 px-1">
                           {products.length > 1 && (
                             <button onClick={() => removeRow(i)} className="p-1 text-muted-foreground hover:text-destructive transition-colors">
