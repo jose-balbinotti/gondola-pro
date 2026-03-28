@@ -844,6 +844,9 @@ export default function BatchPage() {
                           {perPosterStyles[i] && (
                             <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">Editado</div>
                           )}
+                          {validProducts[i].copies > 1 && (
+                            <div className={`absolute ${perPosterStyles[i] ? 'top-7' : 'top-2'} left-2 z-10 px-1.5 py-0.5 rounded bg-accent text-accent-foreground text-[9px] font-bold`}>×{validProducts[i].copies} cópias</div>
+                          )}
                           <div id={`batch-poster-${i}`}>
                             <PosterPreview template={template} data={{ ...getDataForPoster(i), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPoster(i)} paperSize={paperSize} customBackground={customBackground || undefined} />
                           </div>
