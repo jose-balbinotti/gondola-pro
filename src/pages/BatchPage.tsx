@@ -41,7 +41,11 @@ const PAPER_SIZES = [
 type InputMode = "table" | "text";
 type Step = "config" | "data" | "preview";
 
-const emptyProduct = (): PosterData => ({
+interface BatchProduct extends PosterData {
+  copies: number;
+}
+
+const emptyProduct = (): BatchProduct => ({
   ...DEFAULT_POSTER_DATA,
   productName: "",
   brandName: "",
@@ -53,6 +57,7 @@ const emptyProduct = (): PosterData => ({
   description: "",
   quantity: "",
   unit: "",
+  copies: 1,
 });
 
 
