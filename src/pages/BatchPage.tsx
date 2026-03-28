@@ -171,7 +171,7 @@ export default function BatchPage() {
 
   const parseTextInput = () => {
     const lines = textInput.trim().split("\n").filter(Boolean);
-    const parsed: PosterData[] = lines.map((line) => {
+    const parsed: BatchProduct[] = lines.map((line) => {
       const parts = line.split(";").map((s) => s.trim());
       return {
         ...emptyProduct(),
@@ -184,6 +184,7 @@ export default function BatchPage() {
         discount: parts[5] || "",
         validity: parts[6] || "",
         unit: parts[7] || "",
+        copies: parseInt(parts[8]) || 1,
       };
     });
     if (parsed.length > 0) {
