@@ -509,8 +509,8 @@ export default function EditorPage() {
                         </label>
                         {posterStyle.unitBelowCents && (
                           <div className="mt-2">
-                            <label className="text-xs text-muted-foreground">Unidade eixo Y ({posterStyle.unitOffsetY})</label>
-                            <Slider min={-100} max={100} step={1} value={[posterStyle.unitOffsetY]} onValueChange={([v]) => updateStyle("unitOffsetY", v)} />
+                           <label className="text-xs text-muted-foreground">Unidade eixo Y ({posterStyle.unitOffsetY}mm)</label>
+                            <Slider min={-30} max={30} step={0.5} value={[posterStyle.unitOffsetY]} onValueChange={([v]) => updateStyle("unitOffsetY", v)} />
                           </div>
                         )}
                       </div>
