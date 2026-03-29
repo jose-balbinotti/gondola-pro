@@ -108,47 +108,41 @@ export default function EditorPage() {
     if (!posterRef.current) return null;
 
     const el = posterRef.current;
-
-    // Clone the poster element so we can render it at full reference size
-    // without being clipped by the scaled parent container.
     const clone = el.cloneNode(true) as HTMLElement;
 
-    // Reset transform (the original has CSS scale to fit container)
+    // Remove the scale transform — render at native mm size
     clone.style.transform = 'none';
     clone.style.position = 'absolute';
     clone.style.top = '0';
     clone.style.left = '0';
-    // Use the exact same fixed dimensions as the original render
-    clone.style.width = el.style.width;   // e.g. "800px"
-    clone.style.height = el.style.height; // e.g. "1131px"
+    // Keep mm-based width/height from the original
 
     if (bgBaseOnly && customBackground) {
       clone.style.backgroundImage = 'none';
       clone.style.backgroundColor = '#ffffff';
     }
 
-    // Wrap in a container that won't clip and is offscreen
     const wrapper = document.createElement('div');
     wrapper.style.position = 'fixed';
     wrapper.style.top = '-20000px';
     wrapper.style.left = '-20000px';
-    wrapper.style.width = el.style.width;
-    wrapper.style.height = el.style.height;
     wrapper.style.overflow = 'visible';
     wrapper.style.zIndex = '-9999';
     wrapper.appendChild(clone);
     document.body.appendChild(wrapper);
 
-    // Wait for fonts & images to settle
     await new Promise(r => setTimeout(r, 100));
+
+    // Get actual rendered pixel dimensions of the mm-based element
+    const rect = clone.getBoundingClientRect();
 
     try {
       const canvas = await html2canvas(clone, {
-        scale: 4,
+        scale: 3,
         useCORS: true,
         backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null,
-        width: parseInt(el.style.width),
-        height: parseInt(el.style.height),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
       });
       return canvas;
     } finally {
