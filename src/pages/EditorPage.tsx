@@ -10,7 +10,7 @@ import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode, Type, Move, Save
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
-import PosterPreview, { DEFAULT_POSTER_STYLE, FONT_OPTIONS, type PosterStyle } from "@/components/poster/PosterPreview";
+import PosterPreview, { DEFAULT_POSTER_STYLE, FONT_OPTIONS, MM_TO_PX, type PosterStyle } from "@/components/poster/PosterPreview";
 import { loadPresets, savePresetToDB, deletePresetFromDB, loadPresetsFromDB, exportPresetsToJSON, importPresetsFromJSON, type PosterPreset } from "@/lib/presets";
 
 const PAPER_SIZES = [
