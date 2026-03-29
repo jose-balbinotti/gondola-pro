@@ -324,8 +324,7 @@ export default function BatchPage() {
     clone.style.position = 'absolute';
     clone.style.top = '0';
     clone.style.left = '0';
-    clone.style.width = target.style.width;
-    clone.style.height = target.style.height;
+    // Keep mm-based width/height from the original
     if (bgBaseOnly && customBackground) {
       clone.style.backgroundImage = 'none';
       clone.style.backgroundColor = '#ffffff';
@@ -334,19 +333,19 @@ export default function BatchPage() {
     wrapper.style.position = 'fixed';
     wrapper.style.top = '-20000px';
     wrapper.style.left = '-20000px';
-    wrapper.style.width = target.style.width;
-    wrapper.style.height = target.style.height;
     wrapper.style.overflow = 'visible';
     wrapper.style.zIndex = '-9999';
     wrapper.appendChild(clone);
     document.body.appendChild(wrapper);
     await new Promise(r => setTimeout(r, 50));
+    // Get actual rendered pixel dimensions of the mm-based element
+    const rect = clone.getBoundingClientRect();
     try {
       return await html2canvas(clone, {
         scale: sc, useCORS: true,
         backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null,
-        width: parseInt(target.style.width),
-        height: parseInt(target.style.height),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
       });
     } finally {
       document.body.removeChild(wrapper);

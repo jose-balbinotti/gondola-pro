@@ -30,6 +30,7 @@ export const FONT_OPTIONS = [
   { value: "'Target2000', sans-serif", label: "Target 2000" },
 ];
 
+// All numeric values are in MILLIMETERS (mm)
 export interface PosterStyle {
   showPromoLabel: boolean;
   promoText: string;
@@ -72,15 +73,16 @@ export interface PosterStyle {
   varejoOffsetY: number;
 }
 
+// All values in mm
 export const DEFAULT_POSTER_STYLE: PosterStyle = {
   showPromoLabel: false,
   promoText: "",
-  productFontSize: 28,
-  brandFontSize: 18,
-  gramaturaFontSize: 14,
-  priceFontSize: 56,
-  centsFontSize: 28,
-  descriptionFontSize: 12,
+  productFontSize: 7,
+  brandFontSize: 5,
+  gramaturaFontSize: 4,
+  priceFontSize: 15,
+  centsFontSize: 7,
+  descriptionFontSize: 3,
   productOffsetY: 0,
   brandOffsetY: 0,
   gramaturaOffsetY: 0,
@@ -105,7 +107,7 @@ export const DEFAULT_POSTER_STYLE: PosterStyle = {
   gramaturaLinesOffsetY: 0,
   unitOffsetY: 0,
   centsOffsetY: 0,
-  quantityFontSize: 56,
+  quantityFontSize: 15,
   quantityOffsetX: 0,
   quantityOffsetY: 0,
   atacadoOffsetX: 0,
@@ -124,19 +126,21 @@ interface Props {
   customBackground?: string;
 }
 
-const REFERENCE_WIDTH = 800;
-
-const ASPECT_RATIOS: Record<string, number> = {
-  A4: 210 / 297,
-  A5: 148 / 210,
-  A3: 297 / 420,
-  gondola: 4 / 1,
-  "10x15": 10 / 15,
-  "A4-duplo": 148 / 210,
-  "A4-duplo-v": 210 / (297 / 2),
-  "atacado-varejo": 210 / 297,
-  custom: 3 / 4,
+// Paper dimensions in mm [width, height]
+export const PAPER_DIMS_MM: Record<string, [number, number]> = {
+  A4: [210, 297],
+  A5: [148, 210],
+  A3: [297, 420],
+  gondola: [297, 74],
+  "10x15": [100, 150],
+  "A4-duplo": [148, 210],
+  "A4-duplo-v": [210, 148.5],
+  "atacado-varejo": [210, 297],
+  custom: [210, 280],
 };
+
+// CSS reference: 1mm = 96/25.4 px
+export const MM_TO_PX = 96 / 25.4;
 
 function splitPrice(price: string): { reais: string; centavos: string } {
   if (!price) return { reais: "", centavos: "" };
@@ -150,10 +154,14 @@ const SUPER_MARKET_SLANT_FONT = "'Dancing Script', cursive";
 function isSMS(font: string) { return font === "SuperMarketSlant"; }
 function resolveSMS(font: string) { return isSMS(font) ? SUPER_MARKET_SLANT_FONT : font; }
 
+// Helper: mm value to CSS mm string
+const mm = (v: number) => `${v}mm`;
+
 const PosterPreview = forwardRef<HTMLDivElement, Props>(
   ({ template, data, showQR, qrUrl, style, paperSize, customBackground }, ref) => {
-    const ratio = ASPECT_RATIOS[paperSize] || ASPECT_RATIOS[template.size] || 3 / 4;
-    const referenceHeight = REFERENCE_WIDTH / ratio;
+    const dims = PAPER_DIMS_MM[paperSize] || PAPER_DIMS_MM[template.size] || PAPER_DIMS_MM.A4;
+    const [widthMM, heightMM] = dims;
+    const ratio = widthMM / heightMM;
 
     const outerRef = useRef<HTMLDivElement>(null);
     const innerRef = useRef<HTMLDivElement>(null);
@@ -164,13 +172,14 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
     useEffect(() => {
       const el = outerRef.current;
       if (!el) return;
+      const innerWidthPx = widthMM * MM_TO_PX;
       const observer = new ResizeObserver((entries) => {
         const w = entries[0].contentRect.width;
-        setScale(w / REFERENCE_WIDTH);
+        setScale(w / innerWidthPx);
       });
       observer.observe(el);
       return () => observer.disconnect();
-    }, []);
+    }, [widthMM]);
 
     const { reais, centavos } = splitPrice(data.newPrice);
     const hasPrice = !!(reais || centavos);
@@ -178,7 +187,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
     const { reais: atacadoReais, centavos: atacadoCentavos } = splitPrice(data.oldPrice);
     const hasAtacadoPrice = !!(atacadoReais || atacadoCentavos);
 
-    const SHADOW = "3px 3px 6px rgba(0,0,0,0.7), 1px 1px 2px rgba(0,0,0,0.9)";
+    const SHADOW = "0.8mm 0.8mm 1.6mm rgba(0,0,0,0.7), 0.3mm 0.3mm 0.5mm rgba(0,0,0,0.9)";
     const sProd = style.shadowProduct ? SHADOW : "none";
     const sBrand = style.shadowBrand ? SHADOW : "none";
     const sGram = style.shadowGramatura ? SHADOW : "none";
@@ -196,6 +205,67 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
     const bgImage = customBackground || template.backgroundImage;
     const hasBgImage = !!bgImage;
 
+    // Render a price block (reused for standard, atacado, and varejo)
+    const renderPriceBlock = (r: string, c: string, extraTransform?: string) => (
+      <div style={{
+        display: 'flex',
+        color: template.priceColor,
+        fontFamily: priceFont,
+        textShadow: sPrice,
+        transform: extraTransform || smsSkew(pFont),
+        alignItems: 'flex-end',
+        minHeight: mm(style.priceFontSize),
+        overflow: 'visible',
+      }}>
+        {!style.hideCurrencySymbol && (
+          <span style={{ fontWeight: 900, fontSize: mm(style.centsFontSize), lineHeight: 1, alignSelf: 'flex-end' }}>R$</span>
+        )}
+        <span style={{ fontWeight: 900, fontSize: mm(style.priceFontSize), lineHeight: 1, alignSelf: 'flex-end' }}>{r}</span>
+        <span style={{ fontWeight: 900, fontSize: mm(style.centsFontSize), lineHeight: 1, alignSelf: 'flex-end' }}>,</span>
+        <span style={{
+          display: 'inline-flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
+          alignSelf: style.centsAlignTop ? 'flex-start' : 'stretch',
+          lineHeight: 1,
+          transform: `translateY(${mm(style.centsOffsetY)})`,
+        }}>
+          <span style={{
+            fontWeight: 900,
+            fontSize: mm(style.centsFontSize),
+            lineHeight: 1,
+            borderBottom: style.centsUnderline ? `0.8mm solid ${template.priceColor}` : 'none',
+            paddingBottom: style.centsUnderline ? '0.3mm' : '0',
+          }}>{c}</span>
+          {data.unit && style.unitBelowCents && (
+            <span style={{
+              color: template.textColor,
+              opacity: 0.7,
+              fontSize: mm(Math.round(style.centsFontSize * 0.5 * 10) / 10),
+              lineHeight: 1,
+              whiteSpace: 'nowrap',
+              marginTop: mm(Math.round(style.centsFontSize * 0.08 * 10) / 10),
+              transform: `translateX(${mm(style.unitOffsetX)}) translateY(${mm(style.unitOffsetY)})`,
+            }}>{data.unit}</span>
+          )}
+        </span>
+      </div>
+    );
+
+    const renderUnitDefault = () => (
+      data.unit && !style.unitBelowCents ? (
+        <span style={{
+          fontSize: mm(3),
+          marginTop: mm(1),
+          opacity: 0.7,
+          color: template.textColor,
+          transform: `translateX(${mm(style.unitOffsetX)})`,
+          display: 'inline-block',
+        }}>{data.unit}</span>
+      ) : null
+    );
+
     return (
       <div
         ref={outerRef}
@@ -209,12 +279,14 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
         <div
           ref={innerRef}
           data-print-poster
+          data-width-mm={widthMM}
+          data-height-mm={heightMM}
           style={{
             position: 'absolute',
             top: 0,
             left: 0,
-            width: `${REFERENCE_WIDTH}px`,
-            height: `${referenceHeight}px`,
+            width: mm(widthMM),
+            height: mm(heightMM),
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
             display: 'flex',
@@ -222,7 +294,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
             alignItems: 'center',
             justifyContent: 'center',
             textAlign: 'center',
-            padding: '24px',
+            padding: mm(6),
             background: hasBgImage ? `url(${bgImage}) center/cover no-repeat` : template.bgColor,
             fontFamily: mainFont,
             boxSizing: 'border-box',
@@ -237,8 +309,8 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               right: 0,
               width: 0,
               height: 0,
-              borderLeft: "120px solid transparent",
-              borderTop: `120px solid ${template.accentColor}`,
+              borderLeft: "32mm solid transparent",
+              borderTop: `32mm solid ${template.accentColor}`,
             }} />
           )}
 
@@ -255,25 +327,25 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '16px 24px',
+                padding: `${mm(4)} ${mm(6)}`,
                 boxSizing: 'border-box',
               }}>
                 {style.showPromoLabel && (
-                  <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '4px', color: template.accentColor }}>
+                  <div style={{ fontSize: mm(3), fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: mm(1), color: template.accentColor }}>
                     ★ {style.promoText || 'Promoção'} ★
                   </div>
                 )}
                 {data.productName && (
-                  <div style={{ fontWeight: 900, lineHeight: 1.1, padding: '0 8px', color: template.textColor, fontSize: `${style.productFontSize}px`, transform: `translateY(${style.productOffsetY}px) ${smsSkew(style.fontFamily) || ''}`, textShadow: sProd }}>{data.productName}</div>
+                  <div style={{ fontWeight: 900, lineHeight: 1.1, padding: `0 ${mm(2)}`, color: template.textColor, fontSize: mm(style.productFontSize), transform: `translateY(${mm(style.productOffsetY)}) ${smsSkew(style.fontFamily) || ''}`, textShadow: sProd }}>{data.productName}</div>
                 )}
                 {data.brandName && (
-                  <div style={{ fontWeight: 600, lineHeight: 1.1, padding: '0 8px', color: template.textColor, fontSize: `${style.brandFontSize}px`, transform: `translateY(${style.brandOffsetY}px) ${smsSkew(style.fontFamily) || ''}`, opacity: 0.85, textShadow: sBrand }}>{data.brandName}</div>
+                  <div style={{ fontWeight: 600, lineHeight: 1.1, padding: `0 ${mm(2)}`, color: template.textColor, fontSize: mm(style.brandFontSize), transform: `translateY(${mm(style.brandOffsetY)}) ${smsSkew(style.fontFamily) || ''}`, opacity: 0.85, textShadow: sBrand }}>{data.brandName}</div>
                 )}
                 {data.gramatura && (
-                  <div style={{ fontWeight: 500, lineHeight: 1.1, padding: '0 8px', color: template.textColor, fontSize: `${style.gramaturaFontSize}px`, transform: `translateY(${style.gramaturaOffsetY}px) ${smsSkew(style.fontFamily) || ''}`, opacity: 0.7, textShadow: sGram }}>{data.gramatura}</div>
+                  <div style={{ fontWeight: 500, lineHeight: 1.1, padding: `0 ${mm(2)}`, color: template.textColor, fontSize: mm(style.gramaturaFontSize), transform: `translateY(${mm(style.gramaturaOffsetY)}) ${smsSkew(style.fontFamily) || ''}`, opacity: 0.7, textShadow: sGram }}>{data.gramatura}</div>
                 )}
                 {data.description && (
-                  <div style={{ marginTop: '4px', opacity: 0.8, color: template.textColor, fontSize: `${style.descriptionFontSize}px`, fontFamily: descFont, textShadow: sDesc, transform: `translateY(${style.descriptionOffsetY}px) ${smsSkew(dFont) || ''}` }}>{data.description}</div>
+                  <div style={{ marginTop: mm(1), opacity: 0.8, color: template.textColor, fontSize: mm(style.descriptionFontSize), fontFamily: descFont, textShadow: sDesc, transform: `translateY(${mm(style.descriptionOffsetY)}) ${smsSkew(dFont) || ''}` }}>{data.description}</div>
                 )}
               </div>
 
@@ -287,10 +359,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '16px 32px',
+                padding: `${mm(4)} ${mm(8)}`,
                 boxSizing: 'border-box',
               }}>
-                {/* Quantidade - esquerda, com offsets */}
                 {data.quantity && (
                   <div style={{
                     flex: '0 0 40%',
@@ -300,54 +371,21 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                     justifyContent: 'center',
                     color: template.priceColor,
                     fontFamily: mainFont,
-                    transform: `translate(${style.quantityOffsetX}px, ${style.quantityOffsetY}px)`,
+                    transform: `translate(${mm(style.quantityOffsetX)}, ${mm(style.quantityOffsetY)})`,
                   }}>
-                    <span style={{ fontSize: `${style.quantityFontSize}px`, fontWeight: 900, lineHeight: 1 }}>{data.quantity}</span>
+                    <span style={{ fontSize: mm(style.quantityFontSize), fontWeight: 900, lineHeight: 1 }}>{data.quantity}</span>
                   </div>
                 )}
-                {/* Preço Atacado - direita com formatação completa */}
                 {hasAtacadoPrice && (
                   <div style={{
                     flex: '0 0 55%',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    transform: `translate(${style.atacadoOffsetX}px, ${style.atacadoOffsetY}px)`,
+                    transform: `translate(${mm(style.atacadoOffsetX)}, ${mm(style.atacadoOffsetY)})`,
                   }}>
-                    
-                    <div style={{ display: 'flex', color: template.priceColor, fontFamily: priceFont, textShadow: sPrice, alignItems: 'flex-end' }}>
-                      {!style.hideCurrencySymbol && <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>R$</span>}
-                      <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>{atacadoReais}</span>
-                      <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>,</span>
-                      <span style={{
-                        display: 'inline-flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
-                        alignSelf: style.centsAlignTop ? 'flex-start' : 'stretch',
-                        lineHeight: 1,
-                        transform: `translateY(${style.centsOffsetY}px)`,
-                      }}>
-                        <span style={{
-                          fontWeight: 900,
-                          fontSize: `${style.centsFontSize}px`,
-                          lineHeight: 1,
-                          borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
-                          paddingBottom: style.centsUnderline ? '1px' : '0',
-                        }}>{atacadoCentavos}</span>
-                        {data.unit && style.unitBelowCents && (
-                          <span style={{
-                            color: template.textColor, opacity: 0.7,
-                            fontSize: `${Math.round(style.centsFontSize * 0.5)}px`, lineHeight: 1,
-                            whiteSpace: 'nowrap', marginTop: `${Math.round(style.centsFontSize * 0.08)}px`,
-                            transform: `translateX(${style.unitOffsetX}px) translateY(${style.unitOffsetY}px)`,
-                          }}>{data.unit}</span>
-                        )}
-                      </span>
-                    </div>
-                    {data.unit && !style.unitBelowCents && (
-                      <span style={{ fontSize: '12px', marginTop: '4px', opacity: 0.7, color: template.textColor, transform: `translateX(${style.unitOffsetX}px)` }}>{data.unit}</span>
-                    )}
+                    {renderPriceBlock(atacadoReais, atacadoCentavos)}
+                    {renderUnitDefault()}
                   </div>
                 )}
               </div>
@@ -363,54 +401,22 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                 flexDirection: 'column',
                 alignItems: 'flex-end',
                 justifyContent: 'center',
-                padding: '16px 32px',
+                padding: `${mm(4)} ${mm(8)}`,
                 boxSizing: 'border-box',
               }}>
                 {hasPrice && (
-                  <div style={{ width: '55%', display: 'flex', flexDirection: 'column', alignItems: 'center', transform: `translate(${style.varejoOffsetX}px, ${style.varejoOffsetY}px)` }}>
-                    
-                    <div style={{ display: 'flex', color: template.priceColor, fontFamily: priceFont, textShadow: sPrice, alignItems: 'flex-end' }}>
-                      {!style.hideCurrencySymbol && <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>R$</span>}
-                      <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>{reais}</span>
-                      <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>,</span>
-                      <span style={{
-                        display: 'inline-flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
-                        alignSelf: style.centsAlignTop ? 'flex-start' : 'stretch',
-                        lineHeight: 1,
-                        transform: `translateY(${style.centsOffsetY}px)`,
-                      }}>
-                        <span style={{
-                          fontWeight: 900,
-                          fontSize: `${style.centsFontSize}px`,
-                          lineHeight: 1,
-                          borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
-                          paddingBottom: style.centsUnderline ? '1px' : '0',
-                        }}>{centavos}</span>
-                        {data.unit && style.unitBelowCents && (
-                          <span style={{
-                            color: template.textColor, opacity: 0.7,
-                            fontSize: `${Math.round(style.centsFontSize * 0.5)}px`, lineHeight: 1,
-                            whiteSpace: 'nowrap', marginTop: `${Math.round(style.centsFontSize * 0.08)}px`,
-                            transform: `translateX(${style.unitOffsetX}px) translateY(${style.unitOffsetY}px)`,
-                          }}>{data.unit}</span>
-                        )}
-                      </span>
-                    </div>
-                    {data.unit && !style.unitBelowCents && (
-                      <span style={{ fontSize: '12px', marginTop: '4px', opacity: 0.7, color: template.textColor, transform: `translateX(${style.unitOffsetX}px)` }}>{data.unit}</span>
-                    )}
+                  <div style={{ width: '55%', display: 'flex', flexDirection: 'column', alignItems: 'center', transform: `translate(${mm(style.varejoOffsetX)}, ${mm(style.varejoOffsetY)})` }}>
+                    {renderPriceBlock(reais, centavos)}
+                    {renderUnitDefault()}
                   </div>
                 )}
                 {data.validity && (
-                  <div style={{ fontSize: '10px', marginTop: '8px', opacity: 0.6, fontFamily: "'JetBrains Mono', monospace", color: template.textColor, transform: `translateY(${style.validityOffsetY}px)`, width: '100%', textAlign: 'center' }}>
+                  <div style={{ fontSize: mm(2.5), marginTop: mm(2), opacity: 0.6, fontFamily: "'JetBrains Mono', monospace", color: template.textColor, transform: `translateY(${mm(style.validityOffsetY)})`, width: '100%', textAlign: 'center' }}>
                     Válido até {data.validity}
                   </div>
                 )}
                 {showQR && qrUrl && (
-                  <div style={{ marginTop: '8px', padding: '6px', background: '#ffffff', borderRadius: '4px', display: 'inline-block', alignSelf: 'center' }}>
+                  <div style={{ marginTop: mm(2), padding: mm(1.5), background: '#ffffff', borderRadius: mm(1), display: 'inline-block', alignSelf: 'center' }}>
                     <QRCodeSVG value={qrUrl} size={56} />
                   </div>
                 )}
@@ -421,11 +427,11 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               {/* Header tag */}
               {style.showPromoLabel && (
                 <div style={{
-                  fontSize: '12px',
+                  fontSize: mm(3),
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.2em',
-                  marginBottom: '8px',
+                  marginBottom: mm(2),
                   color: template.accentColor,
                 }}>
                   ★ {style.promoText || (template.category === 'leve-pague' ? `Leve ${data.quantity || '3'}` : 'Promoção')} ★
@@ -437,10 +443,10 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                 <div style={{
                   fontWeight: 900,
                   lineHeight: 1.1,
-                  padding: '0 8px',
+                  padding: `0 ${mm(2)}`,
                   color: template.textColor,
-                  fontSize: `${style.productFontSize}px`,
-                  transform: `translateY(${style.productOffsetY}px) ${smsSkew(style.fontFamily) || ''}`,
+                  fontSize: mm(style.productFontSize),
+                  transform: `translateY(${mm(style.productOffsetY)}) ${smsSkew(style.fontFamily) || ''}`,
                   textShadow: sProd,
                 }}>
                   {data.productName}
@@ -452,10 +458,10 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                 <div style={{
                   fontWeight: 600,
                   lineHeight: 1.1,
-                  padding: '0 8px',
+                  padding: `0 ${mm(2)}`,
                   color: template.textColor,
-                  fontSize: `${style.brandFontSize}px`,
-                  transform: `translateY(${style.brandOffsetY}px) ${smsSkew(style.fontFamily) || ''}`,
+                  fontSize: mm(style.brandFontSize),
+                  transform: `translateY(${mm(style.brandOffsetY)}) ${smsSkew(style.fontFamily) || ''}`,
                   opacity: 0.85,
                   textShadow: sBrand,
                 }}>
@@ -468,15 +474,15 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                 <div style={{
                   fontWeight: 500,
                   lineHeight: 1.1,
-                  padding: '0 8px',
-                  marginBottom: '8px',
+                  padding: `0 ${mm(2)}`,
+                  marginBottom: mm(2),
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   width: '100%',
                   color: template.textColor,
-                  fontSize: `${style.gramaturaFontSize}px`,
-                  transform: `translateY(${style.gramaturaOffsetY}px) ${smsSkew(style.fontFamily) || ''}`,
+                  fontSize: mm(style.gramaturaFontSize),
+                  transform: `translateY(${mm(style.gramaturaOffsetY)}) ${smsSkew(style.fontFamily) || ''}`,
                   opacity: 0.7,
                   textShadow: sGram,
                 }}>
@@ -484,9 +490,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                     <div style={{
                       width: '33%',
                       height: '0px',
-                      borderTop: `2px solid ${template.textColor}`,
+                      borderTop: `0.5mm solid ${template.textColor}`,
                       opacity: 0.5,
-                      marginRight: '8px',
+                      marginRight: mm(2),
                       flexShrink: 0,
                     }} />
                   )}
@@ -497,9 +503,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                     <div style={{
                       width: '33%',
                       height: '0px',
-                      borderTop: `2px solid ${template.textColor}`,
+                      borderTop: `0.5mm solid ${template.textColor}`,
                       opacity: 0.5,
-                      marginLeft: '8px',
+                      marginLeft: mm(2),
                       flexShrink: 0,
                     }} />
                   )}
@@ -509,13 +515,13 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               {/* Description */}
               {data.description && (
                 <div style={{
-                  marginBottom: '8px',
+                  marginBottom: mm(2),
                   opacity: 0.8,
                   color: template.textColor,
-                  fontSize: `${style.descriptionFontSize}px`,
+                  fontSize: mm(style.descriptionFontSize),
                   fontFamily: descFont,
                   textShadow: sDesc,
-                  transform: `translateY(${style.descriptionOffsetY}px) ${smsSkew(dFont) || ''}`,
+                  transform: `translateY(${mm(style.descriptionOffsetY)}) ${smsSkew(dFont) || ''}`,
                 }}>
                   {data.description}
                 </div>
@@ -527,18 +533,18 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  transform: `translateY(${style.priceOffsetY}px)`,
+                  transform: `translateY(${mm(style.priceOffsetY)})`,
                 }}>
                   {data.oldPrice && (
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '12px',
-                      marginBottom: '4px',
+                      gap: mm(3),
+                      marginBottom: mm(1),
                     }}>
                       <span style={{
-                        fontSize: '16px',
+                        fontSize: mm(4),
                         textDecoration: 'line-through',
                         opacity: 0.6,
                         color: template.textColor,
@@ -548,69 +554,8 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                     </div>
                   )}
 
-                  {/* Split price */}
-                  <div style={{
-                    display: 'flex',
-                    color: template.priceColor,
-                    fontFamily: priceFont,
-                    textShadow: sPrice,
-                    transform: smsSkew(pFont),
-                    alignItems: 'flex-end',
-                    minHeight: `${style.priceFontSize}px`,
-                    overflow: 'visible',
-                  }}>
-                    {!style.hideCurrencySymbol && (
-                      <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>R$</span>
-                    )}
-                    <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>
-                      {reais}
-                    </span>
-                    <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>
-                      ,
-                    </span>
-                    <span style={{
-                      display: 'inline-flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
-                      alignSelf: style.centsAlignTop ? 'flex-start' : 'stretch',
-                      lineHeight: 1,
-                      transform: `translateY(${style.centsOffsetY}px)`,
-                    }}>
-                      <span style={{
-                        fontWeight: 900,
-                        fontSize: `${style.centsFontSize}px`,
-                        lineHeight: 1,
-                        borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
-                        paddingBottom: style.centsUnderline ? '1px' : '0',
-                      }}>
-                        {centavos}
-                      </span>
-                      {data.unit && style.unitBelowCents && (
-                        <span style={{
-                          color: template.textColor,
-                          opacity: 0.7,
-                          fontSize: `${Math.round(style.centsFontSize * 0.5)}px`,
-                          lineHeight: 1,
-                          whiteSpace: 'nowrap',
-                          marginTop: `${Math.round(style.centsFontSize * 0.08)}px`,
-                          transform: `translateX(${style.unitOffsetX}px) translateY(${style.unitOffsetY}px)`,
-                        }}>{data.unit}</span>
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Unit - default position */}
-                  {data.unit && !style.unitBelowCents && (
-                    <span style={{
-                      fontSize: '12px',
-                      marginTop: '4px',
-                      opacity: 0.7,
-                      color: template.textColor,
-                      transform: `translateX(${style.unitOffsetX}px)`,
-                      display: 'inline-block',
-                    }}>{data.unit}</span>
-                  )}
+                  {renderPriceBlock(reais, centavos, smsSkew(pFont))}
+                  {renderUnitDefault()}
                 </div>
               )}
 
@@ -618,10 +563,10 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               {data.discount && (
                 <div style={{
                   display: 'inline-block',
-                  marginTop: '12px',
-                  padding: '6px 16px',
+                  marginTop: mm(3),
+                  padding: `${mm(1.5)} ${mm(4)}`,
                   borderRadius: '9999px',
-                  fontSize: '14px',
+                  fontSize: mm(3.5),
                   fontWeight: 900,
                   background: template.accentColor,
                   color: template.bgColor,
@@ -633,12 +578,12 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               {/* Validity */}
               {data.validity && (
                 <div style={{
-                  fontSize: '10px',
-                  marginTop: '12px',
+                  fontSize: mm(2.5),
+                  marginTop: mm(3),
                   opacity: 0.6,
                   fontFamily: "'JetBrains Mono', monospace",
                   color: template.textColor,
-                  transform: `translateY(${style.validityOffsetY}px)`,
+                  transform: `translateY(${mm(style.validityOffsetY)})`,
                 }}>
                   Válido até {data.validity}
                 </div>
@@ -647,10 +592,10 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               {/* QR Code */}
               {showQR && qrUrl && (
                 <div style={{
-                  marginTop: '12px',
-                  padding: '6px',
+                  marginTop: mm(3),
+                  padding: mm(1.5),
                   background: '#ffffff',
-                  borderRadius: '4px',
+                  borderRadius: mm(1),
                   display: 'inline-block',
                 }}>
                   <QRCodeSVG value={qrUrl} size={56} />

@@ -10,7 +10,7 @@ import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode, Type, Move, Save
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
-import PosterPreview, { DEFAULT_POSTER_STYLE, FONT_OPTIONS, type PosterStyle } from "@/components/poster/PosterPreview";
+import PosterPreview, { DEFAULT_POSTER_STYLE, FONT_OPTIONS, MM_TO_PX, type PosterStyle } from "@/components/poster/PosterPreview";
 import { loadPresets, savePresetToDB, deletePresetFromDB, loadPresetsFromDB, exportPresetsToJSON, importPresetsFromJSON, type PosterPreset } from "@/lib/presets";
 
 const PAPER_SIZES = [
@@ -108,47 +108,41 @@ export default function EditorPage() {
     if (!posterRef.current) return null;
 
     const el = posterRef.current;
-
-    // Clone the poster element so we can render it at full reference size
-    // without being clipped by the scaled parent container.
     const clone = el.cloneNode(true) as HTMLElement;
 
-    // Reset transform (the original has CSS scale to fit container)
+    // Remove the scale transform — render at native mm size
     clone.style.transform = 'none';
     clone.style.position = 'absolute';
     clone.style.top = '0';
     clone.style.left = '0';
-    // Use the exact same fixed dimensions as the original render
-    clone.style.width = el.style.width;   // e.g. "800px"
-    clone.style.height = el.style.height; // e.g. "1131px"
+    // Keep mm-based width/height from the original
 
     if (bgBaseOnly && customBackground) {
       clone.style.backgroundImage = 'none';
       clone.style.backgroundColor = '#ffffff';
     }
 
-    // Wrap in a container that won't clip and is offscreen
     const wrapper = document.createElement('div');
     wrapper.style.position = 'fixed';
     wrapper.style.top = '-20000px';
     wrapper.style.left = '-20000px';
-    wrapper.style.width = el.style.width;
-    wrapper.style.height = el.style.height;
     wrapper.style.overflow = 'visible';
     wrapper.style.zIndex = '-9999';
     wrapper.appendChild(clone);
     document.body.appendChild(wrapper);
 
-    // Wait for fonts & images to settle
     await new Promise(r => setTimeout(r, 100));
+
+    // Get actual rendered pixel dimensions of the mm-based element
+    const rect = clone.getBoundingClientRect();
 
     try {
       const canvas = await html2canvas(clone, {
-        scale: 4,
+        scale: 3,
         useCORS: true,
         backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null,
-        width: parseInt(el.style.width),
-        height: parseInt(el.style.height),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
       });
       return canvas;
     } finally {
@@ -497,8 +491,8 @@ export default function EditorPage() {
                       </label>
                     </div>
                     <div className="mt-2">
-                      <label className="text-xs text-muted-foreground">Centavos eixo Y ({posterStyle.centsOffsetY})</label>
-                      <Slider min={-100} max={100} step={1} value={[posterStyle.centsOffsetY]} onValueChange={([v]) => updateStyle("centsOffsetY", v)} />
+                      <label className="text-xs text-muted-foreground">Centavos eixo Y ({posterStyle.centsOffsetY}mm)</label>
+                      <Slider min={-30} max={30} step={0.5} value={[posterStyle.centsOffsetY]} onValueChange={([v]) => updateStyle("centsOffsetY", v)} />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <Field label="Desconto (%)" value={data.discount} onChange={(v) => update("discount", v)} />
@@ -515,8 +509,8 @@ export default function EditorPage() {
                         </label>
                         {posterStyle.unitBelowCents && (
                           <div className="mt-2">
-                            <label className="text-xs text-muted-foreground">Unidade eixo Y ({posterStyle.unitOffsetY})</label>
-                            <Slider min={-100} max={100} step={1} value={[posterStyle.unitOffsetY]} onValueChange={([v]) => updateStyle("unitOffsetY", v)} />
+                           <label className="text-xs text-muted-foreground">Unidade eixo Y ({posterStyle.unitOffsetY}mm)</label>
+                            <Slider min={-30} max={30} step={0.5} value={[posterStyle.unitOffsetY]} onValueChange={([v]) => updateStyle("unitOffsetY", v)} />
                           </div>
                         )}
                       </div>
@@ -593,14 +587,14 @@ export default function EditorPage() {
                         placeholder="Ex: Super Oferta, Só Hoje..."
                       />
                     )}
-                    <SliderField label={`Nome do produto – ${posterStyle.productFontSize}px`} value={posterStyle.productFontSize} min={10} max={200} onChange={(v) => updateStyle("productFontSize", v)} />
-                    <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={200} onChange={(v) => updateStyle("brandFontSize", v)} />
-                    <SliderField label={`Gramatura – ${posterStyle.gramaturaFontSize}px`} value={posterStyle.gramaturaFontSize} min={8} max={120} onChange={(v) => updateStyle("gramaturaFontSize", v)} />
-                    <SliderField label={`Preço (reais) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={300} onChange={(v) => updateStyle("priceFontSize", v)} />
-                    <SliderField label={`Preço (centavos/R$) – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={200} onChange={(v) => updateStyle("centsFontSize", v)} />
-                    <SliderField label={`Descrição – ${posterStyle.descriptionFontSize}px`} value={posterStyle.descriptionFontSize} min={8} max={120} onChange={(v) => updateStyle("descriptionFontSize", v)} />
+                    <SliderField label={`Nome do produto – ${posterStyle.productFontSize}mm`} value={posterStyle.productFontSize} min={1} max={50} onChange={(v) => updateStyle("productFontSize", v)} />
+                    <SliderField label={`Marca – ${posterStyle.brandFontSize}mm`} value={posterStyle.brandFontSize} min={1} max={50} onChange={(v) => updateStyle("brandFontSize", v)} />
+                    <SliderField label={`Gramatura – ${posterStyle.gramaturaFontSize}mm`} value={posterStyle.gramaturaFontSize} min={1} max={30} onChange={(v) => updateStyle("gramaturaFontSize", v)} />
+                    <SliderField label={`Preço (reais) – ${posterStyle.priceFontSize}mm`} value={posterStyle.priceFontSize} min={3} max={80} onChange={(v) => updateStyle("priceFontSize", v)} />
+                    <SliderField label={`Preço (centavos/R$) – ${posterStyle.centsFontSize}mm`} value={posterStyle.centsFontSize} min={2} max={50} onChange={(v) => updateStyle("centsFontSize", v)} />
+                    <SliderField label={`Descrição – ${posterStyle.descriptionFontSize}mm`} value={posterStyle.descriptionFontSize} min={1} max={30} onChange={(v) => updateStyle("descriptionFontSize", v)} />
                     {paperSize === "atacado-varejo" && (
-                      <SliderField label={`Quantidade – ${posterStyle.quantityFontSize}px`} value={posterStyle.quantityFontSize} min={12} max={300} onChange={(v) => updateStyle("quantityFontSize", v)} />
+                      <SliderField label={`Quantidade – ${posterStyle.quantityFontSize}mm`} value={posterStyle.quantityFontSize} min={2} max={80} onChange={(v) => updateStyle("quantityFontSize", v)} />
                     )}
                   </div>
                 </div>
@@ -611,21 +605,21 @@ export default function EditorPage() {
                     <Move className="w-4 h-4" /> Posição dos Elementos
                   </h3>
                   <div className="space-y-4">
-                    <SliderField label={`Nome Y – ${posterStyle.productOffsetY}px`} value={posterStyle.productOffsetY} min={-200} max={200} onChange={(v) => updateStyle("productOffsetY", v)} />
-                    <SliderField label={`Marca Y – ${posterStyle.brandOffsetY}px`} value={posterStyle.brandOffsetY} min={-200} max={200} onChange={(v) => updateStyle("brandOffsetY", v)} />
-                    <SliderField label={`Gramatura Y – ${posterStyle.gramaturaOffsetY}px`} value={posterStyle.gramaturaOffsetY} min={-200} max={200} onChange={(v) => updateStyle("gramaturaOffsetY", v)} />
-                    <SliderField label={`Preço Y – ${posterStyle.priceOffsetY}px`} value={posterStyle.priceOffsetY} min={-200} max={200} onChange={(v) => updateStyle("priceOffsetY", v)} />
-                    <SliderField label={`Descrição Y – ${posterStyle.descriptionOffsetY}px`} value={posterStyle.descriptionOffsetY} min={-200} max={200} onChange={(v) => updateStyle("descriptionOffsetY", v)} />
-                    <SliderField label={`Validade Y – ${posterStyle.validityOffsetY}px`} value={posterStyle.validityOffsetY} min={-200} max={200} onChange={(v) => updateStyle("validityOffsetY", v)} />
-                    <SliderField label={`Unidade X – ${posterStyle.unitOffsetX}px`} value={posterStyle.unitOffsetX} min={-200} max={200} onChange={(v) => updateStyle("unitOffsetX", v)} />
+                    <SliderField label={`Nome Y – ${posterStyle.productOffsetY}mm`} value={posterStyle.productOffsetY} min={-50} max={50} onChange={(v) => updateStyle("productOffsetY", v)} />
+                    <SliderField label={`Marca Y – ${posterStyle.brandOffsetY}mm`} value={posterStyle.brandOffsetY} min={-50} max={50} onChange={(v) => updateStyle("brandOffsetY", v)} />
+                    <SliderField label={`Gramatura Y – ${posterStyle.gramaturaOffsetY}mm`} value={posterStyle.gramaturaOffsetY} min={-50} max={50} onChange={(v) => updateStyle("gramaturaOffsetY", v)} />
+                    <SliderField label={`Preço Y – ${posterStyle.priceOffsetY}mm`} value={posterStyle.priceOffsetY} min={-50} max={50} onChange={(v) => updateStyle("priceOffsetY", v)} />
+                    <SliderField label={`Descrição Y – ${posterStyle.descriptionOffsetY}mm`} value={posterStyle.descriptionOffsetY} min={-50} max={50} onChange={(v) => updateStyle("descriptionOffsetY", v)} />
+                    <SliderField label={`Validade Y – ${posterStyle.validityOffsetY}mm`} value={posterStyle.validityOffsetY} min={-50} max={50} onChange={(v) => updateStyle("validityOffsetY", v)} />
+                    <SliderField label={`Unidade X – ${posterStyle.unitOffsetX}mm`} value={posterStyle.unitOffsetX} min={-50} max={50} onChange={(v) => updateStyle("unitOffsetX", v)} />
                     {paperSize === "atacado-varejo" && (
                       <>
-                        <SliderField label={`Quantidade X – ${posterStyle.quantityOffsetX}px`} value={posterStyle.quantityOffsetX} min={-400} max={400} onChange={(v) => updateStyle("quantityOffsetX", v)} />
-                        <SliderField label={`Quantidade Y – ${posterStyle.quantityOffsetY}px`} value={posterStyle.quantityOffsetY} min={-400} max={400} onChange={(v) => updateStyle("quantityOffsetY", v)} />
-                        <SliderField label={`Atacado X – ${posterStyle.atacadoOffsetX}px`} value={posterStyle.atacadoOffsetX} min={-400} max={400} onChange={(v) => updateStyle("atacadoOffsetX", v)} />
-                        <SliderField label={`Atacado Y – ${posterStyle.atacadoOffsetY}px`} value={posterStyle.atacadoOffsetY} min={-400} max={400} onChange={(v) => updateStyle("atacadoOffsetY", v)} />
-                        <SliderField label={`Varejo X – ${posterStyle.varejoOffsetX}px`} value={posterStyle.varejoOffsetX} min={-400} max={400} onChange={(v) => updateStyle("varejoOffsetX", v)} />
-                        <SliderField label={`Varejo Y – ${posterStyle.varejoOffsetY}px`} value={posterStyle.varejoOffsetY} min={-400} max={400} onChange={(v) => updateStyle("varejoOffsetY", v)} />
+                        <SliderField label={`Quantidade X – ${posterStyle.quantityOffsetX}mm`} value={posterStyle.quantityOffsetX} min={-100} max={100} onChange={(v) => updateStyle("quantityOffsetX", v)} />
+                        <SliderField label={`Quantidade Y – ${posterStyle.quantityOffsetY}mm`} value={posterStyle.quantityOffsetY} min={-100} max={100} onChange={(v) => updateStyle("quantityOffsetY", v)} />
+                        <SliderField label={`Atacado X – ${posterStyle.atacadoOffsetX}mm`} value={posterStyle.atacadoOffsetX} min={-100} max={100} onChange={(v) => updateStyle("atacadoOffsetX", v)} />
+                        <SliderField label={`Atacado Y – ${posterStyle.atacadoOffsetY}mm`} value={posterStyle.atacadoOffsetY} min={-100} max={100} onChange={(v) => updateStyle("atacadoOffsetY", v)} />
+                        <SliderField label={`Varejo X – ${posterStyle.varejoOffsetX}mm`} value={posterStyle.varejoOffsetX} min={-100} max={100} onChange={(v) => updateStyle("varejoOffsetX", v)} />
+                        <SliderField label={`Varejo Y – ${posterStyle.varejoOffsetY}mm`} value={posterStyle.varejoOffsetY} min={-100} max={100} onChange={(v) => updateStyle("varejoOffsetY", v)} />
                       </>
                     )}
                   </div>
@@ -815,7 +809,7 @@ function SliderField({ label, value, min, max, onChange }: { label: string; valu
   return (
     <div>
       <label className="text-xs font-semibold text-muted-foreground mb-2 block">{label}</label>
-      <Slider value={[value]} min={min} max={max} step={1} onValueChange={([v]) => onChange(v)} />
+      <Slider value={[value]} min={min} max={max} step={0.5} onValueChange={([v]) => onChange(v)} />
     </div>
   );
 }
