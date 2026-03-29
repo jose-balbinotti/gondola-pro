@@ -2,42 +2,6 @@ import type { PosterStyle } from "@/components/poster/PosterPreview";
 import type { PosterData } from "@/lib/templates";
 import { supabase } from "@/integrations/supabase/client";
 
-// Convert legacy px-based style values to mm (1mm ≈ 3.7795px)
-const PX_TO_MM = 25.4 / 96;
-function migrateStyleToMM(style: PosterStyle): PosterStyle {
-  // Heuristic: if priceFontSize > 20, values are likely in px
-  if (style.priceFontSize > 20) {
-    const convertSize = (v: number) => Math.round(v * PX_TO_MM * 10) / 10;
-    const convertOffset = (v: number) => Math.round(v * PX_TO_MM * 10) / 10;
-    return {
-      ...style,
-      productFontSize: convertSize(style.productFontSize),
-      brandFontSize: convertSize(style.brandFontSize),
-      gramaturaFontSize: convertSize(style.gramaturaFontSize),
-      priceFontSize: convertSize(style.priceFontSize),
-      centsFontSize: convertSize(style.centsFontSize),
-      descriptionFontSize: convertSize(style.descriptionFontSize),
-      quantityFontSize: convertSize(style.quantityFontSize),
-      productOffsetY: convertOffset(style.productOffsetY),
-      brandOffsetY: convertOffset(style.brandOffsetY),
-      gramaturaOffsetY: convertOffset(style.gramaturaOffsetY),
-      priceOffsetY: convertOffset(style.priceOffsetY),
-      validityOffsetY: convertOffset(style.validityOffsetY),
-      unitOffsetX: convertOffset(style.unitOffsetX),
-      unitOffsetY: convertOffset(style.unitOffsetY),
-      descriptionOffsetY: convertOffset(style.descriptionOffsetY),
-      centsOffsetY: convertOffset(style.centsOffsetY),
-      quantityOffsetX: convertOffset(style.quantityOffsetX),
-      quantityOffsetY: convertOffset(style.quantityOffsetY),
-      atacadoOffsetX: convertOffset(style.atacadoOffsetX),
-      atacadoOffsetY: convertOffset(style.atacadoOffsetY),
-      varejoOffsetX: convertOffset(style.varejoOffsetX),
-      varejoOffsetY: convertOffset(style.varejoOffsetY),
-    };
-  }
-  return style;
-}
-
 export interface PosterPreset {
   id: string;
   name: string;
@@ -85,7 +49,7 @@ function rowToPreset(row: any): PosterPreset {
     name: row.name,
     templateId: row.template_id,
     paperSize: row.paper_size,
-    style: migrateStyleToMM(row.style as PosterStyle),
+    style: row.style as PosterStyle,
     backgroundImage: row.background_image || undefined,
     posterData: row.poster_data as PosterData | undefined,
     createdAt: new Date(row.created_at).getTime(),

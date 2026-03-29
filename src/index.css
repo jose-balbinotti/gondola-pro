@@ -146,10 +146,12 @@
 }
 
 @media print {
+  /* Hide everything except the poster */
   body * {
     visibility: hidden !important;
   }
 
+  /* Show only the poster preview */
   [data-print-poster],
   [data-print-poster] * {
     visibility: visible !important;
@@ -159,16 +161,15 @@
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
+    width: 100vw !important;
+    height: auto !important;
+    max-height: 100vh !important;
     margin: 0 !important;
-    padding: 6mm !important;
+    padding: 6px !important;
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    transform: none !important;
-  }
-
-  body {
-    margin: 0 !important;
+    /* Keep the original aspect-ratio from the class */
   }
 
   @page {
