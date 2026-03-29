@@ -85,7 +85,7 @@ function rowToPreset(row: any): PosterPreset {
     name: row.name,
     templateId: row.template_id,
     paperSize: row.paper_size,
-    style: row.style as PosterStyle,
+    style: migrateStyleToMM(row.style as PosterStyle),
     backgroundImage: row.background_image || undefined,
     posterData: row.poster_data as PosterData | undefined,
     createdAt: new Date(row.created_at).getTime(),
