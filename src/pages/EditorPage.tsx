@@ -809,7 +809,7 @@ function SliderField({ label, value, min, max, onChange }: { label: string; valu
   return (
     <div>
       <label className="text-xs font-semibold text-muted-foreground mb-2 block">{label}</label>
-      <Slider value={[value]} min={min} max={max} step={1} onValueChange={([v]) => onChange(v)} />
+      <Slider value={[value]} min={min} max={max} step={0.5} onValueChange={([v]) => onChange(v)} />
     </div>
   );
 }
