@@ -491,8 +491,8 @@ export default function EditorPage() {
                       </label>
                     </div>
                     <div className="mt-2">
-                      <label className="text-xs text-muted-foreground">Centavos eixo Y ({posterStyle.centsOffsetY})</label>
-                      <Slider min={-100} max={100} step={1} value={[posterStyle.centsOffsetY]} onValueChange={([v]) => updateStyle("centsOffsetY", v)} />
+                      <label className="text-xs text-muted-foreground">Centavos eixo Y ({posterStyle.centsOffsetY}mm)</label>
+                      <Slider min={-30} max={30} step={0.5} value={[posterStyle.centsOffsetY]} onValueChange={([v]) => updateStyle("centsOffsetY", v)} />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <Field label="Desconto (%)" value={data.discount} onChange={(v) => update("discount", v)} />
