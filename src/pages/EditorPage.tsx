@@ -605,21 +605,21 @@ export default function EditorPage() {
                     <Move className="w-4 h-4" /> Posição dos Elementos
                   </h3>
                   <div className="space-y-4">
-                    <SliderField label={`Nome Y – ${posterStyle.productOffsetY}px`} value={posterStyle.productOffsetY} min={-200} max={200} onChange={(v) => updateStyle("productOffsetY", v)} />
-                    <SliderField label={`Marca Y – ${posterStyle.brandOffsetY}px`} value={posterStyle.brandOffsetY} min={-200} max={200} onChange={(v) => updateStyle("brandOffsetY", v)} />
-                    <SliderField label={`Gramatura Y – ${posterStyle.gramaturaOffsetY}px`} value={posterStyle.gramaturaOffsetY} min={-200} max={200} onChange={(v) => updateStyle("gramaturaOffsetY", v)} />
-                    <SliderField label={`Preço Y – ${posterStyle.priceOffsetY}px`} value={posterStyle.priceOffsetY} min={-200} max={200} onChange={(v) => updateStyle("priceOffsetY", v)} />
-                    <SliderField label={`Descrição Y – ${posterStyle.descriptionOffsetY}px`} value={posterStyle.descriptionOffsetY} min={-200} max={200} onChange={(v) => updateStyle("descriptionOffsetY", v)} />
-                    <SliderField label={`Validade Y – ${posterStyle.validityOffsetY}px`} value={posterStyle.validityOffsetY} min={-200} max={200} onChange={(v) => updateStyle("validityOffsetY", v)} />
-                    <SliderField label={`Unidade X – ${posterStyle.unitOffsetX}px`} value={posterStyle.unitOffsetX} min={-200} max={200} onChange={(v) => updateStyle("unitOffsetX", v)} />
+                    <SliderField label={`Nome Y – ${posterStyle.productOffsetY}mm`} value={posterStyle.productOffsetY} min={-50} max={50} onChange={(v) => updateStyle("productOffsetY", v)} />
+                    <SliderField label={`Marca Y – ${posterStyle.brandOffsetY}mm`} value={posterStyle.brandOffsetY} min={-50} max={50} onChange={(v) => updateStyle("brandOffsetY", v)} />
+                    <SliderField label={`Gramatura Y – ${posterStyle.gramaturaOffsetY}mm`} value={posterStyle.gramaturaOffsetY} min={-50} max={50} onChange={(v) => updateStyle("gramaturaOffsetY", v)} />
+                    <SliderField label={`Preço Y – ${posterStyle.priceOffsetY}mm`} value={posterStyle.priceOffsetY} min={-50} max={50} onChange={(v) => updateStyle("priceOffsetY", v)} />
+                    <SliderField label={`Descrição Y – ${posterStyle.descriptionOffsetY}mm`} value={posterStyle.descriptionOffsetY} min={-50} max={50} onChange={(v) => updateStyle("descriptionOffsetY", v)} />
+                    <SliderField label={`Validade Y – ${posterStyle.validityOffsetY}mm`} value={posterStyle.validityOffsetY} min={-50} max={50} onChange={(v) => updateStyle("validityOffsetY", v)} />
+                    <SliderField label={`Unidade X – ${posterStyle.unitOffsetX}mm`} value={posterStyle.unitOffsetX} min={-50} max={50} onChange={(v) => updateStyle("unitOffsetX", v)} />
                     {paperSize === "atacado-varejo" && (
                       <>
-                        <SliderField label={`Quantidade X – ${posterStyle.quantityOffsetX}px`} value={posterStyle.quantityOffsetX} min={-400} max={400} onChange={(v) => updateStyle("quantityOffsetX", v)} />
-                        <SliderField label={`Quantidade Y – ${posterStyle.quantityOffsetY}px`} value={posterStyle.quantityOffsetY} min={-400} max={400} onChange={(v) => updateStyle("quantityOffsetY", v)} />
-                        <SliderField label={`Atacado X – ${posterStyle.atacadoOffsetX}px`} value={posterStyle.atacadoOffsetX} min={-400} max={400} onChange={(v) => updateStyle("atacadoOffsetX", v)} />
-                        <SliderField label={`Atacado Y – ${posterStyle.atacadoOffsetY}px`} value={posterStyle.atacadoOffsetY} min={-400} max={400} onChange={(v) => updateStyle("atacadoOffsetY", v)} />
-                        <SliderField label={`Varejo X – ${posterStyle.varejoOffsetX}px`} value={posterStyle.varejoOffsetX} min={-400} max={400} onChange={(v) => updateStyle("varejoOffsetX", v)} />
-                        <SliderField label={`Varejo Y – ${posterStyle.varejoOffsetY}px`} value={posterStyle.varejoOffsetY} min={-400} max={400} onChange={(v) => updateStyle("varejoOffsetY", v)} />
+                        <SliderField label={`Quantidade X – ${posterStyle.quantityOffsetX}mm`} value={posterStyle.quantityOffsetX} min={-100} max={100} onChange={(v) => updateStyle("quantityOffsetX", v)} />
+                        <SliderField label={`Quantidade Y – ${posterStyle.quantityOffsetY}mm`} value={posterStyle.quantityOffsetY} min={-100} max={100} onChange={(v) => updateStyle("quantityOffsetY", v)} />
+                        <SliderField label={`Atacado X – ${posterStyle.atacadoOffsetX}mm`} value={posterStyle.atacadoOffsetX} min={-100} max={100} onChange={(v) => updateStyle("atacadoOffsetX", v)} />
+                        <SliderField label={`Atacado Y – ${posterStyle.atacadoOffsetY}mm`} value={posterStyle.atacadoOffsetY} min={-100} max={100} onChange={(v) => updateStyle("atacadoOffsetY", v)} />
+                        <SliderField label={`Varejo X – ${posterStyle.varejoOffsetX}mm`} value={posterStyle.varejoOffsetX} min={-100} max={100} onChange={(v) => updateStyle("varejoOffsetX", v)} />
+                        <SliderField label={`Varejo Y – ${posterStyle.varejoOffsetY}mm`} value={posterStyle.varejoOffsetY} min={-100} max={100} onChange={(v) => updateStyle("varejoOffsetY", v)} />
                       </>
                     )}
                   </div>
