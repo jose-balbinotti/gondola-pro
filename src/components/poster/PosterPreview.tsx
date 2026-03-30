@@ -153,7 +153,7 @@ function resolveSMS(font: string) { return isSMS(font) ? SUPER_MARKET_SLANT_FONT
 const PosterPreview = forwardRef<HTMLDivElement, Props>(
   ({ template, data, showQR, qrUrl, style, paperSize, customBackground }, ref) => {
     const ratio = ASPECT_RATIOS[paperSize] || ASPECT_RATIOS[template.size] || 3 / 4;
-    const referenceHeight = REFERENCE_WIDTH / ratio;
+    const referenceHeight = Math.round(REFERENCE_WIDTH / ratio);
 
     const outerRef = useRef<HTMLDivElement>(null);
     const innerRef = useRef<HTMLDivElement>(null);
