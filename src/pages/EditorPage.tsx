@@ -109,6 +109,10 @@ export default function EditorPage() {
 
     const el = posterRef.current;
 
+    // Use exact floating-point dimensions to avoid rounding mismatches
+    const elWidth = Math.round(parseFloat(el.style.width));
+    const elHeight = Math.round(parseFloat(el.style.height));
+
     // Clone the poster element so we can render it at full reference size
     // without being clipped by the scaled parent container.
     const clone = el.cloneNode(true) as HTMLElement;
@@ -119,8 +123,8 @@ export default function EditorPage() {
     clone.style.top = '0';
     clone.style.left = '0';
     // Use the exact same fixed dimensions as the original render
-    clone.style.width = el.style.width;   // e.g. "800px"
-    clone.style.height = el.style.height; // e.g. "1131px"
+    clone.style.width = `${elWidth}px`;
+    clone.style.height = `${elHeight}px`;
 
     if (bgBaseOnly && customBackground) {
       clone.style.backgroundImage = 'none';
@@ -132,23 +136,27 @@ export default function EditorPage() {
     wrapper.style.position = 'fixed';
     wrapper.style.top = '-20000px';
     wrapper.style.left = '-20000px';
-    wrapper.style.width = el.style.width;
-    wrapper.style.height = el.style.height;
+    wrapper.style.width = `${elWidth}px`;
+    wrapper.style.height = `${elHeight}px`;
     wrapper.style.overflow = 'visible';
     wrapper.style.zIndex = '-9999';
     wrapper.appendChild(clone);
     document.body.appendChild(wrapper);
 
-    // Wait for fonts & images to settle
-    await new Promise(r => setTimeout(r, 100));
+    // Wait for all fonts to load before capturing
+    await document.fonts.ready;
+    await new Promise(r => setTimeout(r, 50));
 
     try {
       const canvas = await html2canvas(clone, {
         scale: 4,
         useCORS: true,
         backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null,
-        width: parseInt(el.style.width),
-        height: parseInt(el.style.height),
+        width: elWidth,
+        height: elHeight,
+        logging: false,
+        allowTaint: true,
+        removeContainer: false,
       });
       return canvas;
     } finally {
