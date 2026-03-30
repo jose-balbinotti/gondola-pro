@@ -319,13 +319,15 @@ export default function BatchPage() {
     const sc = captureScale ?? getCaptureScale();
     const posterEl = containerEl.querySelector('[data-print-poster]') as HTMLElement;
     const target = posterEl || containerEl;
+    const elWidth = Math.round(parseFloat(target.style.width));
+    const elHeight = Math.round(parseFloat(target.style.height));
     const clone = target.cloneNode(true) as HTMLElement;
     clone.style.transform = 'none';
     clone.style.position = 'absolute';
     clone.style.top = '0';
     clone.style.left = '0';
-    clone.style.width = target.style.width;
-    clone.style.height = target.style.height;
+    clone.style.width = `${elWidth}px`;
+    clone.style.height = `${elHeight}px`;
     if (bgBaseOnly && customBackground) {
       clone.style.backgroundImage = 'none';
       clone.style.backgroundColor = '#ffffff';
@@ -334,19 +336,23 @@ export default function BatchPage() {
     wrapper.style.position = 'fixed';
     wrapper.style.top = '-20000px';
     wrapper.style.left = '-20000px';
-    wrapper.style.width = target.style.width;
-    wrapper.style.height = target.style.height;
+    wrapper.style.width = `${elWidth}px`;
+    wrapper.style.height = `${elHeight}px`;
     wrapper.style.overflow = 'visible';
     wrapper.style.zIndex = '-9999';
     wrapper.appendChild(clone);
     document.body.appendChild(wrapper);
+    await document.fonts.ready;
     await new Promise(r => setTimeout(r, 50));
     try {
       return await html2canvas(clone, {
         scale: sc, useCORS: true,
         backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null,
-        width: parseInt(target.style.width),
-        height: parseInt(target.style.height),
+        width: elWidth,
+        height: elHeight,
+        logging: false,
+        allowTaint: true,
+        removeContainer: false,
       });
     } finally {
       document.body.removeChild(wrapper);
