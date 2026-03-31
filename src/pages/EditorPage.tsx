@@ -7,11 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { TEMPLATES, DEFAULT_POSTER_DATA, type PosterData } from "@/lib/templates";
 import { Tag, Download, ArrowLeft, FileImage, FileText, QrCode, Type, Move, Save, FolderOpen, Upload, Trash2, Image as ImageIcon, Printer, BookOpen, Edit, FileDown, FileUp } from "lucide-react";
-import html2canvas from "html2canvas";
+import * as htmlToImage from "html-to-image";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
 import PosterPreview, { DEFAULT_POSTER_STYLE, FONT_OPTIONS, type PosterStyle } from "@/components/poster/PosterPreview";
 import { loadPresets, savePresetToDB, deletePresetFromDB, loadPresetsFromDB, exportPresetsToJSON, importPresetsFromJSON, type PosterPreset } from "@/lib/presets";
+import { loadCustomFonts, addCustomFont, removeCustomFont, injectAllCustomFonts, type CustomFont } from "@/lib/customFonts";
 
 const PAPER_SIZES = [
   { value: "A4", label: "A4 (210×297mm)" },
@@ -88,10 +89,13 @@ export default function EditorPage() {
   const [bgBaseOnly, setBgBaseOnly] = useState(false);
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<PosterPreset[]>(() => loadPresets());
+  const [customFonts, setCustomFonts] = useState<CustomFont[]>(() => loadCustomFonts());
+  const [newFontName, setNewFontName] = useState("");
 
-  // Load presets from DB on mount
+  // Load presets from DB on mount + inject saved fonts
   useEffect(() => {
     loadPresetsFromDB().then(setPresets);
+    injectAllCustomFonts();
   }, []);
 
   const update = useCallback((field: keyof PosterData, value: string) => {
@@ -148,15 +152,12 @@ export default function EditorPage() {
     await new Promise(r => setTimeout(r, 50));
 
     try {
-      const canvas = await html2canvas(clone, {
-        scale: 4,
-        useCORS: true,
-        backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null,
+      const canvas = await htmlToImage.toCanvas(clone, {
+        pixelRatio: 4,
         width: elWidth,
         height: elHeight,
-        logging: false,
-        allowTaint: true,
-        removeContainer: false,
+        backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : 'transparent',
+        skipAutoScale: true,
       });
       return canvas;
     } finally {
@@ -322,7 +323,7 @@ export default function EditorPage() {
       setPresetName("");
       toast({ title: `Preset "${result.name}" salvo!` });
     } else {
-      toast({ title: "Limite de presets atingido", variant: "destructive" });
+      toast({ title: "Erro ao salvar preset", variant: "destructive" });
     }
   };
 
@@ -536,12 +537,50 @@ export default function EditorPage() {
                 <div className="p-4 rounded-lg border border-border bg-background">
                   <h3 className="text-sm font-bold text-foreground mb-3">Fontes</h3>
                   <div className="space-y-3">
+                    {/* Custom font adder */}
+                    <div className="p-3 rounded-lg bg-muted/40 border border-dashed border-border">
+                      <label className="text-xs font-semibold text-muted-foreground mb-2 block">Adicionar fonte do Google Fonts</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newFontName}
+                          onChange={(e) => setNewFontName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const f = addCustomFont(newFontName);
+                              if (f) { setCustomFonts(loadCustomFonts()); setNewFontName(""); toast({ title: `Fonte "${f.name}" adicionada!` }); }
+                              else toast({ title: "Fonte já existe ou nome inválido", variant: "destructive" });
+                            }
+                          }}
+                          placeholder="Ex: Montserrat, Roboto, Poppins..."
+                          className="flex-1 h-8 px-3 rounded-lg border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                        <Button variant="outline" size="sm" className="gap-1" onClick={() => {
+                          const f = addCustomFont(newFontName);
+                          if (f) { setCustomFonts(loadCustomFonts()); setNewFontName(""); toast({ title: `Fonte "${f.name}" adicionada!` }); }
+                          else toast({ title: "Fonte já existe ou nome inválido", variant: "destructive" });
+                        }}>
+                          + Add
+                        </Button>
+                      </div>
+                      {customFonts.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {customFonts.map((f) => (
+                            <span key={f.name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-xs text-foreground">
+                              {f.name}
+                              <button onClick={() => { removeCustomFont(f.name); setCustomFonts(loadCustomFonts()); }} className="text-muted-foreground hover:text-destructive">×</button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     <div>
                       <label className="text-xs font-semibold text-muted-foreground mb-1 block">Fonte geral</label>
                       <Select value={posterStyle.fontFamily} onValueChange={(v) => updateStyle("fontFamily", v)}>
                         <SelectTrigger className="w-full"><SelectValue placeholder="Fonte geral" /></SelectTrigger>
                         <SelectContent>
-                          {FONT_OPTIONS.map((f) => (
+                          {[...FONT_OPTIONS, ...customFonts.map(f => ({ value: f.value, label: `★ ${f.name}` }))].map((f) => (
                             <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>
                           ))}
                         </SelectContent>
@@ -553,7 +592,7 @@ export default function EditorPage() {
                         <SelectTrigger className="w-full"><SelectValue placeholder="Mesma da geral" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__default__">Mesma da geral</SelectItem>
-                          {FONT_OPTIONS.map((f) => (
+                          {[...FONT_OPTIONS, ...customFonts.map(f => ({ value: f.value, label: `★ ${f.name}` }))].map((f) => (
                             <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>
                           ))}
                         </SelectContent>
@@ -565,7 +604,7 @@ export default function EditorPage() {
                         <SelectTrigger className="w-full"><SelectValue placeholder="Mesma da geral" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__default__">Mesma da geral</SelectItem>
-                          {FONT_OPTIONS.map((f) => (
+                          {[...FONT_OPTIONS, ...customFonts.map(f => ({ value: f.value, label: `★ ${f.name}` }))].map((f) => (
                             <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>
                           ))}
                         </SelectContent>
@@ -601,14 +640,14 @@ export default function EditorPage() {
                         placeholder="Ex: Super Oferta, Só Hoje..."
                       />
                     )}
-                    <SliderField label={`Nome do produto – ${posterStyle.productFontSize}px`} value={posterStyle.productFontSize} min={10} max={200} onChange={(v) => updateStyle("productFontSize", v)} />
-                    <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={200} onChange={(v) => updateStyle("brandFontSize", v)} />
-                    <SliderField label={`Gramatura – ${posterStyle.gramaturaFontSize}px`} value={posterStyle.gramaturaFontSize} min={8} max={120} onChange={(v) => updateStyle("gramaturaFontSize", v)} />
-                    <SliderField label={`Preço (reais) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={300} onChange={(v) => updateStyle("priceFontSize", v)} />
-                    <SliderField label={`Preço (centavos/R$) – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={200} onChange={(v) => updateStyle("centsFontSize", v)} />
-                    <SliderField label={`Descrição – ${posterStyle.descriptionFontSize}px`} value={posterStyle.descriptionFontSize} min={8} max={120} onChange={(v) => updateStyle("descriptionFontSize", v)} />
+                    <SliderField label={`Nome do produto – ${posterStyle.productFontSize}px`} value={posterStyle.productFontSize} min={10} max={600} onChange={(v) => updateStyle("productFontSize", v)} />
+                    <SliderField label={`Marca – ${posterStyle.brandFontSize}px`} value={posterStyle.brandFontSize} min={8} max={600} onChange={(v) => updateStyle("brandFontSize", v)} />
+                    <SliderField label={`Gramatura – ${posterStyle.gramaturaFontSize}px`} value={posterStyle.gramaturaFontSize} min={8} max={600} onChange={(v) => updateStyle("gramaturaFontSize", v)} />
+                    <SliderField label={`Preço (reais) – ${posterStyle.priceFontSize}px`} value={posterStyle.priceFontSize} min={24} max={600} onChange={(v) => updateStyle("priceFontSize", v)} />
+                    <SliderField label={`Preço (centavos/R$) – ${posterStyle.centsFontSize}px`} value={posterStyle.centsFontSize} min={12} max={600} onChange={(v) => updateStyle("centsFontSize", v)} />
+                    <SliderField label={`Descrição – ${posterStyle.descriptionFontSize}px`} value={posterStyle.descriptionFontSize} min={8} max={600} onChange={(v) => updateStyle("descriptionFontSize", v)} />
                     {paperSize === "atacado-varejo" && (
-                      <SliderField label={`Quantidade – ${posterStyle.quantityFontSize}px`} value={posterStyle.quantityFontSize} min={12} max={300} onChange={(v) => updateStyle("quantityFontSize", v)} />
+                      <SliderField label={`Quantidade – ${posterStyle.quantityFontSize}px`} value={posterStyle.quantityFontSize} min={12} max={600} onChange={(v) => updateStyle("quantityFontSize", v)} />
                     )}
                   </div>
                 </div>
@@ -619,21 +658,21 @@ export default function EditorPage() {
                     <Move className="w-4 h-4" /> Posição dos Elementos
                   </h3>
                   <div className="space-y-4">
-                    <SliderField label={`Nome Y – ${posterStyle.productOffsetY}px`} value={posterStyle.productOffsetY} min={-200} max={200} onChange={(v) => updateStyle("productOffsetY", v)} />
-                    <SliderField label={`Marca Y – ${posterStyle.brandOffsetY}px`} value={posterStyle.brandOffsetY} min={-200} max={200} onChange={(v) => updateStyle("brandOffsetY", v)} />
-                    <SliderField label={`Gramatura Y – ${posterStyle.gramaturaOffsetY}px`} value={posterStyle.gramaturaOffsetY} min={-200} max={200} onChange={(v) => updateStyle("gramaturaOffsetY", v)} />
-                    <SliderField label={`Preço Y – ${posterStyle.priceOffsetY}px`} value={posterStyle.priceOffsetY} min={-200} max={200} onChange={(v) => updateStyle("priceOffsetY", v)} />
-                    <SliderField label={`Descrição Y – ${posterStyle.descriptionOffsetY}px`} value={posterStyle.descriptionOffsetY} min={-200} max={200} onChange={(v) => updateStyle("descriptionOffsetY", v)} />
-                    <SliderField label={`Validade Y – ${posterStyle.validityOffsetY}px`} value={posterStyle.validityOffsetY} min={-200} max={200} onChange={(v) => updateStyle("validityOffsetY", v)} />
-                    <SliderField label={`Unidade X – ${posterStyle.unitOffsetX}px`} value={posterStyle.unitOffsetX} min={-200} max={200} onChange={(v) => updateStyle("unitOffsetX", v)} />
+                    <SliderField label={`Nome Y – ${posterStyle.productOffsetY}px`} value={posterStyle.productOffsetY} min={-600} max={600} onChange={(v) => updateStyle("productOffsetY", v)} />
+                    <SliderField label={`Marca Y – ${posterStyle.brandOffsetY}px`} value={posterStyle.brandOffsetY} min={-600} max={600} onChange={(v) => updateStyle("brandOffsetY", v)} />
+                    <SliderField label={`Gramatura Y – ${posterStyle.gramaturaOffsetY}px`} value={posterStyle.gramaturaOffsetY} min={-600} max={600} onChange={(v) => updateStyle("gramaturaOffsetY", v)} />
+                    <SliderField label={`Preço Y – ${posterStyle.priceOffsetY}px`} value={posterStyle.priceOffsetY} min={-600} max={600} onChange={(v) => updateStyle("priceOffsetY", v)} />
+                    <SliderField label={`Descrição Y – ${posterStyle.descriptionOffsetY}px`} value={posterStyle.descriptionOffsetY} min={-600} max={600} onChange={(v) => updateStyle("descriptionOffsetY", v)} />
+                    <SliderField label={`Validade Y – ${posterStyle.validityOffsetY}px`} value={posterStyle.validityOffsetY} min={-600} max={600} onChange={(v) => updateStyle("validityOffsetY", v)} />
+                    <SliderField label={`Unidade X – ${posterStyle.unitOffsetX}px`} value={posterStyle.unitOffsetX} min={-600} max={600} onChange={(v) => updateStyle("unitOffsetX", v)} />
                     {paperSize === "atacado-varejo" && (
                       <>
-                        <SliderField label={`Quantidade X – ${posterStyle.quantityOffsetX}px`} value={posterStyle.quantityOffsetX} min={-400} max={400} onChange={(v) => updateStyle("quantityOffsetX", v)} />
-                        <SliderField label={`Quantidade Y – ${posterStyle.quantityOffsetY}px`} value={posterStyle.quantityOffsetY} min={-400} max={400} onChange={(v) => updateStyle("quantityOffsetY", v)} />
-                        <SliderField label={`Atacado X – ${posterStyle.atacadoOffsetX}px`} value={posterStyle.atacadoOffsetX} min={-400} max={400} onChange={(v) => updateStyle("atacadoOffsetX", v)} />
-                        <SliderField label={`Atacado Y – ${posterStyle.atacadoOffsetY}px`} value={posterStyle.atacadoOffsetY} min={-400} max={400} onChange={(v) => updateStyle("atacadoOffsetY", v)} />
-                        <SliderField label={`Varejo X – ${posterStyle.varejoOffsetX}px`} value={posterStyle.varejoOffsetX} min={-400} max={400} onChange={(v) => updateStyle("varejoOffsetX", v)} />
-                        <SliderField label={`Varejo Y – ${posterStyle.varejoOffsetY}px`} value={posterStyle.varejoOffsetY} min={-400} max={400} onChange={(v) => updateStyle("varejoOffsetY", v)} />
+                        <SliderField label={`Quantidade X – ${posterStyle.quantityOffsetX}px`} value={posterStyle.quantityOffsetX} min={-600} max={600} onChange={(v) => updateStyle("quantityOffsetX", v)} />
+                        <SliderField label={`Quantidade Y – ${posterStyle.quantityOffsetY}px`} value={posterStyle.quantityOffsetY} min={-600} max={600} onChange={(v) => updateStyle("quantityOffsetY", v)} />
+                        <SliderField label={`Atacado X – ${posterStyle.atacadoOffsetX}px`} value={posterStyle.atacadoOffsetX} min={-600} max={600} onChange={(v) => updateStyle("atacadoOffsetX", v)} />
+                        <SliderField label={`Atacado Y – ${posterStyle.atacadoOffsetY}px`} value={posterStyle.atacadoOffsetY} min={-600} max={600} onChange={(v) => updateStyle("atacadoOffsetY", v)} />
+                        <SliderField label={`Varejo X – ${posterStyle.varejoOffsetX}px`} value={posterStyle.varejoOffsetX} min={-600} max={600} onChange={(v) => updateStyle("varejoOffsetX", v)} />
+                        <SliderField label={`Varejo Y – ${posterStyle.varejoOffsetY}px`} value={posterStyle.varejoOffsetY} min={-600} max={600} onChange={(v) => updateStyle("varejoOffsetY", v)} />
                       </>
                     )}
                   </div>
@@ -647,11 +686,10 @@ export default function EditorPage() {
                       <button
                         key={ps.value}
                         onClick={() => setPaperSize(ps.value)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold snap-active transition-colors ${
-                          paperSize === ps.value
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold snap-active transition-colors ${paperSize === ps.value
                             ? "bg-primary text-primary-foreground"
                             : "bg-muted text-muted-foreground hover:bg-accent"
-                        }`}
+                          }`}
                       >
                         {ps.label}
                       </button>
@@ -695,14 +733,13 @@ export default function EditorPage() {
               {/* Poster Preview */}
               <div className="order-1 lg:order-2 lg:sticky lg:top-20 self-start w-full">
                 <p className="text-xs text-muted-foreground mb-2 font-mono">PREVIEW – {paperSize}</p>
-                <div className={`poster-shadow rounded-lg overflow-hidden inline-block w-full mx-auto ${
-                  paperSize === "gondola" ? "max-w-2xl" :
-                  paperSize === "A3" ? "max-w-lg" :
-                  paperSize === "A4-duplo" ? "max-w-md" :
-                  paperSize === "A4-duplo-v" ? "max-w-sm" :
-                  paperSize === "10x15" ? "max-w-xs" :
-                  "max-w-md"
-                }`}>
+                <div className={`poster-shadow rounded-lg overflow-hidden inline-block w-full mx-auto ${paperSize === "gondola" ? "max-w-2xl" :
+                    paperSize === "A3" ? "max-w-lg" :
+                      paperSize === "A4-duplo" ? "max-w-md" :
+                        paperSize === "A4-duplo-v" ? "max-w-sm" :
+                          paperSize === "10x15" ? "max-w-xs" :
+                            "max-w-md"
+                  }`}>
                   <PosterPreview
                     ref={posterRef}
                     template={template}

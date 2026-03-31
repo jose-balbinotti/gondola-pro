@@ -15,7 +15,6 @@ export interface PosterPreset {
 
 const STORAGE_KEY = "gondolapro-presets";
 const DEVICE_ID_KEY = "gondolapro-device-id";
-const MAX_PRESETS = 50;
 
 function getDeviceId(): string {
   let id = localStorage.getItem(DEVICE_ID_KEY);
@@ -80,10 +79,6 @@ export async function savePresetToDB(
 ): Promise<PosterPreset | null> {
   const deviceId = getDeviceId();
 
-  // Check limit
-  const existing = await loadPresetsFromDB();
-  if (existing.length >= MAX_PRESETS) return null;
-
   try {
     const { data, error } = await supabase
       .from("poster_presets" as any)
@@ -133,7 +128,6 @@ export function savePreset(preset: Omit<PosterPreset, "id" | "createdAt">): Post
 
 function savePresetLocalOnly(preset: Omit<PosterPreset, "id" | "createdAt">): PosterPreset | null {
   const presets = loadPresetsLocal();
-  if (presets.length >= MAX_PRESETS) return null;
   const newPreset: PosterPreset = {
     ...preset,
     id: crypto.randomUUID(),
@@ -178,7 +172,6 @@ export function importPresetsFromJSON(file: File): Promise<PosterPreset[]> {
         const existingNames = new Set(existing.map((p) => p.name));
         let added = 0;
         for (const p of imported) {
-          if (existing.length >= MAX_PRESETS) break;
           if (!existingNames.has(p.name)) {
             existing.push({ ...p, id: crypto.randomUUID(), createdAt: Date.now() });
             existingNames.add(p.name);

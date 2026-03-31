@@ -8,11 +8,12 @@ import PosterPreview, { DEFAULT_POSTER_STYLE, FONT_OPTIONS, type PosterStyle } f
 import PosterStyleControls from "@/components/poster/PosterStyleControls";
 import { Tag, ArrowLeft, Download, FileText, Loader2, Plus, Trash2, Upload, Table, Type as TypeIcon, Save, FolderOpen, Image as ImageIcon, Printer, X, Edit } from "lucide-react";
 import Papa from "papaparse";
-import html2canvas from "html2canvas";
+import * as htmlToImage from "html-to-image";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { loadPresets, savePresetToDB, deletePresetFromDB, loadPresetsFromDB, type PosterPreset } from "@/lib/presets";
+import { loadCustomFonts, addCustomFont, removeCustomFont, injectAllCustomFonts, type CustomFont } from "@/lib/customFonts";
 
 const PDF_FORMATS: Record<string, [number, number]> = {
   A4: [210, 297],
@@ -109,6 +110,8 @@ export default function BatchPage() {
   const [bgBaseOnly, setBgBaseOnly] = useState(false);
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<PosterPreset[]>(() => loadPresets());
+  const [customFonts, setCustomFonts] = useState<CustomFont[]>(() => loadCustomFonts());
+  const [newFontName, setNewFontName] = useState("");
 
   // Per-poster style overrides for editing in preview
   const [perPosterStyles, setPerPosterStyles] = useState<Record<number, PosterStyle>>({});
@@ -117,6 +120,7 @@ export default function BatchPage() {
 
   useEffect(() => {
     loadPresetsFromDB().then(setPresets);
+    injectAllCustomFonts();
   }, []);
 
   const [products, setProducts] = useState<BatchProduct[]>([emptyProduct()]);
@@ -345,14 +349,12 @@ export default function BatchPage() {
     await document.fonts.ready;
     await new Promise(r => setTimeout(r, 50));
     try {
-      return await html2canvas(clone, {
-        scale: sc, useCORS: true,
-        backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : null,
+      return await htmlToImage.toCanvas(clone, {
+        pixelRatio: sc,
         width: elWidth,
         height: elHeight,
-        logging: false,
-        allowTaint: true,
-        removeContainer: false,
+        backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : 'transparent',
+        skipAutoScale: true,
       });
     } finally {
       document.body.removeChild(wrapper);
@@ -622,8 +624,50 @@ export default function BatchPage() {
                 )}
               </div>
 
+              {/* Fontes personalizadas */}
+              <div className="p-4 rounded-lg border border-border bg-background">
+                <h3 className="text-sm font-bold text-foreground mb-3">Fontes Adicionais</h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newFontName}
+                    onChange={(e) => setNewFontName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const f = addCustomFont(newFontName);
+                        if (f) { setCustomFonts(loadCustomFonts()); setNewFontName(""); toast({ title: `Fonte "${f.name}" adicionada!` }); }
+                        else toast({ title: "Fonte já existe ou nome inválido", variant: "destructive" });
+                      }
+                    }}
+                    placeholder="Ex: Montserrat, Roboto, Poppins..."
+                    className="flex-1 h-8 px-3 rounded-lg border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <Button variant="outline" size="sm" className="gap-1" onClick={() => {
+                    const f = addCustomFont(newFontName);
+                    if (f) { setCustomFonts(loadCustomFonts()); setNewFontName(""); toast({ title: `Fonte "${f.name}" adicionada!` }); }
+                    else toast({ title: "Fonte já existe ou nome inválido", variant: "destructive" });
+                  }}>
+                    + Add
+                  </Button>
+                </div>
+                {customFonts.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {customFonts.map((f) => (
+                      <span key={f.name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-xs text-foreground">
+                        {f.name}
+                        <button onClick={() => { removeCustomFont(f.name); setCustomFonts(loadCustomFonts()); }} className="text-muted-foreground hover:text-destructive">×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* All style controls */}
-              <PosterStyleControls style={posterStyle} updateStyle={updateStyle} />
+              <PosterStyleControls
+                style={posterStyle}
+                updateStyle={updateStyle}
+                extraFonts={customFonts.map(f => ({ value: f.value, label: `★ ${f.name}` }))}
+              />
 
               {/* Input Mode */}
               <div className="p-4 rounded-lg border border-border bg-background">
@@ -801,6 +845,7 @@ export default function BatchPage() {
                           updatePerPosterStyle={updatePerPosterStyle}
                           resetPosterOverride={resetPosterOverride}
                           setEditingPosterIdx={setEditingPosterIdx}
+                          customFonts={customFonts}
                         />
                       )}
                     </div>
@@ -837,6 +882,7 @@ export default function BatchPage() {
                             updatePerPosterStyle={updatePerPosterStyle}
                             resetPosterOverride={resetPosterOverride}
                             setEditingPosterIdx={setEditingPosterIdx}
+                            customFonts={customFonts}
                           />
                         </>
                       ) : (
@@ -890,6 +936,7 @@ function InlineEditPanel({
   updatePerPosterStyle,
   resetPosterOverride,
   setEditingPosterIdx,
+  customFonts,
 }: {
   idx: number;
   getDataForPoster: (i: number) => PosterData;
@@ -898,6 +945,7 @@ function InlineEditPanel({
   updatePerPosterStyle: <K extends keyof PosterStyle>(i: number, field: K, value: PosterStyle[K]) => void;
   resetPosterOverride: (i: number) => void;
   setEditingPosterIdx: (i: number | null) => void;
+  customFonts: CustomFont[];
 }) {
   const d = getDataForPoster(idx);
 
@@ -931,6 +979,7 @@ function InlineEditPanel({
       <PosterStyleControls
         style={getStyleForPoster(idx)}
         updateStyle={(field, value) => updatePerPosterStyle(idx, field, value)}
+        extraFonts={customFonts.map(f => ({ value: f.value, label: `★ ${f.name}` }))}
       />
     </div>
   );

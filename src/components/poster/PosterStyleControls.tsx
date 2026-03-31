@@ -8,6 +8,7 @@ interface Props {
   style: PosterStyle;
   updateStyle: <K extends keyof PosterStyle>(field: K, value: PosterStyle[K]) => void;
   compact?: boolean;
+  extraFonts?: { value: string; label: string }[];
 }
 
 function SliderField({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (v: number) => void }) {
@@ -34,7 +35,8 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
   );
 }
 
-export default function PosterStyleControls({ style, updateStyle, compact }: Props) {
+export default function PosterStyleControls({ style, updateStyle, compact, extraFonts = [] }: Props) {
+  const allFonts = [...FONT_OPTIONS, ...extraFonts];
   return (
     <div className="space-y-4">
       {/* Promo Label */}
@@ -101,7 +103,7 @@ export default function PosterStyleControls({ style, updateStyle, compact }: Pro
             <label className="text-xs font-semibold text-muted-foreground mb-1 block">Fonte geral</label>
             <Select value={style.fontFamily} onValueChange={(v) => updateStyle("fontFamily", v)}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>{FONT_OPTIONS.map((f) => (<SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>))}</SelectContent>
+              <SelectContent>{allFonts.map((f) => (<SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>))}</SelectContent>
             </Select>
           </div>
           <div>
@@ -110,7 +112,7 @@ export default function PosterStyleControls({ style, updateStyle, compact }: Pro
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__default__">Mesma da geral</SelectItem>
-                {FONT_OPTIONS.map((f) => (<SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>))}
+                {allFonts.map((f) => (<SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
@@ -120,7 +122,7 @@ export default function PosterStyleControls({ style, updateStyle, compact }: Pro
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__default__">Mesma da geral</SelectItem>
-                {FONT_OPTIONS.map((f) => (<SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>))}
+                {allFonts.map((f) => (<SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
@@ -142,13 +144,13 @@ export default function PosterStyleControls({ style, updateStyle, compact }: Pro
           <Type className="w-4 h-4" /> Tamanho dos Textos
         </h3>
         <div className="space-y-4">
-          <SliderField label={`Nome do produto – ${style.productFontSize}px`} value={style.productFontSize} min={10} max={200} onChange={(v) => updateStyle("productFontSize", v)} />
-          <SliderField label={`Marca – ${style.brandFontSize}px`} value={style.brandFontSize} min={8} max={200} onChange={(v) => updateStyle("brandFontSize", v)} />
-          <SliderField label={`Gramatura – ${style.gramaturaFontSize}px`} value={style.gramaturaFontSize} min={8} max={120} onChange={(v) => updateStyle("gramaturaFontSize", v)} />
-          <SliderField label={`Preço (reais) – ${style.priceFontSize}px`} value={style.priceFontSize} min={24} max={300} onChange={(v) => updateStyle("priceFontSize", v)} />
-          <SliderField label={`Centavos/R$ – ${style.centsFontSize}px`} value={style.centsFontSize} min={12} max={200} onChange={(v) => updateStyle("centsFontSize", v)} />
-          <SliderField label={`Descrição – ${style.descriptionFontSize}px`} value={style.descriptionFontSize} min={8} max={120} onChange={(v) => updateStyle("descriptionFontSize", v)} />
-          <SliderField label={`Quantidade – ${style.quantityFontSize}px`} value={style.quantityFontSize} min={12} max={300} onChange={(v) => updateStyle("quantityFontSize", v)} />
+          <SliderField label={`Nome do produto – ${style.productFontSize}px`} value={style.productFontSize} min={10} max={600} onChange={(v) => updateStyle("productFontSize", v)} />
+          <SliderField label={`Marca – ${style.brandFontSize}px`} value={style.brandFontSize} min={8} max={600} onChange={(v) => updateStyle("brandFontSize", v)} />
+          <SliderField label={`Gramatura – ${style.gramaturaFontSize}px`} value={style.gramaturaFontSize} min={8} max={600} onChange={(v) => updateStyle("gramaturaFontSize", v)} />
+          <SliderField label={`Preço (reais) – ${style.priceFontSize}px`} value={style.priceFontSize} min={24} max={600} onChange={(v) => updateStyle("priceFontSize", v)} />
+          <SliderField label={`Centavos/R$ – ${style.centsFontSize}px`} value={style.centsFontSize} min={12} max={600} onChange={(v) => updateStyle("centsFontSize", v)} />
+          <SliderField label={`Descrição – ${style.descriptionFontSize}px`} value={style.descriptionFontSize} min={8} max={600} onChange={(v) => updateStyle("descriptionFontSize", v)} />
+          <SliderField label={`Quantidade – ${style.quantityFontSize}px`} value={style.quantityFontSize} min={12} max={600} onChange={(v) => updateStyle("quantityFontSize", v)} />
         </div>
       </div>
 
@@ -158,13 +160,13 @@ export default function PosterStyleControls({ style, updateStyle, compact }: Pro
           <Move className="w-4 h-4" /> Posição dos Elementos
         </h3>
         <div className="space-y-4">
-          <SliderField label={`Nome Y – ${style.productOffsetY}px`} value={style.productOffsetY} min={-200} max={200} onChange={(v) => updateStyle("productOffsetY", v)} />
-          <SliderField label={`Marca Y – ${style.brandOffsetY}px`} value={style.brandOffsetY} min={-200} max={200} onChange={(v) => updateStyle("brandOffsetY", v)} />
-          <SliderField label={`Gramatura Y – ${style.gramaturaOffsetY}px`} value={style.gramaturaOffsetY} min={-200} max={200} onChange={(v) => updateStyle("gramaturaOffsetY", v)} />
-          <SliderField label={`Preço Y – ${style.priceOffsetY}px`} value={style.priceOffsetY} min={-200} max={200} onChange={(v) => updateStyle("priceOffsetY", v)} />
-          <SliderField label={`Descrição Y – ${style.descriptionOffsetY}px`} value={style.descriptionOffsetY} min={-200} max={200} onChange={(v) => updateStyle("descriptionOffsetY", v)} />
-          <SliderField label={`Validade Y – ${style.validityOffsetY}px`} value={style.validityOffsetY} min={-200} max={200} onChange={(v) => updateStyle("validityOffsetY", v)} />
-          <SliderField label={`Unidade X – ${style.unitOffsetX}px`} value={style.unitOffsetX} min={-200} max={200} onChange={(v) => updateStyle("unitOffsetX", v)} />
+          <SliderField label={`Nome Y – ${style.productOffsetY}px`} value={style.productOffsetY} min={-600} max={600} onChange={(v) => updateStyle("productOffsetY", v)} />
+          <SliderField label={`Marca Y – ${style.brandOffsetY}px`} value={style.brandOffsetY} min={-600} max={600} onChange={(v) => updateStyle("brandOffsetY", v)} />
+          <SliderField label={`Gramatura Y – ${style.gramaturaOffsetY}px`} value={style.gramaturaOffsetY} min={-600} max={600} onChange={(v) => updateStyle("gramaturaOffsetY", v)} />
+          <SliderField label={`Preço Y – ${style.priceOffsetY}px`} value={style.priceOffsetY} min={-600} max={600} onChange={(v) => updateStyle("priceOffsetY", v)} />
+          <SliderField label={`Descrição Y – ${style.descriptionOffsetY}px`} value={style.descriptionOffsetY} min={-600} max={600} onChange={(v) => updateStyle("descriptionOffsetY", v)} />
+          <SliderField label={`Validade Y – ${style.validityOffsetY}px`} value={style.validityOffsetY} min={-600} max={600} onChange={(v) => updateStyle("validityOffsetY", v)} />
+          <SliderField label={`Unidade X – ${style.unitOffsetX}px`} value={style.unitOffsetX} min={-600} max={600} onChange={(v) => updateStyle("unitOffsetX", v)} />
         </div>
       </div>
 
@@ -174,12 +176,12 @@ export default function PosterStyleControls({ style, updateStyle, compact }: Pro
           <Move className="w-4 h-4" /> Posição Atacado/Varejo
         </h3>
         <div className="space-y-4">
-          <SliderField label={`Quantidade X – ${style.quantityOffsetX}px`} value={style.quantityOffsetX} min={-400} max={400} onChange={(v) => updateStyle("quantityOffsetX", v)} />
-          <SliderField label={`Quantidade Y – ${style.quantityOffsetY}px`} value={style.quantityOffsetY} min={-400} max={400} onChange={(v) => updateStyle("quantityOffsetY", v)} />
-          <SliderField label={`Atacado X – ${style.atacadoOffsetX}px`} value={style.atacadoOffsetX} min={-400} max={400} onChange={(v) => updateStyle("atacadoOffsetX", v)} />
-          <SliderField label={`Atacado Y – ${style.atacadoOffsetY}px`} value={style.atacadoOffsetY} min={-400} max={400} onChange={(v) => updateStyle("atacadoOffsetY", v)} />
-          <SliderField label={`Varejo X – ${style.varejoOffsetX}px`} value={style.varejoOffsetX} min={-400} max={400} onChange={(v) => updateStyle("varejoOffsetX", v)} />
-          <SliderField label={`Varejo Y – ${style.varejoOffsetY}px`} value={style.varejoOffsetY} min={-400} max={400} onChange={(v) => updateStyle("varejoOffsetY", v)} />
+          <SliderField label={`Quantidade X – ${style.quantityOffsetX}px`} value={style.quantityOffsetX} min={-600} max={600} onChange={(v) => updateStyle("quantityOffsetX", v)} />
+          <SliderField label={`Quantidade Y – ${style.quantityOffsetY}px`} value={style.quantityOffsetY} min={-600} max={600} onChange={(v) => updateStyle("quantityOffsetY", v)} />
+          <SliderField label={`Atacado X – ${style.atacadoOffsetX}px`} value={style.atacadoOffsetX} min={-600} max={600} onChange={(v) => updateStyle("atacadoOffsetX", v)} />
+          <SliderField label={`Atacado Y – ${style.atacadoOffsetY}px`} value={style.atacadoOffsetY} min={-600} max={600} onChange={(v) => updateStyle("atacadoOffsetY", v)} />
+          <SliderField label={`Varejo X – ${style.varejoOffsetX}px`} value={style.varejoOffsetX} min={-600} max={600} onChange={(v) => updateStyle("varejoOffsetX", v)} />
+          <SliderField label={`Varejo Y – ${style.varejoOffsetY}px`} value={style.varejoOffsetY} min={-600} max={600} onChange={(v) => updateStyle("varejoOffsetY", v)} />
         </div>
       </div>
     </div>

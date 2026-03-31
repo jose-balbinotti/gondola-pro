@@ -314,19 +314,20 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                     alignItems: 'center',
                     transform: `translate(${style.atacadoOffsetX}px, ${style.atacadoOffsetY}px)`,
                   }}>
-                    
+
                     <div style={{ display: 'flex', color: template.priceColor, fontFamily: priceFont, textShadow: sPrice, alignItems: 'flex-end' }}>
-                      {!style.hideCurrencySymbol && <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>R$</span>}
+                      {!style.hideCurrencySymbol && <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: 0 }}>R$</span>}
                       <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>{atacadoReais}</span>
                       <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>,</span>
                       <span style={{
                         display: 'inline-flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
-                        alignSelf: style.centsAlignTop ? 'flex-start' : 'stretch',
+                        justifyContent: 'flex-start',
+                        alignSelf: style.centsAlignTop ? 'flex-start' : 'flex-end',
                         lineHeight: 1,
                         transform: `translateY(${style.centsOffsetY}px)`,
+                        minWidth: `${style.centsFontSize * 1.1}px`,
                       }}>
                         <span style={{
                           fontWeight: 900,
@@ -334,6 +335,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                           lineHeight: 1,
                           borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
                           paddingBottom: style.centsUnderline ? '1px' : '0',
+                          display: 'block',
+                          width: '100%',
+                          textAlign: 'center',
                         }}>{atacadoCentavos}</span>
                         {data.unit && style.unitBelowCents && (
                           <span style={{
@@ -341,6 +345,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                             fontSize: `${Math.round(style.centsFontSize * 0.5)}px`, lineHeight: 1,
                             whiteSpace: 'nowrap', marginTop: `${Math.round(style.centsFontSize * 0.08)}px`,
                             transform: `translateX(${style.unitOffsetX}px) translateY(${style.unitOffsetY}px)`,
+                            display: 'block',
+                            width: '100%',
+                            textAlign: 'center',
                           }}>{data.unit}</span>
                         )}
                       </span>
@@ -368,19 +375,20 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               }}>
                 {hasPrice && (
                   <div style={{ width: '55%', display: 'flex', flexDirection: 'column', alignItems: 'center', transform: `translate(${style.varejoOffsetX}px, ${style.varejoOffsetY}px)` }}>
-                    
+
                     <div style={{ display: 'flex', color: template.priceColor, fontFamily: priceFont, textShadow: sPrice, alignItems: 'flex-end' }}>
-                      {!style.hideCurrencySymbol && <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>R$</span>}
+                      {!style.hideCurrencySymbol && <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: 0 }}>R$</span>}
                       <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>{reais}</span>
                       <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>,</span>
                       <span style={{
                         display: 'inline-flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
-                        alignSelf: style.centsAlignTop ? 'flex-start' : 'stretch',
+                        justifyContent: 'flex-start',
+                        alignSelf: style.centsAlignTop ? 'flex-start' : 'flex-end',
                         lineHeight: 1,
                         transform: `translateY(${style.centsOffsetY}px)`,
+                        minWidth: `${style.centsFontSize * 1.1}px`,
                       }}>
                         <span style={{
                           fontWeight: 900,
@@ -388,6 +396,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                           lineHeight: 1,
                           borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
                           paddingBottom: style.centsUnderline ? '1px' : '0',
+                          display: 'block',
+                          width: '100%',
+                          textAlign: 'center',
                         }}>{centavos}</span>
                         {data.unit && style.unitBelowCents && (
                           <span style={{
@@ -395,6 +406,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                             fontSize: `${Math.round(style.centsFontSize * 0.5)}px`, lineHeight: 1,
                             whiteSpace: 'nowrap', marginTop: `${Math.round(style.centsFontSize * 0.08)}px`,
                             transform: `translateX(${style.unitOffsetX}px) translateY(${style.unitOffsetY}px)`,
+                            display: 'block',
+                            width: '100%',
+                            textAlign: 'center',
                           }}>{data.unit}</span>
                         )}
                       </span>
@@ -560,7 +574,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                     overflow: 'visible',
                   }}>
                     {!style.hideCurrencySymbol && (
-                      <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>R$</span>
+                      <span style={{ fontWeight: 900, fontSize: `${style.centsFontSize}px`, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: 0 }}>R$</span>
                     )}
                     <span style={{ fontWeight: 900, fontSize: `${style.priceFontSize}px`, lineHeight: 1, alignSelf: 'flex-end' }}>
                       {reais}
@@ -572,10 +586,11 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                       display: 'inline-flex',
                       flexDirection: 'column',
                       alignItems: 'center',
-                      justifyContent: style.centsAlignTop ? 'flex-start' : 'flex-end',
-                      alignSelf: style.centsAlignTop ? 'flex-start' : 'stretch',
+                      justifyContent: 'flex-start',
+                      alignSelf: style.centsAlignTop ? 'flex-start' : 'flex-end',
                       lineHeight: 1,
                       transform: `translateY(${style.centsOffsetY}px)`,
+                      minWidth: `${style.centsFontSize * 1.1}px`,
                     }}>
                       <span style={{
                         fontWeight: 900,
@@ -583,6 +598,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                         lineHeight: 1,
                         borderBottom: style.centsUnderline ? `3px solid ${template.priceColor}` : 'none',
                         paddingBottom: style.centsUnderline ? '1px' : '0',
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'center',
                       }}>
                         {centavos}
                       </span>
@@ -595,6 +613,9 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                           whiteSpace: 'nowrap',
                           marginTop: `${Math.round(style.centsFontSize * 0.08)}px`,
                           transform: `translateX(${style.unitOffsetX}px) translateY(${style.unitOffsetY}px)`,
+                          display: 'block',
+                          width: '100%',
+                          textAlign: 'center',
                         }}>{data.unit}</span>
                       )}
                     </span>
