@@ -353,7 +353,7 @@ export default function BatchPage() {
         pixelRatio: sc,
         width: elWidth,
         height: elHeight,
-        backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : 'transparent',
+        backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : template.bgColor,
         skipAutoScale: true,
       });
     } finally {

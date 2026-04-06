@@ -29,7 +29,7 @@ export default function LandingPage() {
             <span className="text-lg font-black tracking-tight text-foreground">GôndolaPro</span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link to="/dashboard">
+            <Link to="/login">
               <Button variant="ghost" size="sm">Entrar</Button>
             </Link>
             <Link to="/dashboard">

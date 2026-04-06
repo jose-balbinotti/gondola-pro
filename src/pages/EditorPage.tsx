@@ -156,7 +156,7 @@ export default function EditorPage() {
         pixelRatio: 4,
         width: elWidth,
         height: elHeight,
-        backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : 'transparent',
+        backgroundColor: bgBaseOnly && customBackground ? '#ffffff' : template.bgColor,
         skipAutoScale: true,
       });
       return canvas;
