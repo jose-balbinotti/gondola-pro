@@ -56,7 +56,7 @@ export interface PosterStyle {
   hideCurrencySymbol: boolean;
   centsAlignTop: boolean;
   centsUnderline: boolean;
-  gramaturaLines: boolean;
+  gramaturaStyle: "solid" | "dashed" | "dotted" | null;
   unitBelowCents: boolean;
   descriptionOffsetY: number;
   centsUnderlineOffsetY: number;
@@ -98,7 +98,7 @@ export const DEFAULT_POSTER_STYLE: PosterStyle = {
   hideCurrencySymbol: false,
   centsAlignTop: false,
   centsUnderline: false,
-  gramaturaLines: false,
+  gramaturaStyle: null,
   unitBelowCents: false,
   descriptionOffsetY: 0,
   centsUnderlineOffsetY: 0,
@@ -478,7 +478,7 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
               )}
 
               {/* Gramatura with optional lines */}
-              {(data.gramatura || style.gramaturaLines) && (
+              {(data.gramatura || style.gramaturaStyle) && (
                 <div style={{
                   fontWeight: 500,
                   lineHeight: 1.1,
@@ -494,11 +494,11 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                   opacity: 0.7,
                   textShadow: sGram,
                 }}>
-                  {style.gramaturaLines && (
+                  {style.gramaturaStyle && (
                     <div style={{
                       width: '33%',
                       height: '0px',
-                      borderTop: `2px solid ${template.textColor}`,
+                      borderTop: `2px ${style.gramaturaStyle} ${template.textColor}`,
                       opacity: 0.5,
                       marginRight: '8px',
                       flexShrink: 0,
@@ -507,11 +507,11 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
                   {data.gramatura && (
                     <span style={{ whiteSpace: 'nowrap' }}>{data.gramatura}</span>
                   )}
-                  {style.gramaturaLines && (
+                  {style.gramaturaStyle && (
                     <div style={{
                       width: '33%',
                       height: '0px',
-                      borderTop: `2px solid ${template.textColor}`,
+                      borderTop: `2px ${style.gramaturaStyle} ${template.textColor}`,
                       opacity: 0.5,
                       marginLeft: '8px',
                       flexShrink: 0,

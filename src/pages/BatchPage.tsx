@@ -28,14 +28,13 @@ const PDF_FORMATS: Record<string, [number, number]> = {
 };
 
 const PAPER_SIZES = [
-  { value: "A4", label: "A4" },
-  { value: "A5", label: "A5" },
-  { value: "A3", label: "A3" },
-  { value: "A4-duplo", label: "A4 Duplo Rotacionado" },
-  { value: "A4-duplo-v", label: "A4 Duplo Vertical" },
-  { value: "A3-duplo", label: "A3 Duplo (2/folha)" },
-  { value: "gondola", label: "Gôndola" },
-  { value: "10x15", label: "10×15cm" },
+  { value: "A4", label: "A4 (210×297mm)" },
+  { value: "A5", label: "A5 (148×210mm)" },
+  { value: "A3", label: "A3 (297×420mm)" },
+  { value: "A4-duplo", label: "A4 Duplo Horizontal (2×A5)" },
+  { value: "A4-duplo-v", label: "A4 Duplo Vertical (2×metade)" },
+  { value: "gondola", label: "Gôndola (faixa)" },
+  { value: "10x15", label: "10×15 cm" },
   { value: "atacado-varejo", label: "Atacado/Varejo (A4 – 210×297mm)" },
 ];
 

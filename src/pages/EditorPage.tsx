@@ -18,7 +18,7 @@ const PAPER_SIZES = [
   { value: "A4", label: "A4 (210×297mm)" },
   { value: "A5", label: "A5 (148×210mm)" },
   { value: "A3", label: "A3 (297×420mm)" },
-  { value: "A4-duplo", label: "A4 Duplo Rotacionado (2×A5)" },
+  { value: "A4-duplo", label: "A4 Duplo Horizontal (2×A5)" },
   { value: "A4-duplo-v", label: "A4 Duplo Vertical (2×metade)" },
   { value: "gondola", label: "Gôndola (faixa)" },
   { value: "10x15", label: "10×15 cm" },
@@ -205,7 +205,7 @@ export default function EditorPage() {
         pdf.addImage(imgData, "PNG", 0, halfH, 210, halfH);
         rotated.width = 0; rotated.height = 0;
         pdf.save(`cartaz-${data.productName || "gondolapro"}.pdf`);
-        toast({ title: "PDF exportado!", description: "A4 Duplo Rotacionado – 2 cartazes por folha." });
+        toast({ title: "PDF exportado!", description: "A4 Duplo Horizontal – 2 cartazes por folha." });
       } else if (paperSize === "A4-duplo-v") {
         const imgData = canvas.toDataURL("image/png", 1.0);
         const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
@@ -472,6 +472,20 @@ export default function EditorPage() {
                     <Field label="Nome do Produto" value={data.productName} onChange={(v) => update("productName", v)} placeholder="Ex: Arroz Integral" fieldKey="productName" />
                     <Field label="Marca" value={data.brandName} onChange={(v) => update("brandName", v)} placeholder="Ex: Tio João" fieldKey="brandName" />
                     <Field label="Gramatura / Volume" value={data.gramatura} onChange={(v) => update("gramatura", v)} placeholder="Ex: 1kg, 500ml" fieldKey="gramatura" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                        <Switch checked={posterStyle.gramaturaStyle === "solid"} onCheckedChange={(v) => updateStyle("gramaturaStyle", v ? "solid" : null)} />
+                        Linha na gramatura
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                        <Switch checked={posterStyle.gramaturaStyle === "dashed"} onCheckedChange={(v) => updateStyle("gramaturaStyle", v ? "dashed" : null)} />
+                        Traço na gramatura
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                        <Switch checked={posterStyle.gramaturaStyle === "dotted"} onCheckedChange={(v) => updateStyle("gramaturaStyle", v ? "dotted" : null)} />
+                        Pontilhado na gramatura
+                      </label> 
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <div className="flex items-center justify-between mb-1">
@@ -499,10 +513,6 @@ export default function EditorPage() {
                       <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                         <Switch checked={posterStyle.centsUnderline} onCheckedChange={(v) => updateStyle("centsUnderline", v)} />
                         Traço nos centavos
-                      </label>
-                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                        <Switch checked={posterStyle.gramaturaLines} onCheckedChange={(v) => updateStyle("gramaturaLines", v)} />
-                        Traços na gramatura
                       </label>
                     </div>
                     <div className="mt-2">

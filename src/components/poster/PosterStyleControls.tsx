@@ -73,9 +73,17 @@ export default function PosterStyleControls({ style, updateStyle, compact, extra
             Traço nos centavos
           </label>
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-            <Switch checked={style.gramaturaLines} onCheckedChange={(v) => updateStyle("gramaturaLines", v)} />
-            Traços na gramatura
+            <Switch checked={style.gramaturaStyle === "solid"} onCheckedChange={(v) => updateStyle("gramaturaStyle", v ? "solid" : null)} />
+            Linha na gramatura
           </label>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+            <Switch checked={style.gramaturaStyle === "dashed"} onCheckedChange={(v) => updateStyle("gramaturaStyle", v ? "dashed" : null)} />
+            Traço na gramatura
+          </label>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+            <Switch checked={style.gramaturaStyle === "dotted"} onCheckedChange={(v) => updateStyle("gramaturaStyle", v ? "dotted" : null)} />
+            Pontilhado na gramatura
+          </label> 
         </div>
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground">Centavos eixo Y ({style.centsOffsetY})</label>
