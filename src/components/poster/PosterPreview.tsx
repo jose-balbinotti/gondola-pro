@@ -1,4 +1,5 @@
 import { forwardRef, useRef, useState, useEffect, useImperativeHandle } from "react";
+import { ASPECT_RATIOS } from "@/lib/paperSizes";
 import { QRCodeSVG } from "qrcode.react";
 import type { PosterTemplate, PosterData } from "@/lib/templates";
 
@@ -125,18 +126,6 @@ interface Props {
 }
 
 const REFERENCE_WIDTH = 800;
-
-const ASPECT_RATIOS: Record<string, number> = {
-  A4: 210 / 297,
-  A5: 148 / 210,
-  A3: 297 / 420,
-  gondola: 4 / 1,
-  "10x15": 10 / 15,
-  "A4-duplo": 148 / 210,
-  "A4-duplo-v": 210 / (297 / 2),
-  "atacado-varejo": 210 / 297,
-  custom: 3 / 4,
-};
 
 function splitPrice(price: string): { reais: string; centavos: string } {
   if (!price) return { reais: "", centavos: "" };
