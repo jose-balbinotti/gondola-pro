@@ -86,8 +86,35 @@ export default function BatchPage() {
   const updatePerPosterStyle = useCallback(<K extends keyof PosterStyle>(idx: number, field: K, value: PosterStyle[K]) =>
     setPerPosterStyles((prev) => ({ ...prev, [idx]: { ...(prev[idx] || posterStyle), [field]: value } })), [posterStyle]);
 
-  const updatePerPosterData = useCallback((idx: number, field: keyof PosterData, value: string) =>
-    setPerPosterData((prev) => ({ ...prev, [idx]: { ...(prev[idx] || validProducts[idx]), [field]: value } })), []);
+  const updatePerPosterData = useCallback((idx: number, field: keyof PosterData, value: string) => {
+    setPerPosterData((prev) => {
+      // Garante que tem um objeto base do tipo PosterData
+      const currentItem = prev[idx] || validProducts[idx];
+
+      // Objeto padrão que tem todas as propriedades de PosterData, caso o estado anterior e o produto base não existam
+      const itemToUpdate: PosterData = currentItem || {
+        templateId: '',
+        productName: '',
+        brandName: '',
+        gramatura: '',
+        oldPrice: '',
+        newPrice: '',
+        discount: '',
+        validity: '',
+        description: '',
+        quantity: '',
+        unit: '',
+      };
+
+      return {
+        ...prev,
+        [idx]: {
+          ...itemToUpdate,
+          [field]: value,
+        },
+      };
+    });
+  }, [validProducts]);
 
   const resetPosterOverride = (idx: number) => {
     setPerPosterStyles((prev) => { const n = { ...prev }; delete n[idx]; return n; });
@@ -583,6 +610,7 @@ function InlineEditPanel({ idx, getDataForPoster, getStyleForPoster, updatePerPo
   customFonts:           CustomFont[];
 }) {
   const d = getDataForPoster(idx);
+  // const fieldId = idx + ;
   return (
     <div className="p-4 rounded-xl border-2 border-primary bg-primary/5 space-y-4 max-h-[80vh] overflow-y-auto lg:sticky lg:top-20 self-start">
       <div className="flex items-center justify-between">
@@ -598,7 +626,7 @@ function InlineEditPanel({ idx, getDataForPoster, getStyleForPoster, updatePerPo
           {([["Produto","productName"],["Marca","brandName"],["Gramatura","gramatura"],["Preço Novo","newPrice"],["Preço Antigo","oldPrice"],["Desconto %","discount"],["Validade","validity"],["Unidade","unit"]] as [string, keyof PosterData][]).map(([label, field]) => (
             <div key={field}>
               <label className="text-xs font-semibold text-muted-foreground mb-1 block">{label}</label>
-              <input type="text" value={(d[field] as string)||""} onChange={(e) => updatePerPosterData(idx, field, e.target.value)} className="w-full h-8 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+              <input type="text" id={field} value={(d[field] as string) || ""} onChange={(e) => { updatePerPosterData(idx, field, e.target.value); console.log('teste: ', idx, field, e.target.value)}} className="w-full h-8 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
           ))}
         </div>
