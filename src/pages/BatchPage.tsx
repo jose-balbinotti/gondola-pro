@@ -3,13 +3,12 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { TEMPLATES, DEFAULT_POSTER_DATA, type PosterData } from "@/lib/templates";
-import { PAPER_SIZES, PDF_FORMATS, getBasePdfFormat, isDuploPaperSize, needsRotation } from "@/lib/paperSizes";
+import { PAPER_SIZES, getBasePdfFormat, isDuploPaperSize, needsRotation } from "@/lib/paperSizes";
 import PosterPreview, { DEFAULT_POSTER_STYLE, type PosterStyle } from "@/components/poster/PosterPreview";
 import PosterStyleControls from "@/components/poster/PosterStyleControls";
 import FontManager from "@/components/poster/FontManager";
 import { Tag, ArrowLeft, Download, FileText, Loader2, Plus, Trash2, Upload, Table, Type as TypeIcon, Save, FolderOpen, Image as ImageIcon, Printer, X, Edit } from "lucide-react";
 import Papa from "papaparse";
-import * as htmlToImage from "html-to-image";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
 import { openPdfPrint, rotateCanvas90 } from "@/hooks/usePdf";
@@ -31,32 +30,32 @@ const emptyProduct = (): BatchProduct => ({
 });
 
 export default function BatchPage() {
-  const { toast }   = useToast();
-  const fileRef     = useRef<HTMLInputElement>(null);
-  const bgFileRef   = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const bgFileRef = useRef<HTMLInputElement>(null);
 
-  const [step, setStep]                     = useState<Step>("config");
+  const [step, setStep] = useState<Step>("config");
   const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0].id);
-  const [paperSize, setPaperSize]           = useState("A4");
-  const [posterStyle, setPosterStyle]       = useState<PosterStyle>({ ...DEFAULT_POSTER_STYLE });
-  const [inputMode, setInputMode]           = useState<InputMode>("table");
+  const [paperSize, setPaperSize] = useState("A4");
+  const [posterStyle, setPosterStyle] = useState<PosterStyle>({ ...DEFAULT_POSTER_STYLE });
+  const [inputMode, setInputMode] = useState<InputMode>("table");
   const [customBackground, setCustomBackground] = useState("");
-  const [bgBaseOnly, setBgBaseOnly]         = useState(false);
-  const [presetName, setPresetName]         = useState("");
-  const [presets, setPresets]               = useState<PosterPreset[]>(() => loadPresets());
-  const [customFonts, setCustomFonts]       = useState<CustomFont[]>(() => loadCustomFonts());
+  const [bgBaseOnly, setBgBaseOnly] = useState(false);
+  const [presetName, setPresetName] = useState("");
+  const [presets, setPresets] = useState<PosterPreset[]>(() => loadPresets());
+  const [customFonts, setCustomFonts] = useState<CustomFont[]>(() => loadCustomFonts());
   const [perPosterStyles, setPerPosterStyles] = useState<Record<number, PosterStyle>>({});
-  const [perPosterData,   setPerPosterData]   = useState<Record<number, PosterData>>({});
+  const [perPosterData, setPerPosterData] = useState<Record<number, PosterData>>({});
   const [editingPosterIdx, setEditingPosterIdx] = useState<number | null>(null);
-  const [products, setProducts]             = useState<BatchProduct[]>([emptyProduct()]);
-  const [textInput, setTextInput]           = useState("");
-  const [exporting, setExporting]           = useState(false);
-  const { exportPDF, printPoster } = usePdf();
+  const [products, setProducts] = useState<BatchProduct[]>([emptyProduct()]);
+  const [textInput, setTextInput] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const { captureElement } = usePdf();
 
   useEffect(() => { loadPresetsFromDB().then(setPresets); injectAllCustomFonts(); }, []);
 
-  const template  = TEMPLATES.find((t) => t.id === selectedTemplate) || TEMPLATES[0];
-  const isDuplo   = isDuploPaperSize(paperSize);
+  const template = TEMPLATES.find((t) => t.id === selectedTemplate) || TEMPLATES[0];
+  const isDuplo = isDuploPaperSize(paperSize);
 
   const updateStyle = useCallback(<K extends keyof PosterStyle>(field: K, value: PosterStyle[K]) =>
     setPosterStyle((prev) => ({ ...prev, [field]: value })), []);
@@ -64,13 +63,13 @@ export default function BatchPage() {
   const updateProduct = (index: number, field: keyof BatchProduct, value: string | number) =>
     setProducts((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
 
-  const addRow    = () => setProducts((prev) => [...prev, emptyProduct()]);
+  const addRow = () => setProducts((prev) => [...prev, emptyProduct()]);
   const removeRow = (index: number) => setProducts((prev) => prev.filter((_, i) => i !== index));
 
   const validProducts = products.filter((p) => p.productName.trim());
 
   const expandedProducts: PosterData[] = [];
-  const expandedSourceIdx: number[]    = [];
+  const expandedSourceIdx: number[] = [];
   validProducts.forEach((p, origIdx) => {
     for (let c = 0; c < (p.copies || 1); c++) {
       const { copies: _, ...posterData } = p;
@@ -80,8 +79,22 @@ export default function BatchPage() {
   });
   const totalPrintCount = expandedProducts.length;
 
+  const getSourceIndexForPrint = (printIdx: number) => expandedSourceIdx[printIdx] ?? printIdx;
   const getStyleForPoster = (idx: number) => perPosterStyles[idx] || posterStyle;
-  const getDataForPoster  = (idx: number) => perPosterData[idx]   || validProducts[idx];
+  const getDataForPoster = (idx: number) => perPosterData[idx] || validProducts[idx];
+  const getStyleForPrint = (printIdx: number) => getStyleForPoster(getSourceIndexForPrint(printIdx));
+  const getDataForPrint = (printIdx: number) => getDataForPoster(getSourceIndexForPrint(printIdx));
+  const getPosterDomIdForPrint = (printIdx: number) => `batch-poster-print-${printIdx}`;
+
+  // Define a proporção correta do cartaz individual usado no preview/captura.
+  // "A4-duplo-v" é meia folha A4 na horizontal (210 × 148,5mm).
+  // Antes, paperSize.replace("-duplo", "") gerava "A4-v", caía no fallback A4
+  // e o PDF espremia um cartaz vertical dentro de uma área horizontal.
+  const getPreviewPaperSizeForPrint = () => {
+    if (paperSize === "A4-duplo-v") return "A4-duplo-v";
+    if (paperSize === "A4-duplo") return "A4";
+    return paperSize;
+  };
 
   const updatePerPosterStyle = useCallback(<K extends keyof PosterStyle>(idx: number, field: K, value: PosterStyle[K]) =>
     setPerPosterStyles((prev) => ({ ...prev, [idx]: { ...(prev[idx] || posterStyle), [field]: value } })), [posterStyle]);
@@ -118,9 +131,9 @@ export default function BatchPage() {
 
   const resetPosterOverride = (idx: number) => {
     setPerPosterStyles((prev) => { const n = { ...prev }; delete n[idx]; return n; });
-    setPerPosterData  ((prev) => { const n = { ...prev }; delete n[idx]; return n; });
+    setPerPosterData((prev) => { const n = { ...prev }; delete n[idx]; return n; });
     setEditingPosterIdx(null);
-    toast({ title: "Cartaz resetado para configuração global" });
+    toast({ title: "Cartaz resetado para os valores iniciais" });
   };
 
   // ── presets ─────────────────────────────────────────────────────────────────
@@ -151,17 +164,17 @@ export default function BatchPage() {
       try {
         const pdfjsLib = await import("pdfjs-dist");
         pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-        const pdf      = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
-        const page     = await pdf.getPage(1);
-        const vp       = page.getViewport({ scale: 2 });
-        const canvas   = document.createElement("canvas");
+        const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+        const page = await pdf.getPage(1);
+        const vp = page.getViewport({ scale: 2 });
+        const canvas = document.createElement("canvas");
         canvas.width = vp.width; canvas.height = vp.height;
         await page.render({ canvasContext: canvas.getContext("2d")!, viewport: vp }).promise;
         setCustomBackground(canvas.toDataURL("image/png"));
         toast({ title: "PDF importado como fundo!" });
       } catch { toast({ title: "Erro ao importar PDF", variant: "destructive" }); }
     } else {
-      const reader  = new FileReader();
+      const reader = new FileReader();
       reader.onload = (ev) => { setCustomBackground(ev.target?.result as string); toast({ title: "Imagem de fundo carregada!" }); };
       reader.readAsDataURL(file);
     }
@@ -179,12 +192,12 @@ export default function BatchPage() {
         const rows = result.data as string[][];
         const parsed = rows.map((cols) => ({
           ...emptyProduct(),
-          templateId:  selectedTemplate,
-          productName: cols[0] || "", brandName:  cols[1] || "",
-          gramatura:   cols[2] || "", newPrice:   cols[3] || "",
-          oldPrice:    cols[4] || "", discount:   cols[5] || "",
-          validity:    cols[6] || "", unit:       cols[7] || "",
-          copies:      parseInt(cols[8]) || 1,
+          templateId: selectedTemplate,
+          productName: cols[0] || "", brandName: cols[1] || "",
+          gramatura: cols[2] || "", newPrice: cols[3] || "",
+          oldPrice: cols[4] || "", discount: cols[5] || "",
+          validity: cols[6] || "", unit: cols[7] || "",
+          copies: parseInt(cols[8]) || 1,
         }));
         if (parsed.length > 0) { setProducts(parsed); toast({ title: `${parsed.length} produtos importados!` }); }
       },
@@ -193,10 +206,10 @@ export default function BatchPage() {
   };
 
   const parseTextInput = () => {
-    const lines  = textInput.trim().split("\n").filter(Boolean);
+    const lines = textInput.trim().split("\n").filter(Boolean);
     const parsed = lines.map((line) => {
       const p = line.split(";").map((s) => s.trim());
-      return { ...emptyProduct(), templateId: selectedTemplate, productName: p[0]||"", brandName: p[1]||"", gramatura: p[2]||"", newPrice: p[3]||"", oldPrice: p[4]||"", discount: p[5]||"", validity: p[6]||"", unit: p[7]||"", copies: parseInt(p[8])||1 };
+      return { ...emptyProduct(), templateId: selectedTemplate, productName: p[0] || "", brandName: p[1] || "", gramatura: p[2] || "", newPrice: p[3] || "", oldPrice: p[4] || "", discount: p[5] || "", validity: p[6] || "", unit: p[7] || "", copies: parseInt(p[8]) || 1 };
     });
     if (parsed.length > 0) { setProducts(parsed); toast({ title: `${parsed.length} produtos importados via texto!` }); }
   };
@@ -204,70 +217,66 @@ export default function BatchPage() {
   // ── capture & export ─────────────────────────────────────────────────────────
 
   const getCaptureScale = () => {
-    const n = validProducts.length;
-    return n > 50 ? 1.5 : n > 20 ? 2 : 3;
+    const n = totalPrintCount;
+    return n > 50 ? 1.5 : n > 20 ? 2 : 4;
   };
 
-  const capturePoster = async (containerEl: HTMLElement, captureScale?: number): Promise<HTMLCanvasElement> => {
-    const sc      = captureScale ?? getCaptureScale();
+  const captureOptions: CapturePosterOptions = {
+    bgColor: template.bgColor,
+    bgBaseOnly,
+    customBackground,
+    pixelRatio: getCaptureScale(),
+  };
+
+  const capturePoster = async (containerEl: HTMLElement): Promise<HTMLCanvasElement | null> => {
     const posterEl = (containerEl.querySelector("[data-print-poster]") as HTMLElement) || containerEl;
-    const elW     = Math.round(parseFloat(posterEl.style.width));
-    const elH     = Math.round(parseFloat(posterEl.style.height));
-    const clone   = posterEl.cloneNode(true) as HTMLElement;
-    clone.style.cssText += ";transform:none;position:absolute;top:0;left:0;";
-    clone.style.width   = `${elW}px`;
-    clone.style.height  = `${elH}px`;
-    if (bgBaseOnly && customBackground) { clone.style.backgroundImage = "none"; clone.style.backgroundColor = "#ffffff"; }
-    const wrapper = document.createElement("div");
-    wrapper.style.cssText = `position:fixed;top:-20000px;left:-20000px;width:${elW}px;height:${elH}px;overflow:visible;z-index:-9999;`;
-    wrapper.appendChild(clone);
-    document.body.appendChild(wrapper);
-    await document.fonts.ready;
-    await new Promise((r) => setTimeout(r, 50));
-    try {
-      return await htmlToImage.toCanvas(clone, {
-        pixelRatio:      sc,
-        width:           elW,
-        height:          elH,
-        backgroundColor: bgBaseOnly && customBackground ? "#ffffff" : template.bgColor,
-        skipAutoScale:   true,
-      });
-    } finally {
-      document.body.removeChild(wrapper);
-    }
+    return captureElement(posterEl, captureOptions);
   };
 
   const addPosterToPDF = async (pdf: jsPDF, elId: string, x: number, y: number, w: number, h: number, rotate = false) => {
     const el = document.getElementById(elId);
     if (!el) return;
+
     let canvas = await capturePoster(el);
-    if (rotate) { const r = rotateCanvas90(canvas); canvas.width = 0; canvas.height = 0; canvas = r; }
-    pdf.addImage(canvas.toDataURL("image/jpeg", 0.85), "JPEG", x, y, w, h);
-    canvas.width = 0; canvas.height = 0;
+    if (!canvas) return;
+
+    if (rotate) {
+      const rotated = rotateCanvas90(canvas);
+      canvas.width = 0;
+      canvas.height = 0;
+      canvas = rotated;
+    }
+
+    // PNG preserva melhor texto, bordas e linhas finas do cartaz.
+    pdf.addImage(canvas.toDataURL("image/png", 1.0), "PNG", x, y, w, h);
+    canvas.width = 0;
+    canvas.height = 0;
   };
 
   const buildBatchPDF = async (): Promise<jsPDF> => {
-    const fmt      = getBasePdfFormat(paperSize);
+    const fmt = getBasePdfFormat(paperSize);
     const isLandsc = fmt[0] > fmt[1];
-    const pdf      = new jsPDF({ orientation: isLandsc ? "landscape" : "portrait", unit: "mm", format: fmt });
-    const pdfW     = pdf.internal.pageSize.getWidth();
-    const pdfH     = pdf.internal.pageSize.getHeight();
-    const rotate   = needsRotation(paperSize);
-    const halfH    = pdfH / 2;
+    const pdf = new jsPDF({ orientation: isLandsc ? "landscape" : "portrait", unit: "mm", format: fmt });
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = pdf.internal.pageSize.getHeight();
+    const rotate = needsRotation(paperSize);
+    const halfH = pdfH / 2;
 
     if (isDuplo) {
-      for (let i = 0; i < expandedProducts.length; i += 2) {
+      for (let i = 0; i < totalPrintCount; i += 2) {
         if (i > 0) pdf.addPage();
-        await addPosterToPDF(pdf, `batch-poster-${expandedSourceIdx[i]}`, 0, 0, pdfW, halfH, rotate);
-        if (i + 1 < expandedProducts.length)
-          await addPosterToPDF(pdf, `batch-poster-${expandedSourceIdx[i + 1]}`, 0, halfH, pdfW, halfH, rotate);
+        await addPosterToPDF(pdf, getPosterDomIdForPrint(i), 0, 0, pdfW, halfH, rotate);
+        if (i + 1 < totalPrintCount) {
+          await addPosterToPDF(pdf, getPosterDomIdForPrint(i + 1), 0, halfH, pdfW, halfH, rotate);
+        }
       }
     } else {
-      for (let i = 0; i < expandedProducts.length; i++) {
+      for (let i = 0; i < totalPrintCount; i++) {
         if (i > 0) pdf.addPage();
-        await addPosterToPDF(pdf, `batch-poster-${expandedSourceIdx[i]}`, 0, 0, pdfW, pdfH);
+        await addPosterToPDF(pdf, getPosterDomIdForPrint(i), 0, 0, pdfW, pdfH);
       }
     }
+
     return pdf;
   };
 
@@ -277,9 +286,12 @@ export default function BatchPage() {
     try {
       const pdf = await buildBatchPDF();
       pdf.save(`cartazes-lote-${totalPrintCount}.pdf`);
-      toast({ title: "PDF em lote exportado!", description: `${totalPrintCount} páginas – ${paperSize}.` });
-    } catch { toast({ title: "Erro ao exportar", variant: "destructive" }); }
-    setExporting(false);
+      toast({ title: "PDF em lote exportado!", description: `${totalPrintCount} cartazes – ${paperSize}.` });
+    } catch {
+      toast({ title: "Erro ao exportar", variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const printAll = async () => {
@@ -288,9 +300,12 @@ export default function BatchPage() {
     try {
       const pdf = await buildBatchPDF();
       openPdfPrint(pdf, `cartazes-lote-${totalPrintCount}.pdf`);
-      toast({ title: "Enviando para impressora...", description: `${totalPrintCount} páginas – ${paperSize}.` });
-    } catch { toast({ title: "Erro ao imprimir", variant: "destructive" }); }
-    setExporting(false);
+      toast({ title: "Enviando para impressora...", description: `${totalPrintCount} cartazes – ${paperSize}.` });
+    } catch {
+      toast({ title: "Erro ao imprimir", variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const previewData: PosterData = { ...DEFAULT_POSTER_DATA, templateId: selectedTemplate };
@@ -446,7 +461,7 @@ export default function BatchPage() {
             <div className="lg:sticky lg:top-20 self-start">
               <p className="text-xs text-muted-foreground mb-2 font-mono">PREVIEW</p>
               <div className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)]">
-                <PosterPreview template={template} data={previewData} showQR={false} qrUrl="" style={posterStyle} paperSize={isDuplo ? paperSize.replace("-duplo", "") : paperSize} customBackground={customBackground || undefined} />
+                <PosterPreview template={template} data={previewData} showQR={false} qrUrl="" style={posterStyle} paperSize={getPreviewPaperSizeForPrint()} customBackground={customBackground || undefined} />
               </div>
             </div>
           </div>
@@ -524,30 +539,31 @@ export default function BatchPage() {
 
             {isDuplo ? (
               <div className="space-y-6">
-                {Array.from({ length: Math.ceil(validProducts.length / 2) }).map((_, pageIdx) => {
+                {Array.from({ length: Math.ceil(totalPrintCount / 2) }).map((_, pageIdx) => {
                   const idx1 = pageIdx * 2, idx2 = pageIdx * 2 + 1;
-                  const isEditing1 = editingPosterIdx === idx1, isEditing2 = editingPosterIdx === idx2;
+                  const srcIdx1 = getSourceIndexForPrint(idx1), srcIdx2 = getSourceIndexForPrint(idx2);
+                  const isEditing1 = editingPosterIdx === srcIdx1, isEditing2 = editingPosterIdx === srcIdx2;
                   return (
                     <div key={pageIdx}>
                       <div className="rounded-lg border border-border overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)]">
                         <p className="text-[10px] text-muted-foreground px-3 py-1 bg-muted font-mono">Folha {pageIdx + 1}</p>
                         <div className="relative group">
-                          <button onClick={() => setEditingPosterIdx(isEditing1 ? null : idx1)} className={`absolute top-2 right-2 z-10 p-1.5 rounded-lg transition-all ${isEditing1 ? "bg-primary text-primary-foreground" : "bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground"}`}><Edit className="w-3.5 h-3.5" /></button>
-                          <div id={`batch-poster-${idx1}`}>
-                            <PosterPreview template={template} data={{ ...getDataForPoster(idx1), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPoster(idx1)} paperSize={paperSize.replace("-duplo","")} customBackground={customBackground||undefined} />
+                          <button onClick={() => setEditingPosterIdx(isEditing1 ? null : srcIdx1)} className={`absolute top-2 right-2 z-10 p-1.5 rounded-lg transition-all ${isEditing1 ? "bg-primary text-primary-foreground" : "bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground"}`}><Edit className="w-3.5 h-3.5" /></button>
+                          <div id={getPosterDomIdForPrint(idx1)}>
+                            <PosterPreview template={template} data={{ ...getDataForPrint(idx1), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPrint(idx1)} paperSize={getPreviewPaperSizeForPrint()} customBackground={customBackground || undefined} />
                           </div>
                         </div>
-                        {idx2 < validProducts.length && (
+                        {idx2 < totalPrintCount && (
                           <div className="border-t-2 border-dashed border-border relative group">
-                            <button onClick={() => setEditingPosterIdx(isEditing2 ? null : idx2)} className={`absolute top-2 right-2 z-10 p-1.5 rounded-lg transition-all ${isEditing2 ? "bg-primary text-primary-foreground" : "bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground"}`}><Edit className="w-3.5 h-3.5" /></button>
-                            <div id={`batch-poster-${idx2}`}>
-                              <PosterPreview template={template} data={{ ...getDataForPoster(idx2), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPoster(idx2)} paperSize={paperSize.replace("-duplo","")} customBackground={customBackground||undefined} />
+                            <button onClick={() => setEditingPosterIdx(isEditing2 ? null : srcIdx2)} className={`absolute top-2 right-2 z-10 p-1.5 rounded-lg transition-all ${isEditing2 ? "bg-primary text-primary-foreground" : "bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground"}`}><Edit className="w-3.5 h-3.5" /></button>
+                            <div id={getPosterDomIdForPrint(idx2)}>
+                              <PosterPreview template={template} data={{ ...getDataForPrint(idx2), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPrint(idx2)} paperSize={getPreviewPaperSizeForPrint()} customBackground={customBackground || undefined} />
                             </div>
                           </div>
                         )}
                       </div>
                       {(isEditing1 || isEditing2) && (
-                        <InlineEditPanel idx={isEditing1 ? idx1 : idx2} getDataForPoster={getDataForPoster} getStyleForPoster={getStyleForPoster} updatePerPosterData={updatePerPosterData} updatePerPosterStyle={updatePerPosterStyle} resetPosterOverride={resetPosterOverride} setEditingPosterIdx={setEditingPosterIdx} customFonts={customFonts} />
+                        <InlineEditPanel idx={isEditing1 ? srcIdx1 : srcIdx2} getDataForPoster={getDataForPoster} getStyleForPoster={getStyleForPoster} updatePerPosterData={updatePerPosterData} updatePerPosterStyle={updatePerPosterStyle} resetPosterOverride={resetPosterOverride} setEditingPosterIdx={setEditingPosterIdx} customFonts={customFonts} />
                       )}
                     </div>
                   );
@@ -555,25 +571,28 @@ export default function BatchPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {validProducts.map((product, i) => {
-                  const isEditing = editingPosterIdx === i;
+                {expandedProducts.map((product, i) => {
+                  const srcIdx = getSourceIndexForPrint(i);
+                  const sourceProduct = validProducts[srcIdx];
+                  const copyNumber = expandedSourceIdx.slice(0, i + 1).filter((idx) => idx === srcIdx).length;
+                  const isEditing = editingPosterIdx === srcIdx;
                   return (
                     <div key={i} className={`grid gap-4 ${isEditing ? "grid-cols-1 lg:grid-cols-[1fr_360px]" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}>
                       {isEditing ? (
                         <>
                           <div className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)] relative group">
                             <button onClick={() => setEditingPosterIdx(null)} className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-primary text-primary-foreground"><Edit className="w-3.5 h-3.5" /></button>
-                            {perPosterStyles[i] && <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">Editado</div>}
-                            <div id={`batch-poster-${i}`}><PosterPreview template={template} data={{ ...getDataForPoster(i), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPoster(i)} paperSize={paperSize} customBackground={customBackground||undefined} /></div>
+                            {perPosterStyles[srcIdx] && <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">Editado</div>}
+                            <div id={getPosterDomIdForPrint(i)}><PosterPreview template={template} data={{ ...getDataForPrint(i), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPrint(i)} paperSize={paperSize} customBackground={customBackground || undefined} /></div>
                           </div>
-                          <InlineEditPanel idx={i} getDataForPoster={getDataForPoster} getStyleForPoster={getStyleForPoster} updatePerPosterData={updatePerPosterData} updatePerPosterStyle={updatePerPosterStyle} resetPosterOverride={resetPosterOverride} setEditingPosterIdx={setEditingPosterIdx} customFonts={customFonts} />
+                          <InlineEditPanel idx={srcIdx} getDataForPoster={getDataForPoster} getStyleForPoster={getStyleForPoster} updatePerPosterData={updatePerPosterData} updatePerPosterStyle={updatePerPosterStyle} resetPosterOverride={resetPosterOverride} setEditingPosterIdx={setEditingPosterIdx} customFonts={customFonts} />
                         </>
                       ) : (
                         <div className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)] relative group">
-                          <button onClick={() => setEditingPosterIdx(i)} className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground transition-all"><Edit className="w-3.5 h-3.5" /></button>
-                          {perPosterStyles[i] && <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">Editado</div>}
-                          {product.copies > 1 && <div className={`absolute ${perPosterStyles[i] ? "top-7" : "top-2"} left-2 z-10 px-1.5 py-0.5 rounded bg-accent text-accent-foreground text-[9px] font-bold`}>×{product.copies} cópias</div>}
-                          <div id={`batch-poster-${i}`}><PosterPreview template={template} data={{ ...getDataForPoster(i), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPoster(i)} paperSize={paperSize} customBackground={customBackground||undefined} /></div>
+                          <button onClick={() => setEditingPosterIdx(srcIdx)} className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground transition-all"><Edit className="w-3.5 h-3.5" /></button>
+                          {perPosterStyles[srcIdx] && <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">Editado</div>}
+                          {sourceProduct?.copies > 1 && <div className={`absolute ${perPosterStyles[srcIdx] ? "top-7" : "top-2"} left-2 z-10 px-1.5 py-0.5 rounded bg-accent text-accent-foreground text-[9px] font-bold`}>cópia {copyNumber}/{sourceProduct.copies}</div>}
+                          <div id={getPosterDomIdForPrint(i)}><PosterPreview template={template} data={{ ...getDataForPrint(i), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPrint(i)} paperSize={paperSize} customBackground={customBackground||undefined} /></div>
                         </div>
                       )}
                     </div>
@@ -601,13 +620,13 @@ export default function BatchPage() {
 
 function InlineEditPanel({ idx, getDataForPoster, getStyleForPoster, updatePerPosterData, updatePerPosterStyle, resetPosterOverride, setEditingPosterIdx, customFonts }: {
   idx: number;
-  getDataForPoster:      (i: number) => PosterData;
-  getStyleForPoster:     (i: number) => PosterStyle;
-  updatePerPosterData:   (i: number, field: keyof PosterData, value: string) => void;
-  updatePerPosterStyle:  <K extends keyof PosterStyle>(i: number, field: K, value: PosterStyle[K]) => void;
-  resetPosterOverride:   (i: number) => void;
-  setEditingPosterIdx:   (i: number | null) => void;
-  customFonts:           CustomFont[];
+  getDataForPoster: (i: number) => PosterData;
+  getStyleForPoster: (i: number) => PosterStyle;
+  updatePerPosterData: (i: number, field: keyof PosterData, value: string) => void;
+  updatePerPosterStyle: <K extends keyof PosterStyle>(i: number, field: K, value: PosterStyle[K]) => void;
+  resetPosterOverride: (i: number) => void;
+  setEditingPosterIdx: (i: number | null) => void;
+  customFonts: CustomFont[];
 }) {
   const d = getDataForPoster(idx);
   // const fieldId = idx + ;
@@ -616,17 +635,17 @@ function InlineEditPanel({ idx, getDataForPoster, getStyleForPoster, updatePerPo
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-foreground">✏️ Cartaz #{idx + 1}</h3>
         <div className="flex gap-2">
-          <Button variant="ghost"   size="sm" onClick={() => resetPosterOverride(idx)} className="text-xs gap-1">Resetar</Button>
+          <Button variant="ghost" size="sm" onClick={() => resetPosterOverride(idx)} className="text-xs gap-1">Resetar</Button>
           <Button variant="outline" size="sm" onClick={() => setEditingPosterIdx(null)} className="gap-1"><X className="w-3 h-3" /> Fechar</Button>
         </div>
       </div>
       <div className="p-3 rounded-lg border border-border bg-background">
         <h4 className="text-xs font-bold text-foreground mb-2">Dados do Produto</h4>
         <div className="grid grid-cols-2 gap-2">
-          {([["Produto","productName"],["Marca","brandName"],["Gramatura","gramatura"],["Preço Novo","newPrice"],["Preço Antigo","oldPrice"],["Desconto %","discount"],["Validade","validity"],["Unidade","unit"]] as [string, keyof PosterData][]).map(([label, field]) => (
+          {([["Produto", "productName"], ["Marca", "brandName"], ["Gramatura", "gramatura"], ["Preço Novo", "newPrice"], ["Preço Antigo", "oldPrice"], ["Desconto %", "discount"], ["Validade", "validity"], ["Unidade", "unit"]] as [string, keyof PosterData][]).map(([label, field]) => (
             <div key={field}>
               <label className="text-xs font-semibold text-muted-foreground mb-1 block">{label}</label>
-              <input type="text" id={field} value={(d[field] as string) || ""} onChange={(e) => { updatePerPosterData(idx, field, e.target.value); console.log('teste: ', idx, field, e.target.value)}} className="w-full h-8 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+              <input type="text" id={field} value={(d[field] as string) || ""} onChange={(e) => { updatePerPosterData(idx, field, e.target.value); console.log('teste: ', idx, field, e.target.value) }} className="w-full h-8 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
           ))}
         </div>

@@ -72,20 +72,20 @@ export function usePdf() {
   ): Promise<HTMLCanvasElement | null> => {
     const { bgColor, bgBaseOnly = false, customBackground = "", pixelRatio = 4 } = options;
 
-    const elWidth  = Math.round(parseFloat(el.style.width));
+    const elWidth = Math.round(parseFloat(el.style.width));
     const elHeight = Math.round(parseFloat(el.style.height));
 
     const clone = el.cloneNode(true) as HTMLElement;
     clone.style.transform = "none";
-    clone.style.position  = "absolute";
-    clone.style.top       = "0";
-    clone.style.left      = "0";
-    clone.style.width     = `${elWidth}px`;
-    clone.style.height    = `${elHeight}px`;
+    clone.style.position = "absolute";
+    clone.style.top = "0";
+    clone.style.left = "0";
+    clone.style.width = `${elWidth}px`;
+    clone.style.height = `${elHeight}px`;
 
     if (bgBaseOnly && customBackground) {
-      clone.style.backgroundImage  = "none";
-      clone.style.backgroundColor  = "#ffffff";
+      clone.style.backgroundImage = "none";
+      clone.style.backgroundColor = "#ffffff";
     }
 
     const wrapper = document.createElement("div");
@@ -99,10 +99,10 @@ export function usePdf() {
     try {
       return await htmlToImage.toCanvas(clone, {
         pixelRatio,
-        width:           elWidth,
-        height:          elHeight,
+        width: elWidth,
+        height: elHeight,
         backgroundColor: bgBaseOnly && customBackground ? "#ffffff" : bgColor,
-        skipAutoScale:   true,
+        skipAutoScale: true,
       });
     } finally {
       document.body.removeChild(wrapper);
@@ -136,17 +136,16 @@ export function usePdf() {
     filename: string,
     options: CapturePosterOptions,
   ) => {
-    console.log(el);
     if (!el) return;
     try {
       const canvas = await captureElement(el, options);
       if (!canvas) return;
 
       if (paperSize === "A4-duplo") {
-        const rotated  = rotateCanvas90(canvas);
-        const imgData  = rotated.toDataURL("image/png", 1.0);
-        const pdf      = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
-        const halfH    = 297 / 2;
+        const rotated = rotateCanvas90(canvas);
+        const imgData = rotated.toDataURL("image/png", 1.0);
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
+        const halfH = 297 / 2;
         pdf.addImage(imgData, "PNG", 0, 0, 210, halfH);
         pdf.addImage(imgData, "PNG", 0, halfH, 210, halfH);
         rotated.width = 0; rotated.height = 0;
@@ -155,17 +154,17 @@ export function usePdf() {
 
       } else if (paperSize === "A4-duplo-v") {
         const imgData = canvas.toDataURL("image/png", 1.0);
-        const pdf     = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
-        const halfH   = 297 / 2;
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
+        const halfH = 297 / 2;
         pdf.addImage(imgData, "PNG", 0, 0, 210, halfH);
         pdf.addImage(imgData, "PNG", 0, halfH, 210, halfH);
         pdf.save(filename);
         toast({ title: "PDF exportado!", description: "A4 Duplo Vertical – 2 cartazes por folha." });
 
       } else if (paperSize === "A4-8") {
-        const imgData  = canvas.toDataURL("image/png", 1.0);
-        const pdf      = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
-        const halfW    = 210 / 2;
+        const imgData = canvas.toDataURL("image/png", 1.0);
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
+        const halfW = 210 / 2;
         const quarterH = 297 / 4;
         for (let i = 0; i < 8; i++) {
           pdf.addImage(imgData, "PNG", (i % 2) * halfW, Math.floor(i / 2) * quarterH, halfW, quarterH);
@@ -174,11 +173,11 @@ export function usePdf() {
         toast({ title: "PDF exportado!", description: "A4 (8 cartazes por folha)." });
 
       } else {
-        const fmt         = PDF_FORMATS[paperSize] ?? PDF_FORMATS.A4;
+        const fmt = PDF_FORMATS[paperSize] ?? PDF_FORMATS.A4;
         const isLandscape = fmt[0] > fmt[1];
-        const pdf         = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
-        const pdfW        = pdf.internal.pageSize.getWidth();
-        const pdfH        = pdf.internal.pageSize.getHeight();
+        const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: fmt });
+        const pdfW = pdf.internal.pageSize.getWidth();
+        const pdfH = pdf.internal.pageSize.getHeight();
         pdf.addImage(canvas.toDataURL("image/png", 1.0), "PNG", 0, 0, pdfW, pdfH);
         pdf.save(filename);
         toast({ title: "PDF exportado!", description: `Formato ${paperSize} – alta resolução.` });
@@ -203,37 +202,37 @@ export function usePdf() {
         return;
       }
 
-      const fmt       = getBasePdfFormat(paperSize);
-      const isLandsc  = fmt[0] > fmt[1];
+      const fmt = getBasePdfFormat(paperSize);
+      const isLandsc = fmt[0] > fmt[1];
 
       if (paperSize === "A4-duplo" || paperSize === "A4-duplo-v") {
         let img = canvas;
         if (needsRotation(paperSize)) {
           img = rotateCanvas90(canvas);
         }
-        const pdf   = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
         const halfH = 297 / 2;
-        const data  = img.toDataURL("image/jpeg", 0.92);
+        const data = img.toDataURL("image/png", 1.0);
         if (needsRotation(paperSize)) { img.width = 0; img.height = 0; }
-        pdf.addImage(data, "JPEG", 0, 0, 210, halfH);
-        pdf.addImage(data, "JPEG", 0, halfH, 210, halfH);
+        pdf.addImage(data, "PNG", 0, 0, 210, halfH);
+        pdf.addImage(data, "PNG", 0, halfH, 210, halfH);
         openPdfPrint(pdf, filename);
 
       } else if (paperSize === "A4-8") {
-        const data     = canvas.toDataURL("image/png", 1.0);
-        const pdf      = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
-        const halfW    = 210 / 2;
+        const data = canvas.toDataURL("image/png", 1.0);
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
+        const halfW = 210 / 2;
         const quarterH = 297 / 4;
         for (let i = 0; i < 8; i++) {
-          pdf.addImage(data, "JPEG", (i % 2) * halfW, Math.floor(i / 2) * quarterH, halfW, quarterH);
+          pdf.addImage(data, "PNG", (i % 2) * halfW, Math.floor(i / 2) * quarterH, halfW, quarterH);
         }
         openPdfPrint(pdf, filename);
 
       } else {
-        const pdf  = new jsPDF({ orientation: isLandsc ? "landscape" : "portrait", unit: "mm", format: fmt });
+        const pdf = new jsPDF({ orientation: isLandsc ? "landscape" : "portrait", unit: "mm", format: fmt });
         const pdfW = pdf.internal.pageSize.getWidth();
         const pdfH = pdf.internal.pageSize.getHeight();
-        pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pdfW, pdfH);
+        pdf.addImage(canvas.toDataURL("image/png", 1.0), "PNG", 0, 0, pdfW, pdfH);
         openPdfPrint(pdf, filename);
       }
 
