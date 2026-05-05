@@ -9,6 +9,7 @@ import { Tag, ArrowLeft, FileImage, FileText, QrCode, Save, Upload, Trash2, Imag
 import { useToast } from "@/hooks/use-toast";
 import { usePdf, type CapturePosterOptions } from "@/hooks/usePdf";
 import PosterPreview, { DEFAULT_POSTER_STYLE, type PosterStyle } from "@/components/poster/PosterPreview";
+import PosterSheetPreview from "@/components/poster/PosterSheetPreview";
 import PosterStyleControls from "@/components/poster/PosterStyleControls";
 import FontManager from "@/components/poster/FontManager";
 import { Field, SliderField } from "@/components/ui/Field";
@@ -304,11 +305,25 @@ export default function EditorPage() {
               {/* Preview */}
               <div className="order-1 lg:order-2 lg:sticky lg:top-20 self-start w-full">
                 <p className="text-xs text-muted-foreground mb-2 font-mono">PREVIEW – {paperSize}</p>
-                <div className={`poster-shadow rounded-lg overflow-hidden inline-block w-full mx-auto ${
+                <div className={`inline-block w-full mx-auto ${
                   paperSize === "gondola" ? "max-w-2xl" : paperSize === "A3" ? "max-w-lg" :
-                  paperSize === "A4-duplo" ? "max-w-md" : paperSize === "A4-duplo-v" ? "max-w-sm" :
-                  (paperSize === "10x15" || paperSize === "A4-8") ? "max-w-xs" : "max-w-md"}`}>
-                  <PosterPreview ref={posterRef} template={template} data={data} showQR={showQR} qrUrl={qrUrl} style={posterStyle} paperSize={paperSize} customBackground={customBackground || undefined} />
+                  paperSize === "A4-duplo" || paperSize === "A4-duplo-v" || paperSize === "A4-8" ? "max-w-md" :
+                  paperSize === "10x15" ? "max-w-xs" : "max-w-md"}`}>
+                  <PosterSheetPreview
+                    paperSize={paperSize}
+                    renderPoster={(slotIndex) => (
+                      <PosterPreview
+                        ref={slotIndex === 0 ? posterRef : undefined}
+                        template={template}
+                        data={data}
+                        showQR={showQR}
+                        qrUrl={qrUrl}
+                        style={posterStyle}
+                        paperSize={paperSize}
+                        customBackground={customBackground || undefined}
+                      />
+                    )}
+                  />
                 </div>
               </div>
             </div>

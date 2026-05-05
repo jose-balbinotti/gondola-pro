@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { TEMPLATES, DEFAULT_POSTER_DATA, type PosterData } from "@/lib/templates";
 import { PAPER_SIZES, getBasePdfFormat, isDuploPaperSize, needsRotation } from "@/lib/paperSizes";
 import PosterPreview, { DEFAULT_POSTER_STYLE, type PosterStyle } from "@/components/poster/PosterPreview";
+import PosterSheetPreview from "@/components/poster/PosterSheetPreview";
 import PosterStyleControls from "@/components/poster/PosterStyleControls";
 import FontManager from "@/components/poster/FontManager";
 import { Tag, ArrowLeft, Download, FileText, Loader2, Plus, Trash2, Upload, Table, Type as TypeIcon, Save, FolderOpen, Image as ImageIcon, Printer, X, Edit } from "lucide-react";
@@ -17,7 +18,7 @@ import { loadPresets, savePresetToDB, deletePresetFromDB, loadPresetsFromDB, typ
 import { loadCustomFonts, injectAllCustomFonts, type CustomFont } from "@/lib/customFonts";
 
 type InputMode = "table" | "text";
-type Step      = "config" | "data" | "preview";
+type Step = "config" | "data" | "preview";
 
 interface BatchProduct extends PosterData { copies: number; }
 
@@ -47,12 +48,14 @@ export default function BatchPage() {
   const [perPosterStyles, setPerPosterStyles] = useState<Record<number, PosterStyle>>({});
   const [perPosterData, setPerPosterData] = useState<Record<number, PosterData>>({});
   const [editingPosterIdx, setEditingPosterIdx] = useState<number | null>(null);
+  const [emptySlots, setEmptySlots] = useState<Record<number, boolean>>({});
   const [products, setProducts] = useState<BatchProduct[]>([emptyProduct()]);
   const [textInput, setTextInput] = useState("");
   const [exporting, setExporting] = useState(false);
   const { captureElement } = usePdf();
 
   useEffect(() => { loadPresetsFromDB().then(setPresets); injectAllCustomFonts(); }, []);
+  useEffect(() => { setEmptySlots({}); setEditingPosterIdx(null); }, [paperSize]);
 
   const template = TEMPLATES.find((t) => t.id === selectedTemplate) || TEMPLATES[0];
   const isDuplo = isDuploPaperSize(paperSize);
@@ -79,12 +82,56 @@ export default function BatchPage() {
   });
   const totalPrintCount = expandedProducts.length;
 
+  const isA4Eight = paperSize === "A4-8";
+  const supportsEmptySlots = isA4Eight;
+  const sheetPreviewClassName = isA4Eight
+    ? "w-full max-w-[720px] mx-auto"
+    : "w-full max-w-[520px] mx-auto";
+
+  const getPostersPerSheet = () => {
+    if (isDuplo) return 2;
+    if (isA4Eight) return 8;
+    return 1;
+  };
+
+  const postersPerSheet = getPostersPerSheet();
+  const rawEmptySlotIndexes = supportsEmptySlots
+    ? Object.entries(emptySlots)
+      .filter(([, isEmpty]) => isEmpty)
+      .map(([idx]) => Number(idx))
+      .filter((idx) => Number.isFinite(idx) && idx >= 0)
+      .sort((a, b) => a - b)
+    : [];
+
+  // Slots vazios são posições físicas na folha. Quando um slot fica vazio,
+  // os próximos produtos andam para o próximo espaço, preservando todos os cartazes.
+  const emptySlotIndexes = rawEmptySlotIndexes.filter((idx) => idx < totalPrintCount + rawEmptySlotIndexes.length);
+  const totalPrintSlots = totalPrintCount + emptySlotIndexes.length;
+  const totalSheetCount = Math.ceil(totalPrintSlots / postersPerSheet);
+
+  const isEmptySlot = (slotIdx: number) => supportsEmptySlots && emptySlotIndexes.includes(slotIdx);
+  const getProductPrintIndexForSlot = (slotIdx: number): number | null => {
+    if (isEmptySlot(slotIdx)) return null;
+    const emptyBeforeOrAt = emptySlotIndexes.filter((emptyIdx) => emptyIdx <= slotIdx).length;
+    const productPrintIdx = slotIdx - emptyBeforeOrAt;
+    return productPrintIdx >= 0 && productPrintIdx < totalPrintCount ? productPrintIdx : null;
+  };
+  const toggleEmptySlot = (slotIdx: number) => {
+    if (!supportsEmptySlots) return;
+    setEmptySlots((prev) => ({ ...prev, [slotIdx]: !prev[slotIdx] }));
+    if (editingPosterIdx !== null) setEditingPosterIdx(null);
+  };
+
   const getSourceIndexForPrint = (printIdx: number) => expandedSourceIdx[printIdx] ?? printIdx;
+  const getSourceIndexForSlot = (slotIdx: number) => {
+    const productPrintIdx = getProductPrintIndexForSlot(slotIdx);
+    return productPrintIdx === null ? null : getSourceIndexForPrint(productPrintIdx);
+  };
   const getStyleForPoster = (idx: number) => perPosterStyles[idx] || posterStyle;
   const getDataForPoster = (idx: number) => perPosterData[idx] || validProducts[idx];
   const getStyleForPrint = (printIdx: number) => getStyleForPoster(getSourceIndexForPrint(printIdx));
   const getDataForPrint = (printIdx: number) => getDataForPoster(getSourceIndexForPrint(printIdx));
-  const getPosterDomIdForPrint = (printIdx: number) => `batch-poster-print-${printIdx}`;
+  const getPosterDomIdForPrint = (slotIdx: number) => `batch-poster-print-${slotIdx}`;
 
   // Define a proporção correta do cartaz individual usado no preview/captura.
   // "A4-duplo-v" é meia folha A4 na horizontal (210 × 148,5mm).
@@ -93,6 +140,7 @@ export default function BatchPage() {
   const getPreviewPaperSizeForPrint = () => {
     if (paperSize === "A4-duplo-v") return "A4-duplo-v";
     if (paperSize === "A4-duplo") return "A4";
+    if (paperSize === "A4-8") return "A4-8";
     return paperSize;
   };
 
@@ -217,7 +265,8 @@ export default function BatchPage() {
   // ── capture & export ─────────────────────────────────────────────────────────
 
   const getCaptureScale = () => {
-    const n = totalPrintCount;
+    const n = totalPrintSlots || totalPrintCount;
+    if (isA4Eight) return n > 80 ? 1.25 : n > 32 ? 1.5 : 2.5;
     return n > 50 ? 1.5 : n > 20 ? 2 : 4;
   };
 
@@ -233,7 +282,22 @@ export default function BatchPage() {
     return captureElement(posterEl, captureOptions);
   };
 
-  const addPosterToPDF = async (pdf: jsPDF, elId: string, x: number, y: number, w: number, h: number, rotate = false) => {
+  const addPosterToPDF = async (
+    pdf: jsPDF,
+    elId: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    rotate = false,
+    imageCache?: Map<string, string>,
+    cacheKey?: string,
+  ) => {
+    if (cacheKey && imageCache?.has(cacheKey)) {
+      pdf.addImage(imageCache.get(cacheKey)!, "PNG", x, y, w, h);
+      return;
+    }
+
     const el = document.getElementById(elId);
     if (!el) return;
 
@@ -248,10 +312,13 @@ export default function BatchPage() {
     }
 
     // PNG preserva melhor texto, bordas e linhas finas do cartaz.
-    pdf.addImage(canvas.toDataURL("image/png", 1.0), "PNG", x, y, w, h);
+    const imgData = canvas.toDataURL("image/png", 1.0);
+    if (cacheKey) imageCache?.set(cacheKey, imgData);
+    pdf.addImage(imgData, "PNG", x, y, w, h);
     canvas.width = 0;
     canvas.height = 0;
   };
+
 
   const buildBatchPDF = async (): Promise<jsPDF> => {
     const fmt = getBasePdfFormat(paperSize);
@@ -260,20 +327,75 @@ export default function BatchPage() {
     const pdfW = pdf.internal.pageSize.getWidth();
     const pdfH = pdf.internal.pageSize.getHeight();
     const rotate = needsRotation(paperSize);
-    const halfH = pdfH / 2;
+    const imageCache = new Map<string, string>();
 
-    if (isDuplo) {
-      for (let i = 0; i < totalPrintCount; i += 2) {
-        if (i > 0) pdf.addPage();
-        await addPosterToPDF(pdf, getPosterDomIdForPrint(i), 0, 0, pdfW, halfH, rotate);
-        if (i + 1 < totalPrintCount) {
-          await addPosterToPDF(pdf, getPosterDomIdForPrint(i + 1), 0, halfH, pdfW, halfH, rotate);
-        }
+    if (isA4Eight) {
+      const cellW = pdfW / 2;
+      const cellH = pdfH / 4;
+
+      for (let slotIdx = 0; slotIdx < totalPrintSlots; slotIdx++) {
+        const slotOnPage = slotIdx % 8;
+        if (slotIdx > 0 && slotOnPage === 0) pdf.addPage();
+        if (isEmptySlot(slotIdx)) continue;
+
+        const productPrintIdx = getProductPrintIndexForSlot(slotIdx);
+        if (productPrintIdx === null) continue;
+
+        const srcIdx = getSourceIndexForPrint(productPrintIdx);
+        await addPosterToPDF(
+          pdf,
+          getPosterDomIdForPrint(slotIdx),
+          (slotOnPage % 2) * cellW,
+          Math.floor(slotOnPage / 2) * cellH,
+          cellW,
+          cellH,
+          false,
+          imageCache,
+          `${paperSize}-${srcIdx}`,
+        );
+      }
+    } else if (isDuplo) {
+      const halfH = pdfH / 2;
+
+      for (let slotIdx = 0; slotIdx < totalPrintSlots; slotIdx++) {
+        const slotOnPage = slotIdx % 2;
+        if (slotIdx > 0 && slotOnPage === 0) pdf.addPage();
+
+        const productPrintIdx = getProductPrintIndexForSlot(slotIdx);
+        if (productPrintIdx === null) continue;
+
+        const srcIdx = getSourceIndexForPrint(productPrintIdx);
+        await addPosterToPDF(
+          pdf,
+          getPosterDomIdForPrint(slotIdx),
+          0,
+          slotOnPage * halfH,
+          pdfW,
+          halfH,
+          rotate,
+          imageCache,
+          `${paperSize}-${srcIdx}`,
+        );
       }
     } else {
-      for (let i = 0; i < totalPrintCount; i++) {
-        if (i > 0) pdf.addPage();
-        await addPosterToPDF(pdf, getPosterDomIdForPrint(i), 0, 0, pdfW, pdfH);
+      for (let slotIdx = 0; slotIdx < totalPrintSlots; slotIdx++) {
+        if (slotIdx > 0) pdf.addPage();
+
+        const productPrintIdx = getProductPrintIndexForSlot(slotIdx);
+        if (productPrintIdx === null) continue;
+
+        const srcIdx = getSourceIndexForPrint(productPrintIdx);
+        await addPosterToPDF(
+          pdf,
+          getPosterDomIdForPrint(slotIdx),
+          0,
+          0,
+          pdfW,
+          pdfH,
+          false,
+          imageCache,
+          `${paperSize}-${srcIdx}`,
+        );
       }
     }
 
@@ -286,7 +408,7 @@ export default function BatchPage() {
     try {
       const pdf = await buildBatchPDF();
       pdf.save(`cartazes-lote-${totalPrintCount}.pdf`);
-      toast({ title: "PDF em lote exportado!", description: `${totalPrintCount} cartazes – ${paperSize}.` });
+      toast({ title: "PDF em lote exportado!", description: `${totalPrintCount} cartazes em ${totalSheetCount} folha(s) – ${paperSize}.` });
     } catch {
       toast({ title: "Erro ao exportar", variant: "destructive" });
     } finally {
@@ -300,7 +422,7 @@ export default function BatchPage() {
     try {
       const pdf = await buildBatchPDF();
       openPdfPrint(pdf, `cartazes-lote-${totalPrintCount}.pdf`);
-      toast({ title: "Enviando para impressora...", description: `${totalPrintCount} cartazes – ${paperSize}.` });
+      toast({ title: "Enviando para impressora...", description: `${totalPrintCount} cartazes em ${totalSheetCount} folha(s) – ${paperSize}.` });
     } catch {
       toast({ title: "Erro ao imprimir", variant: "destructive" });
     } finally {
@@ -312,6 +434,151 @@ export default function BatchPage() {
   const extraFonts = customFonts.map((f) => ({ value: f.value, label: `★ ${f.name}` }));
 
   // ── render ────────────────────────────────────────────────────────────────────
+
+  const renderSheetPreview = () => {
+    return Array.from({ length: totalSheetCount }).map((_, pageIdx) => {
+      const editingIdxOnPage = Array.from({ length: postersPerSheet })
+        .map((_, slot) => getSourceIndexForSlot(pageIdx * postersPerSheet + slot))
+        .find((srcIdx) => srcIdx !== null && editingPosterIdx === srcIdx);
+
+      return (
+        <div key={pageIdx} className="space-y-3">
+          <p className="text-[10px] text-muted-foreground px-3 py-1 bg-muted font-mono">
+            Folha {pageIdx + 1}
+          </p>
+
+          <div
+            className={`grid gap-4 items-start ${editingIdxOnPage !== undefined && editingIdxOnPage !== null
+                ? "grid-cols-1 xl:grid-cols-[minmax(560px,1fr)_420px]"
+                : "grid-cols-1"
+              }`}
+          >
+            <PosterSheetPreview
+              paperSize={paperSize}
+              className={sheetPreviewClassName}
+              renderPoster={(slot) => {
+                const slotIdx = pageIdx * postersPerSheet + slot;
+                const productPrintIdx = getProductPrintIndexForSlot(slotIdx);
+
+                if (productPrintIdx === null) {
+                  return (
+                    <div className="relative flex h-full w-full items-center justify-center bg-muted/60 text-[10px] text-muted-foreground">
+                      {supportsEmptySlots && slotIdx < totalPrintSlots + 8 && (
+                        <button
+                          type="button"
+                          onClick={() => toggleEmptySlot(slotIdx)}
+                          className="rounded border border-dashed border-muted-foreground/40 bg-background/80 px-2 py-1 hover:bg-background"
+                        >
+                          Slot vazio
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+
+                const srcIdx = getSourceIndexForPrint(productPrintIdx);
+                const sourceProduct = validProducts[srcIdx];
+                const copyNumber = expandedSourceIdx.slice(0, productPrintIdx + 1).filter((idx) => idx === srcIdx).length;
+                const isEditing = editingPosterIdx === srcIdx;
+
+                return (
+                  <div className="relative group w-full h-full">
+                    <button
+                      type="button"
+                      onClick={() => setEditingPosterIdx(isEditing ? null : srcIdx)}
+                      className={`absolute top-2 right-2 z-10 p-1.5 rounded-lg transition-all ${isEditing
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground"
+                        }`}
+                      title="Editar cartaz"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+
+                    {supportsEmptySlots && (
+                      <button
+                        type="button"
+                        onClick={() => toggleEmptySlot(slotIdx)}
+                        className="absolute bottom-2 right-2 z-10 rounded bg-background/80 px-1.5 py-0.5 text-[9px] font-semibold text-muted-foreground opacity-0 shadow group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground"
+                        title="Deixar este espaço vazio e empurrar os próximos cartazes"
+                      >
+                        Vazio
+                      </button>
+                    )}
+
+                    {perPosterStyles[srcIdx] && <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">Editado</div>}
+                    {sourceProduct?.copies > 1 && <div className={`absolute ${perPosterStyles[srcIdx] ? "top-7" : "top-2"} left-2 z-10 px-1.5 py-0.5 rounded bg-accent text-accent-foreground text-[9px] font-bold`}>cópia {copyNumber}/{sourceProduct.copies}</div>}
+
+                    <div id={getPosterDomIdForPrint(slotIdx)} className="w-full h-full">
+                      <PosterPreview
+                        template={template}
+                        data={{
+                          ...getDataForPrint(productPrintIdx),
+                          templateId: selectedTemplate,
+                        }}
+                        showQR={false}
+                        qrUrl=""
+                        style={getStyleForPrint(productPrintIdx)}
+                        paperSize={getPreviewPaperSizeForPrint()}
+                        customBackground={customBackground || undefined}
+                      />
+                    </div>
+                  </div>
+                );
+              }}
+            />
+
+            {editingIdxOnPage !== undefined && editingIdxOnPage !== null && (
+              <InlineEditPanel
+                idx={editingIdxOnPage}
+                getDataForPoster={getDataForPoster}
+                getStyleForPoster={getStyleForPoster}
+                updatePerPosterData={updatePerPosterData}
+                updatePerPosterStyle={updatePerPosterStyle}
+                resetPosterOverride={resetPosterOverride}
+                setEditingPosterIdx={setEditingPosterIdx}
+                customFonts={customFonts}
+              />
+            )}
+          </div>
+        </div>
+      );
+    });
+  };
+
+  const renderNormalPreview = () => {
+    return (
+      <div className="space-y-4">
+        {expandedProducts.map((product, i) => {
+          const srcIdx = getSourceIndexForPrint(i);
+          const sourceProduct = validProducts[srcIdx];
+          const copyNumber = expandedSourceIdx.slice(0, i + 1).filter((idx) => idx === srcIdx).length;
+          const isEditing = editingPosterIdx === srcIdx;
+          return (
+            <div key={i} className={`grid gap-4 ${isEditing ? "grid-cols-1 lg:grid-cols-[1fr_360px]" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}>
+              {isEditing ? (
+                <>
+                  <div className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)] relative group">
+                    <button onClick={() => setEditingPosterIdx(null)} className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-primary text-primary-foreground"><Edit className="w-3.5 h-3.5" /></button>
+                    {perPosterStyles[srcIdx] && <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">Editado</div>}
+                    <div id={getPosterDomIdForPrint(i)}><PosterPreview template={template} data={{ ...getDataForPrint(i), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPrint(i)} paperSize={paperSize} customBackground={customBackground || undefined} /></div>
+                  </div>
+                  <InlineEditPanel idx={srcIdx} getDataForPoster={getDataForPoster} getStyleForPoster={getStyleForPoster} updatePerPosterData={updatePerPosterData} updatePerPosterStyle={updatePerPosterStyle} resetPosterOverride={resetPosterOverride} setEditingPosterIdx={setEditingPosterIdx} customFonts={customFonts} />
+                </>
+              ) : (
+                <div className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)] relative group">
+                  <button onClick={() => setEditingPosterIdx(srcIdx)} className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground transition-all"><Edit className="w-3.5 h-3.5" /></button>
+                  {perPosterStyles[srcIdx] && <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">Editado</div>}
+                  {sourceProduct?.copies > 1 && <div className={`absolute ${perPosterStyles[srcIdx] ? "top-7" : "top-2"} left-2 z-10 px-1.5 py-0.5 rounded bg-accent text-accent-foreground text-[9px] font-bold`}>cópia {copyNumber}/{sourceProduct.copies}</div>}
+                  <div id={getPosterDomIdForPrint(i)}><PosterPreview template={template} data={{ ...getDataForPrint(i), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPrint(i)} paperSize={paperSize} customBackground={customBackground || undefined} /></div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -335,11 +602,11 @@ export default function BatchPage() {
                 {/* <Button size="sm" onClick={() => exportPDF(posterRef.current, paperSize, `${posterFilename}.pdf`, captureOptions)} className="snap-active gap-1.5"></Button> */}
                 <Button size="sm" onClick={exportAllPDF} disabled={exporting} className="gap-1.5">
                   {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                  Exportar PDF ({totalPrintCount})
+                  Exportar PDF ({totalSheetCount} pág.)
                 </Button>
                 <Button size="sm" variant="outline" onClick={printAll} disabled={exporting} className="gap-1.5">
                   {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
-                  Imprimir ({totalPrintCount})
+                  Imprimir ({totalSheetCount} pág.)
                 </Button>
               </>
             )}
@@ -450,7 +717,7 @@ export default function BatchPage() {
                 <h3 className="text-sm font-bold text-foreground mb-3">Modo de entrada dos produtos</h3>
                 <div className="flex gap-2">
                   <button onClick={() => setInputMode("table")} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${inputMode === "table" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}><Table className="w-4 h-4" /> Tabela</button>
-                  <button onClick={() => setInputMode("text")}  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${inputMode === "text"  ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}><TypeIcon className="w-4 h-4" /> Texto</button>
+                  <button onClick={() => setInputMode("text")} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${inputMode === "text" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}><TypeIcon className="w-4 h-4" /> Texto</button>
                 </div>
               </div>
 
@@ -460,8 +727,13 @@ export default function BatchPage() {
             {/* Preview */}
             <div className="lg:sticky lg:top-20 self-start">
               <p className="text-xs text-muted-foreground mb-2 font-mono">PREVIEW</p>
-              <div className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)]">
-                <PosterPreview template={template} data={previewData} showQR={false} qrUrl="" style={posterStyle} paperSize={getPreviewPaperSizeForPrint()} customBackground={customBackground || undefined} />
+              <div className="max-w-md">
+                <PosterSheetPreview
+                  paperSize={paperSize}
+                  renderPoster={() => (
+                    <PosterPreview template={template} data={previewData} showQR={false} qrUrl="" style={posterStyle} paperSize={getPreviewPaperSizeForPrint()} customBackground={customBackground || undefined} />
+                  )}
+                />
               </div>
             </div>
           </div>
@@ -494,7 +766,7 @@ export default function BatchPage() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-border">
-                      {["Produto","Marca","Gramatura","Preço Novo","Preço Antigo","Desconto %","Validade","Un","Cópias",""].map((h) => (
+                      {["Produto", "Marca", "Gramatura", "Preço Novo", "Preço Antigo", "Desconto %", "Validade", "Un", "Cópias", ""].map((h) => (
                         <th key={h} className="text-left py-2 px-1 font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -502,15 +774,15 @@ export default function BatchPage() {
                   <tbody>
                     {products.map((p, i) => (
                       <tr key={i} className="border-b border-border/50">
-                        <td className="py-1 px-1"><input className="w-full h-8 px-2 rounded border border-input bg-background text-foreground text-xs"  value={p.productName} onChange={(e) => updateProduct(i, "productName", e.target.value)} placeholder="Nome" /></td>
-                        <td className="py-1 px-1"><input className="w-24 h-8 px-2 rounded border border-input bg-background text-foreground text-xs"  value={p.brandName}   onChange={(e) => updateProduct(i, "brandName",   e.target.value)} placeholder="Marca" /></td>
-                        <td className="py-1 px-1"><input className="w-20 h-8 px-2 rounded border border-input bg-background text-foreground text-xs"  value={p.gramatura}   onChange={(e) => updateProduct(i, "gramatura",   e.target.value)} placeholder="1kg" /></td>
-                        <td className="py-1 px-1"><input className="w-20 h-8 px-2 rounded border border-input bg-background text-foreground text-xs"  value={p.newPrice}    onChange={(e) => updateProduct(i, "newPrice",    e.target.value)} placeholder="19,90" /></td>
-                        <td className="py-1 px-1"><input className="w-20 h-8 px-2 rounded border border-input bg-background text-foreground text-xs"  value={p.oldPrice}    onChange={(e) => updateProduct(i, "oldPrice",    e.target.value)} placeholder="24,90" /></td>
-                        <td className="py-1 px-1"><input className="w-16 h-8 px-2 rounded border border-input bg-background text-foreground text-xs"  value={p.discount}    onChange={(e) => updateProduct(i, "discount",    e.target.value)} placeholder="20" /></td>
-                        <td className="py-1 px-1"><input className="w-24 h-8 px-2 rounded border border-input bg-background text-foreground text-xs"  value={p.validity}    onChange={(e) => updateProduct(i, "validity",    e.target.value)} placeholder="31/12" /></td>
-                        <td className="py-1 px-1"><input className="w-12 h-8 px-2 rounded border border-input bg-background text-foreground text-xs"  value={p.unit}        onChange={(e) => updateProduct(i, "unit",        e.target.value)} placeholder="un" /></td>
-                        <td className="py-1 px-1"><input type="number" min="1" className="w-14 h-8 px-2 rounded border border-input bg-background text-foreground text-xs text-center" value={p.copies} onChange={(e) => updateProduct(i, "copies", Math.max(1, parseInt(e.target.value)||1))} /></td>
+                        <td className="py-1 px-1"><input className="w-full h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.productName} onChange={(e) => updateProduct(i, "productName", e.target.value)} placeholder="Nome" /></td>
+                        <td className="py-1 px-1"><input className="w-24 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.brandName} onChange={(e) => updateProduct(i, "brandName", e.target.value)} placeholder="Marca" /></td>
+                        <td className="py-1 px-1"><input className="w-20 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.gramatura} onChange={(e) => updateProduct(i, "gramatura", e.target.value)} placeholder="1kg" /></td>
+                        <td className="py-1 px-1"><input className="w-20 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.newPrice} onChange={(e) => updateProduct(i, "newPrice", e.target.value)} placeholder="19,90" /></td>
+                        <td className="py-1 px-1"><input className="w-20 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.oldPrice} onChange={(e) => updateProduct(i, "oldPrice", e.target.value)} placeholder="24,90" /></td>
+                        <td className="py-1 px-1"><input className="w-16 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.discount} onChange={(e) => updateProduct(i, "discount", e.target.value)} placeholder="20" /></td>
+                        <td className="py-1 px-1"><input className="w-24 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.validity} onChange={(e) => updateProduct(i, "validity", e.target.value)} placeholder="31/12" /></td>
+                        <td className="py-1 px-1"><input className="w-12 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.unit} onChange={(e) => updateProduct(i, "unit", e.target.value)} placeholder="un" /></td>
+                        <td className="py-1 px-1"><input type="number" min="1" className="w-14 h-8 px-2 rounded border border-input bg-background text-foreground text-xs text-center" value={p.copies} onChange={(e) => updateProduct(i, "copies", Math.max(1, parseInt(e.target.value) || 1))} /></td>
                         <td className="py-1 px-1">{products.length > 1 && <button onClick={() => removeRow(i)} className="p-1 text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>}</td>
                       </tr>
                     ))}
@@ -533,11 +805,15 @@ export default function BatchPage() {
         {step === "preview" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <h3 className="text-sm font-bold text-foreground">{validProducts.length} cartazes, {totalPrintCount} impressões {isDuplo && `(${Math.ceil(totalPrintCount / 2)} folhas)`}</h3>
+              <h3 className="text-sm font-bold text-foreground">{validProducts.length} cartazes, {totalPrintCount} impressões, {totalSheetCount} folhas</h3>
               <p className="text-xs text-muted-foreground">Clique em <Edit className="w-3 h-3 inline" /> para editar cartazes individualmente</p>
             </div>
 
-            {isDuplo ? (
+            <div className="space-y-6">
+              {renderSheetPreview()}
+            </div>
+
+            {/* {isDuplo ? (
               <div className="space-y-6">
                 {Array.from({ length: Math.ceil(totalPrintCount / 2) }).map((_, pageIdx) => {
                   const idx1 = pageIdx * 2, idx2 = pageIdx * 2 + 1;
@@ -599,14 +875,14 @@ export default function BatchPage() {
                   );
                 })}
               </div>
-            )}
+            )} */}
 
             <div className="flex gap-2 pt-4 border-t border-border">
               <Button onClick={exportAllPDF} disabled={exporting} className="flex-1 gap-1.5">
-                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Exportar PDF ({totalPrintCount} páginas)
+                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Exportar PDF ({totalSheetCount} páginas)
               </Button>
               <Button variant="outline" onClick={printAll} disabled={exporting} className="flex-1 gap-1.5">
-                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />} Imprimir ({totalPrintCount} páginas)
+                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />} Imprimir ({totalSheetCount} páginas)
               </Button>
             </div>
           </div>
@@ -645,7 +921,7 @@ function InlineEditPanel({ idx, getDataForPoster, getStyleForPoster, updatePerPo
           {([["Produto", "productName"], ["Marca", "brandName"], ["Gramatura", "gramatura"], ["Preço Novo", "newPrice"], ["Preço Antigo", "oldPrice"], ["Desconto %", "discount"], ["Validade", "validity"], ["Unidade", "unit"]] as [string, keyof PosterData][]).map(([label, field]) => (
             <div key={field}>
               <label className="text-xs font-semibold text-muted-foreground mb-1 block">{label}</label>
-              <input type="text" id={field} value={(d[field] as string) || ""} onChange={(e) => { updatePerPosterData(idx, field, e.target.value); console.log('teste: ', idx, field, e.target.value) }} className="w-full h-8 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+              <input type="text" id={field} value={(d[field] as string) || ""} onChange={(e) => updatePerPosterData(idx, field, e.target.value)} className="w-full h-8 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
           ))}
         </div>
