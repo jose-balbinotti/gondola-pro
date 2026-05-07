@@ -264,6 +264,30 @@ export default function BatchPage() {
 
   // ── capture & export ─────────────────────────────────────────────────────────
 
+  type PdfImage = { data: Uint8Array; format: "JPEG" };
+
+  const canvasToPdfImage = (canvas: HTMLCanvasElement): Promise<PdfImage> => {
+    return new Promise((resolve, reject) => {
+      // JPEG reduz muito o tamanho final do PDF e evita RangeError: Invalid string length
+      // causado por PNG/base64 gigante em lotes importados por CSV.
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          reject(new Error("Não foi possível converter o cartaz em imagem."));
+          return;
+        }
+
+        try {
+          resolve({
+            data: new Uint8Array(await blob.arrayBuffer()),
+            format: "JPEG",
+          });
+        } catch (err) {
+          reject(err);
+        }
+      }, "image/jpeg", 0.86);
+    });
+  };
+
   const getCaptureScale = () => {
     const n = totalPrintSlots || totalPrintCount;
     if (isA4Eight) return n > 80 ? 1.25 : n > 32 ? 1.5 : 2.5;
@@ -290,11 +314,12 @@ export default function BatchPage() {
     w: number,
     h: number,
     rotate = false,
-    imageCache?: Map<string, string>,
+    imageCache?: Map<string, PdfImage>,
     cacheKey?: string,
   ) => {
     if (cacheKey && imageCache?.has(cacheKey)) {
-      pdf.addImage(imageCache.get(cacheKey)!, "PNG", x, y, w, h);
+      const cached = imageCache.get(cacheKey)!;
+      pdf.addImage(cached.data, cached.format, x, y, w, h, undefined, "FAST");
       return;
     }
 
@@ -311,10 +336,9 @@ export default function BatchPage() {
       canvas = rotated;
     }
 
-    // PNG preserva melhor texto, bordas e linhas finas do cartaz.
-    const imgData = canvas.toDataURL("image/png", 1.0);
+    const imgData = await canvasToPdfImage(canvas);
     if (cacheKey) imageCache?.set(cacheKey, imgData);
-    pdf.addImage(imgData, "PNG", x, y, w, h);
+    pdf.addImage(imgData.data, imgData.format, x, y, w, h, undefined, "FAST");
     canvas.width = 0;
     canvas.height = 0;
   };
@@ -327,7 +351,7 @@ export default function BatchPage() {
     const pdfW = pdf.internal.pageSize.getWidth();
     const pdfH = pdf.internal.pageSize.getHeight();
     const rotate = needsRotation(paperSize);
-    const imageCache = new Map<string, string>();
+    const imageCache = new Map<string, PdfImage>();
 
     if (isA4Eight) {
       const cellW = pdfW / 2;
@@ -409,8 +433,9 @@ export default function BatchPage() {
       const pdf = await buildBatchPDF();
       pdf.save(`cartazes-lote-${totalPrintCount}.pdf`);
       toast({ title: "PDF em lote exportado!", description: `${totalPrintCount} cartazes em ${totalSheetCount} folha(s) – ${paperSize}.` });
-    } catch {
-      toast({ title: "Erro ao exportar", variant: "destructive" });
+    } catch (error) {
+      console.error("Erro ao exportar PDF em lote:", error);
+      toast({ title: "Erro ao exportar", description: error instanceof Error ? error.message : "Não foi possível gerar o PDF.", variant: "destructive" });
     } finally {
       setExporting(false);
     }
@@ -423,8 +448,9 @@ export default function BatchPage() {
       const pdf = await buildBatchPDF();
       openPdfPrint(pdf, `cartazes-lote-${totalPrintCount}.pdf`);
       toast({ title: "Enviando para impressora...", description: `${totalPrintCount} cartazes em ${totalSheetCount} folha(s) – ${paperSize}.` });
-    } catch {
-      toast({ title: "Erro ao imprimir", variant: "destructive" });
+    } catch (error) {
+      console.error("Erro ao imprimir lote:", error);
+      toast({ title: "Erro ao imprimir", description: error instanceof Error ? error.message : "Não foi possível preparar a impressão.", variant: "destructive" });
     } finally {
       setExporting(false);
     }
@@ -449,8 +475,8 @@ export default function BatchPage() {
 
           <div
             className={`grid gap-4 items-start ${editingIdxOnPage !== undefined && editingIdxOnPage !== null
-                ? "grid-cols-1 xl:grid-cols-[minmax(560px,1fr)_420px]"
-                : "grid-cols-1"
+              ? "grid-cols-1 xl:grid-cols-[minmax(560px,1fr)_420px]"
+              : "grid-cols-1"
               }`}
           >
             <PosterSheetPreview
