@@ -29,6 +29,7 @@ export const FONT_OPTIONS = [
   { value: "SuperMarketSlant", label: "Super Market Slant" },
   { value: "'Balmy', cursive", label: "Balmy" },
   { value: "'Target2000', sans-serif", label: "Target 2000" },
+  { value: "Ramen Sauce", label: "Ramen Sauce" },
 ];
 
 export interface PosterStyle {
