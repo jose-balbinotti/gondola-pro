@@ -1,0 +1,303 @@
+import { Link } from "react-router-dom";
+import {
+  ArrowRight,
+  CheckCircle2,
+  FileSpreadsheet,
+  Layers3,
+  LockKeyhole,
+  Palette,
+  Printer,
+  ShieldCheck,
+  Sparkles,
+  Tag,
+  Upload,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/useAuth";
+
+const features = [
+  {
+    icon: Palette,
+    title: "Editor visual",
+    description: "Ajuste produto, preço, cores, fonte, QR Code e fundo sem mexer em código.",
+  },
+  {
+    icon: FileSpreadsheet,
+    title: "Lote por CSV",
+    description: "Importe uma lista de produtos e gere várias páginas de cartazes em sequência.",
+  },
+  {
+    icon: Printer,
+    title: "Exportação para impressão",
+    description: "Fluxo preparado para PDF, PNG e formatos como A4, A4 duplo, A4 8 e gôndola.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Área protegida",
+    description: "Login, rotas privadas e permissões administrativas apoiadas por Supabase Auth e RLS.",
+  },
+];
+
+const steps = [
+  { icon: Layers3, title: "Escolha o modelo", description: "Comece por templates de promoção, gôndola, sazonal, hortifruti, açougue e outros." },
+  { icon: Tag, title: "Preencha a oferta", description: "Informe produto, marca, preço, desconto, validade, descrição e informações complementares." },
+  { icon: Upload, title: "Exporte ou imprima", description: "Gere o arquivo final para impressão individual ou em lote, preservando o layout do cartaz." },
+];
+
+const faqs = [
+  {
+    question: "O sistema de pagamento já está ativo?",
+    answer: "Ainda não. A estrutura visual evita afirmar assinatura ativa; a integração será definida na fase específica de pagamentos.",
+  },
+  {
+    question: "As páginas internas ficam públicas?",
+    answer: "Não. Dashboard, editor, lote e admin passam pelas rotas protegidas criadas nas fases anteriores.",
+  },
+  {
+    question: "O frontend decide quem é administrador?",
+    answer: "Não. A interface só reflete permissões; a validação sensível continua no banco por RLS e funções SQL.",
+  },
+];
+
+export default function LandingPage() {
+  const { isAuthenticated } = useAuth();
+  const primaryTarget = isAuthenticated ? "/dashboard" : "/register";
+  const primaryLabel = isAuthenticated ? "Abrir dashboard" : "Criar conta grátis";
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="container flex h-16 items-center justify-between gap-4">
+          <Link to="/" className="flex items-center gap-2" aria-label="GôndolaPro">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+              <Tag className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="text-lg font-black tracking-tight text-foreground">GôndolaPro</span>
+          </Link>
+
+          <nav className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex" aria-label="Navegação da página inicial">
+            <a href="#recursos" className="transition-colors hover:text-foreground">Recursos</a>
+            <a href="#fluxo" className="transition-colors hover:text-foreground">Como funciona</a>
+            <a href="#planos" className="transition-colors hover:text-foreground">Planos</a>
+            <a href="#faq" className="transition-colors hover:text-foreground">FAQ</a>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            {!isAuthenticated && (
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/login">Entrar</Link>
+              </Button>
+            )}
+            <Button asChild size="sm">
+              <Link to={primaryTarget}>{primaryLabel}</Link>
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section className="relative overflow-hidden border-b border-border">
+          <div className="absolute inset-x-0 top-0 h-64 bg-promo-gradient opacity-10" aria-hidden="true" />
+          <div className="container relative grid gap-10 py-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-20">
+            <div>
+              <Badge variant="secondary" className="mb-5 w-fit">
+                Editor de cartazes para supermercados
+              </Badge>
+              <h1 className="max-w-3xl text-4xl font-black tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+                Crie, revise e imprima cartazes de oferta com mais controle.
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
+                Plataforma para montar cartazes promocionais, organizar templates, importar produtos por CSV e exportar materiais prontos para impressão.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Button asChild variant="hero" size="xl" className="w-full sm:w-auto">
+                  <Link to={primaryTarget}>
+                    {primaryLabel}
+                    <ArrowRight className="h-5 w-5" aria-hidden="true" />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="xl" className="w-full sm:w-auto">
+                  <a href="#recursos">Ver recursos</a>
+                </Button>
+              </div>
+              <div className="mt-6 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
+                <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" aria-hidden="true" /> Templates reutilizáveis</span>
+                <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" aria-hidden="true" /> Exportação em lote</span>
+                <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" aria-hidden="true" /> Acesso protegido</span>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-6">
+              <div className="rounded-2xl bg-background p-3 shadow-inner">
+                <div className="poster-shadow overflow-hidden rounded-2xl" style={{ background: "#E31C1C" }}>
+                  <div className="p-7 text-center sm:p-10">
+                    <div className="mb-2 text-xs font-bold uppercase tracking-[0.28em]" style={{ color: "#FFD700" }}>Promoção</div>
+                    <div className="mb-3 text-3xl font-black" style={{ color: "#FFFFFF" }}>Arroz Tipo 1 5kg</div>
+                    <div className="mb-1 flex items-end justify-center gap-3">
+                      <span className="pb-2 text-sm line-through opacity-75" style={{ color: "#FFFFFF" }}>R$ 24,90</span>
+                      <span className="text-price text-6xl" style={{ color: "#FFD700" }}>R$ 19,90</span>
+                    </div>
+                    <div className="mt-4 inline-flex rounded-full px-4 py-1 text-sm font-black" style={{ background: "#FFD700", color: "#1A1A1B" }}>
+                      Oferta válida enquanto durarem os estoques
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="mt-4 text-center text-xs text-muted-foreground">
+                Exemplo visual. O conteúdo final é configurado pelo usuário no editor.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="recursos" className="container py-14 lg:py-16">
+          <div className="mx-auto mb-8 max-w-2xl text-center">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Recursos</p>
+            <h2 className="mt-2 text-3xl font-black tracking-tight text-foreground">Interface simples para uma rotina operacional</h2>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              A fase atual organiza a experiência sem alterar regras de negócio, autorização ou geração de PDF.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {features.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <Card key={feature.title} className="transition hover:-translate-y-0.5 hover:shadow-md">
+                  <CardHeader>
+                    <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <CardTitle className="text-lg">{feature.title}</CardTitle>
+                    <CardDescription>{feature.description}</CardDescription>
+                  </CardHeader>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+
+        <section id="fluxo" className="border-y border-border bg-muted/40">
+          <div className="container py-14 lg:py-16">
+            <div className="mb-8 max-w-2xl">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Como funciona</p>
+              <h2 className="mt-2 text-3xl font-black tracking-tight text-foreground">Do template ao PDF em três etapas</h2>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                O fluxo foi organizado para deixar claro o caminho do usuário novo e do usuário logado.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {steps.map((step, index) => {
+                const Icon = step.icon;
+                return (
+                  <Card key={step.title}>
+                    <CardHeader>
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-black text-primary-foreground">
+                          {index + 1}
+                        </span>
+                        <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
+                      </div>
+                      <CardTitle className="text-lg">{step.title}</CardTitle>
+                      <CardDescription>{step.description}</CardDescription>
+                    </CardHeader>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section id="planos" className="container py-14 lg:py-16">
+          <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Planos</p>
+              <h2 className="mt-2 text-3xl font-black tracking-tight text-foreground">Estrutura preparada, cobrança ainda em definição</h2>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                Para não criar uma promessa comercial falsa, a homepage agora informa que a assinatura será conectada na fase de pagamentos.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Gratuito</CardTitle>
+                  <CardDescription>Uso inicial da plataforma enquanto os planos comerciais são definidos.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm text-muted-foreground">
+                  <p className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" /> Acesso ao dashboard após login.</p>
+                  <p className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" /> Criação e exportação de cartazes.</p>
+                  <Button asChild variant="outline" className="mt-2 w-full">
+                    <Link to={primaryTarget}>{primaryLabel}</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="border-primary/40 bg-primary/5">
+                <CardHeader>
+                  <Badge className="mb-2 w-fit">Próxima fase</Badge>
+                  <CardTitle>Pro / Assinatura</CardTitle>
+                  <CardDescription>Será conectado somente depois da decisão do gateway de pagamento.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm text-muted-foreground">
+                  <p className="flex gap-2"><LockKeyhole className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" /> Confirmação de pagamento via backend/webhook.</p>
+                  <p className="flex gap-2"><LockKeyhole className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" /> Nenhum cartão será armazenado diretamente no banco.</p>
+                  <Button disabled className="mt-2 w-full">Pagamento em preparação</Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        <section id="faq" className="border-y border-border bg-muted/40">
+          <div className="container py-14 lg:py-16">
+            <div className="mx-auto max-w-3xl">
+              <div className="mb-8 text-center">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">FAQ</p>
+                <h2 className="mt-2 text-3xl font-black tracking-tight text-foreground">Perguntas importantes</h2>
+              </div>
+
+              <div className="space-y-3">
+                {faqs.map((item) => (
+                  <Card key={item.question}>
+                    <CardHeader>
+                      <CardTitle className="text-base">{item.question}</CardTitle>
+                      <CardDescription>{item.answer}</CardDescription>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="container py-14 lg:py-16">
+          <div className="rounded-3xl border border-border bg-card p-6 text-center sm:p-10">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Comece agora</p>
+            <h2 className="mx-auto mt-2 max-w-2xl text-3xl font-black tracking-tight text-foreground">
+              Entre na área logada e crie seu próximo cartaz com segurança.
+            </h2>
+            <div className="mt-6 flex justify-center">
+              <Button asChild size="lg">
+                <Link to={primaryTarget}>
+                  {primaryLabel}
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-border py-6">
+        <div className="container flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>© 2026 GôndolaPro</span>
+          <span>Segurança, autenticação e banco evoluídos por fases.</span>
+        </div>
+      </footer>
+    </div>
+  );
+}

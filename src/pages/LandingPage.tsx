@@ -1,146 +1,301 @@
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Printer, Zap, FileSpreadsheet, Share2, ArrowRight, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
+import {
+  ArrowRight,
+  CheckCircle2,
+  FileSpreadsheet,
+  Layers3,
+  LockKeyhole,
+  Palette,
+  Printer,
+  ShieldCheck,
+  Sparkles,
+  Tag,
+  Upload,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/useAuth";
 
 const features = [
-  { icon: Tag, title: "20+ Templates", desc: "Modelos prontos para A4, A5 e faixas de gôndola." },
-  { icon: Zap, title: "Editor Rápido", desc: "Edite nome, preço e desconto em segundos. Sem complicação." },
-  { icon: FileSpreadsheet, title: "Importação CSV", desc: "Importe planilhas e gere cartazes em lote automaticamente." },
-  { icon: Printer, title: "Exportação Pro", desc: "PDF 300dpi, PNG e link compartilhável para impressão." },
-  { icon: Share2, title: "QR Code", desc: "Gere QR codes para WhatsApp e estoque integrado." },
+  {
+    icon: Palette,
+    title: "Editor visual",
+    description: "Ajuste produto, preço, cores, fonte, QR Code e fundo sem mexer em código.",
+  },
+  {
+    icon: FileSpreadsheet,
+    title: "Lote por CSV",
+    description: "Importe uma lista de produtos e gere várias páginas de cartazes em sequência.",
+  },
+  {
+    icon: Printer,
+    title: "Exportação para impressão",
+    description: "Fluxo preparado para PDF, PNG e formatos como A4, A4 duplo, A4 8 e gôndola.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Área protegida",
+    description: "Login, rotas privadas e permissões administrativas apoiadas por Supabase Auth e RLS.",
+  },
 ];
 
-const plans = [
-  { name: "Grátis", price: "R$ 0", period: "/mês", features: ["10 cartazes/mês", "Templates básicos", "Exportação PNG", "QR Code"], cta: "Começar Grátis", popular: false },
-  { name: "Pro", price: "R$ 19,90", period: "/mês", features: ["Cartazes ilimitados", "Todos os templates", "PDF 300dpi", "Importação CSV", "Logo personalizado", "Sem marca d'água"], cta: "Assinar Pro", popular: true },
+const steps = [
+  { icon: Layers3, title: "Escolha o modelo", description: "Comece por templates de promoção, gôndola, sazonal, hortifruti, açougue e outros." },
+  { icon: Tag, title: "Preencha a oferta", description: "Informe produto, marca, preço, desconto, validade, descrição e informações complementares." },
+  { icon: Upload, title: "Exporte ou imprima", description: "Gere o arquivo final para impressão individual ou em lote, preservando o layout do cartaz." },
+];
+
+const faqs = [
+  {
+    question: "O sistema de pagamento já está ativo?",
+    answer: "Ainda não. A plataforma agora possui planos internos e limites, mas cobrança automática e gateway ficam para uma fase futura.",
+  },
+  {
+    question: "As páginas internas ficam públicas?",
+    answer: "Não. Dashboard, editor, lote e admin passam pelas rotas protegidas criadas nas fases anteriores.",
+  },
+  {
+    question: "O frontend decide quem é administrador?",
+    answer: "Não. A interface só reflete permissões; a validação sensível continua no banco por RLS e funções SQL.",
+  },
 ];
 
 export default function LandingPage() {
+  const { isAuthenticated } = useAuth();
+  const primaryTarget = isAuthenticated ? "/dashboard" : "/register";
+  const primaryLabel = isAuthenticated ? "Abrir dashboard" : "Criar conta grátis";
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Nav */}
-      <nav className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50">
-        <div className="container flex items-center justify-between h-14">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Tag className="w-5 h-5 text-primary-foreground" />
-            </div>
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="container flex h-16 items-center justify-between gap-4">
+          <Link to="/" className="flex items-center gap-2" aria-label="GôndolaPro">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+              <Tag className="h-5 w-5" aria-hidden="true" />
+            </span>
             <span className="text-lg font-black tracking-tight text-foreground">GôndolaPro</span>
           </Link>
-          <div className="flex items-center gap-3">
-            <Link to="/login">
-              <Button variant="ghost" size="sm">Entrar</Button>
-            </Link>
-            <Link to="/dashboard">
-              <Button size="sm" className="snap-active">Criar Cartaz</Button>
-            </Link>
+
+          <nav className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex" aria-label="Navegação da página inicial">
+            <a href="#recursos" className="transition-colors hover:text-foreground">Recursos</a>
+            <a href="#fluxo" className="transition-colors hover:text-foreground">Como funciona</a>
+            <a href="#planos" className="transition-colors hover:text-foreground">Planos</a>
+            <a href="#faq" className="transition-colors hover:text-foreground">FAQ</a>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            {!isAuthenticated && (
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/login">Entrar</Link>
+              </Button>
+            )}
+            <Button asChild size="sm">
+              <Link to={primaryTarget}>{primaryLabel}</Link>
+            </Button>
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* Hero */}
-      <section className="py-16 md:py-24">
-        <div className="container">
-          <div className="max-w-3xl mx-auto text-center">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}>
-              <span className="inline-block px-3 py-1 mb-4 text-xs font-semibold tracking-wider uppercase rounded-full bg-primary/10 text-primary">
+      <main>
+        <section className="relative overflow-hidden border-b border-border">
+          <div className="absolute inset-x-0 top-0 h-64 bg-promo-gradient opacity-10" aria-hidden="true" />
+          <div className="container relative grid gap-10 py-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-20">
+            <div>
+              <Badge variant="secondary" className="mb-5 w-fit">
                 Editor de cartazes para supermercados
-              </span>
-              <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-[1.1] text-foreground mb-4">
-                Crie cartazes de oferta em{" "}
-                <span className="text-primary">segundos</span>
+              </Badge>
+              <h1 className="max-w-3xl text-4xl font-black tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+                Crie, revise e imprima cartazes de oferta com mais controle.
               </h1>
-              <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-                Templates prontos, editor simples e exportação profissional. 
-                Perfeito para supermercados pequenos e médios.
+              <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
+                Plataforma para montar cartazes promocionais, organizar templates, importar produtos por CSV e exportar materiais prontos para impressão.
               </p>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.4 }} className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link to="/dashboard">
-                <Button variant="hero" size="xl" className="w-full sm:w-auto">
-                  Criar Primeiro Cartaz <ArrowRight className="w-5 h-5" />
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Button asChild variant="hero" size="xl" className="w-full sm:w-auto">
+                  <Link to={primaryTarget}>
+                    {primaryLabel}
+                    <ArrowRight className="h-5 w-5" aria-hidden="true" />
+                  </Link>
                 </Button>
-              </Link>
-              <Button variant="outline" size="xl" className="snap-active" onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}>
-                Ver Planos
-              </Button>
-            </motion.div>
-          </div>
-
-          {/* Live Preview */}
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.5 }} className="mt-12 max-w-md mx-auto">
-            <div className="poster-shadow rounded-lg overflow-hidden" style={{ background: '#E31C1C' }}>
-              <div className="p-6 text-center">
-                <div className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: '#FFD700' }}>★ Promoção ★</div>
-                <div className="text-2xl font-black mb-2" style={{ color: '#FFFFFF' }}>Arroz Tipo 1 5kg</div>
-                <div className="flex items-center justify-center gap-3 mb-1">
-                  <span className="text-sm line-through opacity-70" style={{ color: '#FFFFFF' }}>R$ 24,90</span>
-                  <span className="text-price text-5xl" style={{ color: '#FFD700' }}>R$ 19,90</span>
-                </div>
-                <div className="inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold" style={{ background: '#FFD700', color: '#1A1A1B' }}>
-                  20% OFF
-                </div>
+                <Button asChild variant="outline" size="xl" className="w-full sm:w-auto">
+                  <a href="#recursos">Ver recursos</a>
+                </Button>
+              </div>
+              <div className="mt-6 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
+                <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" aria-hidden="true" /> Templates reutilizáveis</span>
+                <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" aria-hidden="true" /> Exportação em lote</span>
+                <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" aria-hidden="true" /> Acesso protegido</span>
               </div>
             </div>
-            <p className="text-center text-xs text-muted-foreground mt-3">↑ Exemplo de cartaz — edite tudo no dashboard</p>
-          </motion.div>
-        </div>
-      </section>
 
-      {/* Features */}
-      <section className="py-16 bg-muted/50">
-        <div className="container">
-          <h2 className="text-2xl md:text-3xl font-black text-center mb-10 text-foreground">Tudo que você precisa</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {features.map((f, i) => (
-              <motion.div key={f.title} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 * i, duration: 0.3 }} className="p-4 rounded-lg bg-background border border-border">
-                <f.icon className="w-8 h-8 text-primary mb-3" />
-                <h3 className="font-bold text-sm mb-1 text-foreground">{f.title}</h3>
-                <p className="text-xs text-muted-foreground">{f.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section id="pricing" className="py-16">
-        <div className="container">
-          <h2 className="text-2xl md:text-3xl font-black text-center mb-10 text-foreground">Planos simples</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-            {plans.map((plan) => (
-              <div key={plan.name} className={`p-6 rounded-lg border-2 ${plan.popular ? 'border-primary bg-primary/5' : 'border-border bg-background'}`}>
-                {plan.popular && <span className="inline-block px-2 py-0.5 text-xs font-bold rounded bg-primary text-primary-foreground mb-3">Popular</span>}
-                <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
-                <div className="flex items-baseline gap-1 my-3">
-                  <span className="text-price text-3xl text-foreground">{plan.price}</span>
-                  <span className="text-sm text-muted-foreground">{plan.period}</span>
+            <div className="rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-6">
+              <div className="rounded-2xl bg-background p-3 shadow-inner">
+                <div className="poster-shadow overflow-hidden rounded-2xl" style={{ background: "#E31C1C" }}>
+                  <div className="p-7 text-center sm:p-10">
+                    <div className="mb-2 text-xs font-bold uppercase tracking-[0.28em]" style={{ color: "#FFD700" }}>Promoção</div>
+                    <div className="mb-3 text-3xl font-black" style={{ color: "#FFFFFF" }}>Arroz Tipo 1 5kg</div>
+                    <div className="mb-1 flex items-end justify-center gap-3">
+                      <span className="pb-2 text-sm line-through opacity-75" style={{ color: "#FFFFFF" }}>R$ 24,90</span>
+                      <span className="text-price text-6xl" style={{ color: "#FFD700" }}>R$ 19,90</span>
+                    </div>
+                    <div className="mt-4 inline-flex rounded-full px-4 py-1 text-sm font-black" style={{ background: "#FFD700", color: "#1A1A1B" }}>
+                      Oferta válida enquanto durarem os estoques
+                    </div>
+                  </div>
                 </div>
-                <ul className="space-y-2 mb-6">
-                  {plan.features.map((f) => (
-                    <li key={f} className="text-sm text-muted-foreground flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-success flex-shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Link to="/dashboard">
-                  <Button variant={plan.popular ? "default" : "outline"} className="w-full snap-active">
-                    {plan.cta}
-                  </Button>
-                </Link>
               </div>
-            ))}
+              <p className="mt-4 text-center text-xs text-muted-foreground">
+                Exemplo visual. O conteúdo final é configurado pelo usuário no editor.
+              </p>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Footer */}
+        <section id="recursos" className="container py-14 lg:py-16">
+          <div className="mx-auto mb-8 max-w-2xl text-center">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Recursos</p>
+            <h2 className="mt-2 text-3xl font-black tracking-tight text-foreground">Interface simples para uma rotina operacional</h2>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              A fase atual organiza a experiência sem alterar regras de negócio, autorização ou geração de PDF.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {features.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <Card key={feature.title} className="transition hover:-translate-y-0.5 hover:shadow-md">
+                  <CardHeader>
+                    <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <CardTitle className="text-lg">{feature.title}</CardTitle>
+                    <CardDescription>{feature.description}</CardDescription>
+                  </CardHeader>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+
+        <section id="fluxo" className="border-y border-border bg-muted/40">
+          <div className="container py-14 lg:py-16">
+            <div className="mb-8 max-w-2xl">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Como funciona</p>
+              <h2 className="mt-2 text-3xl font-black tracking-tight text-foreground">Do template ao PDF em três etapas</h2>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                O fluxo foi organizado para deixar claro o caminho do usuário novo e do usuário logado.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {steps.map((step, index) => {
+                const Icon = step.icon;
+                return (
+                  <Card key={step.title}>
+                    <CardHeader>
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-black text-primary-foreground">
+                          {index + 1}
+                        </span>
+                        <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
+                      </div>
+                      <CardTitle className="text-lg">{step.title}</CardTitle>
+                      <CardDescription>{step.description}</CardDescription>
+                    </CardHeader>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section id="planos" className="container py-14 lg:py-16">
+          <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Planos</p>
+              <h2 className="mt-2 text-3xl font-black tracking-tight text-foreground">Planos internos agora preparados</h2>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                A plataforma já pode controlar planos e limites internamente, mas sem checkout, webhook ou cobrança automática nesta fase.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Gratuito</CardTitle>
+                  <CardDescription>Uso inicial com limites controlados para presets, lotes e recursos avançados.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm text-muted-foreground">
+                  <p className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" /> Acesso ao dashboard após login.</p>
+                  <p className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" /> Criação e exportação de cartazes.</p>
+                  <Button asChild variant="outline" className="mt-2 w-full">
+                    <Link to={primaryTarget}>{primaryLabel}</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="border-primary/40 bg-primary/5">
+                <CardHeader>
+                  <Badge className="mb-2 w-fit">Próxima fase</Badge>
+                  <CardTitle>Pro / Assinatura</CardTitle>
+                  <CardDescription>Liberação manual por administrador enquanto o gateway de pagamento não é definido.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm text-muted-foreground">
+                  <p className="flex gap-2"><LockKeyhole className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" /> Templates premium e limites maiores por liberação interna.</p>
+                  <p className="flex gap-2"><LockKeyhole className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" /> Preparado para futura confirmação segura por backend/webhook.</p>
+                  <Button disabled className="mt-2 w-full">Liberação manual</Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        <section id="faq" className="border-y border-border bg-muted/40">
+          <div className="container py-14 lg:py-16">
+            <div className="mx-auto max-w-3xl">
+              <div className="mb-8 text-center">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">FAQ</p>
+                <h2 className="mt-2 text-3xl font-black tracking-tight text-foreground">Perguntas importantes</h2>
+              </div>
+
+              <div className="space-y-3">
+                {faqs.map((item) => (
+                  <Card key={item.question}>
+                    <CardHeader>
+                      <CardTitle className="text-base">{item.question}</CardTitle>
+                      <CardDescription>{item.answer}</CardDescription>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="container py-14 lg:py-16">
+          <div className="rounded-3xl border border-border bg-card p-6 text-center sm:p-10">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Comece agora</p>
+            <h2 className="mx-auto mt-2 max-w-2xl text-3xl font-black tracking-tight text-foreground">
+              Entre na área logada e crie seu próximo cartaz com segurança.
+            </h2>
+            <div className="mt-6 flex justify-center">
+              <Button asChild size="lg">
+                <Link to={primaryTarget}>
+                  {primaryLabel}
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+      </main>
+
       <footer className="border-t border-border py-6">
-        <div className="container flex items-center justify-between text-xs text-muted-foreground">
+        <div className="container flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>© 2026 GôndolaPro</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-success" /> Online</span>
+          <span>Segurança, autenticação e banco evoluídos por fases.</span>
         </div>
       </footer>
     </div>

@@ -16,6 +16,14 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Ramen Sauce';
+  src: url('/fonts/RamenSauce.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -146,18 +154,16 @@
 }
 
 @media print {
-  /* Hide everything except the poster */
-  body * {
+  body.print-single-poster * {
     visibility: hidden !important;
   }
 
-  /* Show only the poster preview */
-  [data-print-poster],
-  [data-print-poster] * {
+  body.print-single-poster [data-print-poster],
+  body.print-single-poster [data-print-poster] * {
     visibility: visible !important;
   }
 
-  [data-print-poster] {
+  body.print-single-poster [data-print-poster] {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -169,7 +175,6 @@
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    /* Keep the original aspect-ratio from the class */
   }
 
   @page {

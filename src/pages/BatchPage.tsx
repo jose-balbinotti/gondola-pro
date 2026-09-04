@@ -1,9 +1,10 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import { Switch } from "@/components/ui/switch";
 import { TEMPLATES, DEFAULT_POSTER_DATA, type PosterData } from "@/lib/templates";
-import { PAPER_SIZES, getBasePdfFormat, isDuploPaperSize, needsRotation } from "@/lib/paperSizes";
+import { PAPER_SIZES, POSTER_REFERENCE_WIDTH, getBasePdfFormat, getPixelRatioForDpi, getPosterPreviewPaperSize, getPostersPerSheet, getSheetSlots, isDuploPaperSize } from "@/lib/paperSizes";
 import PosterPreview, { DEFAULT_POSTER_STYLE, type PosterStyle } from "@/components/poster/PosterPreview";
 import PosterSheetPreview from "@/components/poster/PosterSheetPreview";
 import PosterStyleControls from "@/components/poster/PosterStyleControls";
@@ -12,15 +13,95 @@ import { Tag, ArrowLeft, Download, FileText, Loader2, Plus, Trash2, Upload, Tabl
 import Papa from "papaparse";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/use-toast";
-import { openPdfPrint, rotateCanvas90 } from "@/hooks/usePdf";
-import { usePdf, type CapturePosterOptions } from "@/hooks/usePdf";
-import { loadPresets, savePresetToDB, deletePresetFromDB, loadPresetsFromDB, type PosterPreset } from "@/lib/presets";
+import { canvasToPdfImage, formatBytes, formatDuration, getApproxMemoryMB, getReusableFontEmbedCSS, openPdfBlobPrint, outputPdfBlob, rotateCanvas90, savePdfBlob, usePdf, type CapturePosterOptions, type PdfImageData } from "@/hooks/usePdf";
+import { loadPresets, savePresetToDB, deletePresetFromDB, loadPresetsFromDB, getPresetSaveErrorMessage, type PosterPreset } from "@/lib/presets";
 import { loadCustomFonts, injectAllCustomFonts, type CustomFont } from "@/lib/customFonts";
+import { formatPlanLimit, getNumericPlanLimit, planAllowsCustomFonts } from "@/lib/plans";
+import { useAuth } from "@/hooks/useAuth";
+import { MAX_TEXT_INPUT_BYTES, readFileAsDataUrl, sanitizePlainText, validateBackgroundFile, validateCsvFile, validateTextPayloadSize } from "@/lib/security";
+import pdfWorkerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 type InputMode = "table" | "text";
 type Step = "config" | "data" | "preview";
 
 interface BatchProduct extends PosterData { copies: number; }
+
+interface PrintSlotItem {
+  slotIdx: number;
+  productPrintIdx: number;
+  srcIdx: number;
+}
+
+interface BatchPdfMetrics {
+  dataPreparationMs: number;
+  exportDomRenderMs: number;
+  fontEmbedMs: number;
+  captureMs: number;
+  imageEncodeMs: number;
+  pdfAssemblyMs: number;
+  outputMs: number;
+  saveOrPrintMs: number;
+  totalMs: number;
+  pdfBytes: number;
+  memoryBeforeMB: number | null;
+  memoryAfterMB: number | null;
+  pages: number;
+  posters: number;
+  uniquePosters: number;
+}
+
+interface BatchPdfBuildResult {
+  pdf: jsPDF;
+  metrics: BatchPdfMetrics;
+}
+
+const MAX_COPIES_PER_PRODUCT = 200;
+const PDF_IMAGE_QUALITY = 0.9;
+
+function parseCopies(value: unknown): number {
+  const n = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, MAX_COPIES_PER_PRODUCT);
+}
+
+function readCsvCell(cols: unknown[], index: number): string {
+  return sanitizePlainText(cols[index], 160);
+}
+
+function looksLikeHeader(cols: unknown[]): boolean {
+  const first = readCsvCell(cols, 0).toLowerCase();
+  const second = readCsvCell(cols, 1).toLowerCase();
+  return ["produto", "product", "nome", "nome do produto"].includes(first) || ["marca", "brand"].includes(second);
+}
+
+function countSortedLessThanOrEqual(values: number[], target: number): number {
+  let low = 0;
+  let high = values.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (values[mid] <= target) low = mid + 1;
+    else high = mid;
+  }
+
+  return low;
+}
+
+function waitForNextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
+function describeBatchPdfMetrics(metrics: BatchPdfMetrics): string {
+  const memoryText = metrics.memoryBeforeMB !== null && metrics.memoryAfterMB !== null
+    ? ` Memória: ${metrics.memoryBeforeMB}→${metrics.memoryAfterMB} MB.`
+    : "";
+
+  return `${metrics.pages} pág., ${metrics.uniquePosters}/${metrics.posters} capturas, ${formatBytes(metrics.pdfBytes)}, pronto em ${formatDuration(metrics.totalMs)}.${memoryText}`;
+}
 
 const emptyProduct = (): BatchProduct => ({
   ...DEFAULT_POSTER_DATA,
@@ -32,8 +113,11 @@ const emptyProduct = (): BatchProduct => ({
 
 export default function BatchPage() {
   const { toast } = useToast();
+  const { plan, isAdmin } = useAuth();
+  const canUseCustomFonts = isAdmin || planAllowsCustomFonts(plan);
   const fileRef = useRef<HTMLInputElement>(null);
   const bgFileRef = useRef<HTMLInputElement>(null);
+  const exportStageRef = useRef<HTMLDivElement>(null);
 
   const [step, setStep] = useState<Step>("config");
   const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0].id);
@@ -54,7 +138,8 @@ export default function BatchPage() {
   const [exporting, setExporting] = useState(false);
   const { captureElement } = usePdf();
 
-  useEffect(() => { loadPresetsFromDB().then(setPresets); injectAllCustomFonts(); }, []);
+  useEffect(() => { loadPresetsFromDB().then(setPresets); }, []);
+  useEffect(() => { if (canUseCustomFonts) injectAllCustomFonts(); }, [canUseCustomFonts]);
   useEffect(() => { setEmptySlots({}); setEditingPosterIdx(null); }, [paperSize]);
 
   const template = TEMPLATES.find((t) => t.id === selectedTemplate) || TEMPLATES[0];
@@ -69,17 +154,27 @@ export default function BatchPage() {
   const addRow = () => setProducts((prev) => [...prev, emptyProduct()]);
   const removeRow = (index: number) => setProducts((prev) => prev.filter((_, i) => i !== index));
 
-  const validProducts = products.filter((p) => p.productName.trim());
+  const validProducts = useMemo(() => products.filter((p) => p.productName.trim()), [products]);
 
-  const expandedProducts: PosterData[] = [];
-  const expandedSourceIdx: number[] = [];
-  validProducts.forEach((p, origIdx) => {
-    for (let c = 0; c < (p.copies || 1); c++) {
+  const { expandedProducts, expandedSourceIdx, printCopyNumbers } = useMemo(() => {
+    const productsForPrint: PosterData[] = [];
+    const sourceIndexes: number[] = [];
+    const copyNumbers: number[] = [];
+
+    validProducts.forEach((p, origIdx) => {
+      const copies = parseCopies(p.copies);
       const { copies: _, ...posterData } = p;
-      expandedProducts.push(posterData);
-      expandedSourceIdx.push(origIdx);
-    }
-  });
+
+      for (let c = 0; c < copies; c++) {
+        productsForPrint.push(posterData);
+        sourceIndexes.push(origIdx);
+        copyNumbers.push(c + 1);
+      }
+    });
+
+    return { expandedProducts: productsForPrint, expandedSourceIdx: sourceIndexes, printCopyNumbers: copyNumbers };
+  }, [validProducts]);
+
   const totalPrintCount = expandedProducts.length;
 
   const isA4Eight = paperSize === "A4-8";
@@ -88,61 +183,107 @@ export default function BatchPage() {
     ? "w-full max-w-[720px] mx-auto"
     : "w-full max-w-[520px] mx-auto";
 
-  const getPostersPerSheet = () => {
-    if (isDuplo) return 2;
-    if (isA4Eight) return 8;
-    return 1;
-  };
-
-  const postersPerSheet = getPostersPerSheet();
-  const rawEmptySlotIndexes = supportsEmptySlots
+  const postersPerSheet = getPostersPerSheet(paperSize);
+  const rawEmptySlotIndexes = useMemo(() => (supportsEmptySlots
     ? Object.entries(emptySlots)
       .filter(([, isEmpty]) => isEmpty)
       .map(([idx]) => Number(idx))
       .filter((idx) => Number.isFinite(idx) && idx >= 0)
       .sort((a, b) => a - b)
-    : [];
+    : []), [emptySlots, supportsEmptySlots]);
 
   // Slots vazios são posições físicas na folha. Quando um slot fica vazio,
   // os próximos produtos andam para o próximo espaço, preservando todos os cartazes.
-  const emptySlotIndexes = rawEmptySlotIndexes.filter((idx) => idx < totalPrintCount + rawEmptySlotIndexes.length);
+  const emptySlotIndexes = useMemo(() => (
+    rawEmptySlotIndexes.filter((idx) => idx < totalPrintCount + rawEmptySlotIndexes.length)
+  ), [rawEmptySlotIndexes, totalPrintCount]);
+
+  const emptySlotIndexSet = useMemo(() => new Set(emptySlotIndexes), [emptySlotIndexes]);
   const totalPrintSlots = totalPrintCount + emptySlotIndexes.length;
   const totalSheetCount = Math.ceil(totalPrintSlots / postersPerSheet);
+  const maxBatchItems = getNumericPlanLimit(plan, "maxBatchItems");
+  const isBatchOverPlanLimit = !isAdmin && Number.isFinite(maxBatchItems) && totalPrintCount > maxBatchItems;
 
-  const isEmptySlot = (slotIdx: number) => supportsEmptySlots && emptySlotIndexes.includes(slotIdx);
-  const getProductPrintIndexForSlot = (slotIdx: number): number | null => {
+  const isEmptySlot = useCallback((slotIdx: number) => (
+    supportsEmptySlots && emptySlotIndexSet.has(slotIdx)
+  ), [emptySlotIndexSet, supportsEmptySlots]);
+
+  const getProductPrintIndexForSlot = useCallback((slotIdx: number): number | null => {
     if (isEmptySlot(slotIdx)) return null;
-    const emptyBeforeOrAt = emptySlotIndexes.filter((emptyIdx) => emptyIdx <= slotIdx).length;
+    const emptyBeforeOrAt = supportsEmptySlots ? countSortedLessThanOrEqual(emptySlotIndexes, slotIdx) : 0;
     const productPrintIdx = slotIdx - emptyBeforeOrAt;
     return productPrintIdx >= 0 && productPrintIdx < totalPrintCount ? productPrintIdx : null;
-  };
+  }, [emptySlotIndexes, isEmptySlot, supportsEmptySlots, totalPrintCount]);
   const toggleEmptySlot = (slotIdx: number) => {
     if (!supportsEmptySlots) return;
     setEmptySlots((prev) => ({ ...prev, [slotIdx]: !prev[slotIdx] }));
     if (editingPosterIdx !== null) setEditingPosterIdx(null);
   };
 
-  const getSourceIndexForPrint = (printIdx: number) => expandedSourceIdx[printIdx] ?? printIdx;
-  const getSourceIndexForSlot = (slotIdx: number) => {
+  const getSourceIndexForPrint = useCallback((printIdx: number) => (
+    expandedSourceIdx[printIdx] ?? printIdx
+  ), [expandedSourceIdx]);
+
+  const getSourceIndexForSlot = useCallback((slotIdx: number) => {
     const productPrintIdx = getProductPrintIndexForSlot(slotIdx);
     return productPrintIdx === null ? null : getSourceIndexForPrint(productPrintIdx);
-  };
-  const getStyleForPoster = (idx: number) => perPosterStyles[idx] || posterStyle;
-  const getDataForPoster = (idx: number) => perPosterData[idx] || validProducts[idx];
-  const getStyleForPrint = (printIdx: number) => getStyleForPoster(getSourceIndexForPrint(printIdx));
-  const getDataForPrint = (printIdx: number) => getDataForPoster(getSourceIndexForPrint(printIdx));
-  const getPosterDomIdForPrint = (slotIdx: number) => `batch-poster-print-${slotIdx}`;
+  }, [getProductPrintIndexForSlot, getSourceIndexForPrint]);
 
-  // Define a proporção correta do cartaz individual usado no preview/captura.
-  // "A4-duplo-v" é meia folha A4 na horizontal (210 × 148,5mm).
-  // Antes, paperSize.replace("-duplo", "") gerava "A4-v", caía no fallback A4
-  // e o PDF espremia um cartaz vertical dentro de uma área horizontal.
-  const getPreviewPaperSizeForPrint = () => {
-    if (paperSize === "A4-duplo-v") return "A4-duplo-v";
-    if (paperSize === "A4-duplo") return "A4";
-    if (paperSize === "A4-8") return "A4-8";
-    return paperSize;
-  };
+  const getStyleForPoster = useCallback((idx: number) => (
+    perPosterStyles[idx] || posterStyle
+  ), [perPosterStyles, posterStyle]);
+
+  const getDataForPoster = useCallback((idx: number) => (
+    perPosterData[idx] || validProducts[idx]
+  ), [perPosterData, validProducts]);
+
+  const getStyleForPrint = useCallback((printIdx: number) => (
+    getStyleForPoster(getSourceIndexForPrint(printIdx))
+  ), [getSourceIndexForPrint, getStyleForPoster]);
+
+  const getDataForPrint = useCallback((printIdx: number) => (
+    getDataForPoster(getSourceIndexForPrint(printIdx))
+  ), [getDataForPoster, getSourceIndexForPrint]);
+
+  const getPosterDomIdForPrint = (slotIdx: number) => `batch-poster-print-${slotIdx}`;
+  const getPosterDomIdForSource = (srcIdx: number) => `batch-poster-export-source-${srcIdx}`;
+
+  const getPreviewPaperSizeForPrint = useCallback(() => getPosterPreviewPaperSize(paperSize), [paperSize]);
+
+  const printSlotItems = useMemo<PrintSlotItem[]>(() => {
+    const items: PrintSlotItem[] = [];
+
+    for (let slotIdx = 0; slotIdx < totalPrintSlots; slotIdx++) {
+      if (supportsEmptySlots && emptySlotIndexSet.has(slotIdx)) continue;
+
+      const emptyBeforeOrAt = supportsEmptySlots ? countSortedLessThanOrEqual(emptySlotIndexes, slotIdx) : 0;
+      const productPrintIdx = slotIdx - emptyBeforeOrAt;
+
+      if (productPrintIdx >= 0 && productPrintIdx < totalPrintCount) {
+        items.push({
+          slotIdx,
+          productPrintIdx,
+          srcIdx: expandedSourceIdx[productPrintIdx] ?? productPrintIdx,
+        });
+      }
+    }
+
+    return items;
+  }, [emptySlotIndexSet, emptySlotIndexes, expandedSourceIdx, supportsEmptySlots, totalPrintCount, totalPrintSlots]);
+
+  const exportSourceIndexes = useMemo(() => {
+    const seen = new Set<number>();
+    const sourceIndexes: number[] = [];
+
+    for (const item of printSlotItems) {
+      if (!seen.has(item.srcIdx)) {
+        seen.add(item.srcIdx);
+        sourceIndexes.push(item.srcIdx);
+      }
+    }
+
+    return sourceIndexes;
+  }, [printSlotItems]);
 
   const updatePerPosterStyle = useCallback(<K extends keyof PosterStyle>(idx: number, field: K, value: PosterStyle[K]) =>
     setPerPosterStyles((prev) => ({ ...prev, [idx]: { ...(prev[idx] || posterStyle), [field]: value } })), [posterStyle]);
@@ -188,9 +329,14 @@ export default function BatchPage() {
 
   const handleSavePreset = async () => {
     if (!presetName.trim()) { toast({ title: "Digite um nome para o preset", variant: "destructive" }); return; }
-    const result = await savePresetToDB({ name: presetName.trim(), templateId: selectedTemplate, paperSize, style: posterStyle, backgroundImage: customBackground || undefined });
-    if (result) { setPresets(await loadPresetsFromDB()); setPresetName(""); toast({ title: `Preset "${result.name}" salvo!` }); }
-    else toast({ title: "Erro ao salvar preset", variant: "destructive" });
+
+    try {
+      const result = await savePresetToDB({ name: presetName.trim(), templateId: selectedTemplate, paperSize, style: posterStyle, backgroundImage: customBackground || undefined });
+      if (result) { setPresets(await loadPresetsFromDB()); setPresetName(""); toast({ title: `Preset "${result.name}" salvo!` }); }
+      else toast({ title: "Erro ao salvar preset", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Erro ao salvar preset", description: getPresetSaveErrorMessage(error), variant: "destructive" });
+    }
   };
 
   const handleLoadPreset = (p: PosterPreset) => {
@@ -208,23 +354,43 @@ export default function BatchPage() {
   const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const validationError = validateBackgroundFile(file);
+    if (validationError) {
+      toast({ title: validationError, variant: "destructive" });
+      e.target.value = "";
+      return;
+    }
+
     if (file.type === "application/pdf") {
       try {
         const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
         const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
         const page = await pdf.getPage(1);
         const vp = page.getViewport({ scale: 2 });
         const canvas = document.createElement("canvas");
-        canvas.width = vp.width; canvas.height = vp.height;
-        await page.render({ canvasContext: canvas.getContext("2d")!, viewport: vp }).promise;
+        const context = canvas.getContext("2d");
+
+        if (!context) throw new Error("canvas_context_unavailable");
+
+        canvas.width = vp.width;
+        canvas.height = vp.height;
+        await page.render({ canvasContext: context, viewport: vp }).promise;
         setCustomBackground(canvas.toDataURL("image/png"));
+        canvas.width = 0;
+        canvas.height = 0;
         toast({ title: "PDF importado como fundo!" });
-      } catch { toast({ title: "Erro ao importar PDF", variant: "destructive" }); }
+      } catch {
+        toast({ title: "Erro ao importar PDF", variant: "destructive" });
+      }
     } else {
-      const reader = new FileReader();
-      reader.onload = (ev) => { setCustomBackground(ev.target?.result as string); toast({ title: "Imagem de fundo carregada!" }); };
-      reader.readAsDataURL(file);
+      try {
+        setCustomBackground(await readFileAsDataUrl(file));
+        toast({ title: "Imagem de fundo carregada!" });
+      } catch {
+        toast({ title: "Erro ao importar imagem", variant: "destructive" });
+      }
     }
     e.target.value = "";
   };
@@ -234,20 +400,48 @@ export default function BatchPage() {
   const handleCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    Papa.parse(file, {
+
+    const validationError = validateCsvFile(file);
+    if (validationError) {
+      toast({ title: validationError, variant: "destructive" });
+      e.target.value = "";
+      return;
+    }
+
+    Papa.parse<unknown[]>(file, {
       skipEmptyLines: true,
       complete: (result) => {
-        const rows = result.data as string[][];
-        const parsed = rows.map((cols) => ({
-          ...emptyProduct(),
-          templateId: selectedTemplate,
-          productName: cols[0] || "", brandName: cols[1] || "",
-          gramatura: cols[2] || "", newPrice: cols[3] || "",
-          oldPrice: cols[4] || "", discount: cols[5] || "",
-          validity: cols[6] || "", unit: cols[7] || "",
-          copies: parseInt(cols[8]) || 1,
-        }));
-        if (parsed.length > 0) { setProducts(parsed); toast({ title: `${parsed.length} produtos importados!` }); }
+        const rows = result.data.filter(Array.isArray);
+        const dataRows = rows.length > 0 && looksLikeHeader(rows[0]) ? rows.slice(1) : rows;
+        const parsed = dataRows
+          .map((cols) => ({
+            ...emptyProduct(),
+            templateId: selectedTemplate,
+            productName: readCsvCell(cols, 0),
+            brandName: readCsvCell(cols, 1),
+            gramatura: readCsvCell(cols, 2),
+            newPrice: readCsvCell(cols, 3),
+            oldPrice: readCsvCell(cols, 4),
+            discount: readCsvCell(cols, 5),
+            validity: readCsvCell(cols, 6),
+            unit: readCsvCell(cols, 7),
+            copies: parseCopies(readCsvCell(cols, 8)),
+          }))
+          .filter((product) => product.productName.trim());
+
+        if (result.errors.length > 0) {
+          toast({ title: "CSV importado com avisos", description: "Algumas linhas tinham formato irregular e foram ignoradas." });
+        }
+
+        if (parsed.length > 0) {
+          setProducts(parsed);
+          toast({ title: `${parsed.length} produtos importados!` });
+        } else {
+          toast({ title: "Nenhum produto válido encontrado no CSV", variant: "destructive" });
+        }
+      },
+      error: () => {
+        toast({ title: "Erro ao ler CSV", variant: "destructive" });
       },
     });
     e.target.value = "";
@@ -255,184 +449,195 @@ export default function BatchPage() {
 
   const parseTextInput = () => {
     const lines = textInput.trim().split("\n").filter(Boolean);
-    const parsed = lines.map((line) => {
-      const p = line.split(";").map((s) => s.trim());
-      return { ...emptyProduct(), templateId: selectedTemplate, productName: p[0] || "", brandName: p[1] || "", gramatura: p[2] || "", newPrice: p[3] || "", oldPrice: p[4] || "", discount: p[5] || "", validity: p[6] || "", unit: p[7] || "", copies: parseInt(p[8]) || 1 };
-    });
-    if (parsed.length > 0) { setProducts(parsed); toast({ title: `${parsed.length} produtos importados via texto!` }); }
+    const parsed = lines
+      .map((line) => {
+        const cols = line.split(";").map((cell) => cell.trim());
+        return {
+          ...emptyProduct(),
+          templateId: selectedTemplate,
+          productName: readCsvCell(cols, 0),
+          brandName: readCsvCell(cols, 1),
+          gramatura: readCsvCell(cols, 2),
+          newPrice: readCsvCell(cols, 3),
+          oldPrice: readCsvCell(cols, 4),
+          discount: readCsvCell(cols, 5),
+          validity: readCsvCell(cols, 6),
+          unit: readCsvCell(cols, 7),
+          copies: parseCopies(readCsvCell(cols, 8)),
+        };
+      })
+      .filter((product) => product.productName.trim());
+
+    if (parsed.length > 0) {
+      setProducts(parsed);
+      toast({ title: `${parsed.length} produtos importados via texto!` });
+    } else {
+      toast({ title: "Nenhum produto válido encontrado no texto", variant: "destructive" });
+    }
   };
 
   // ── capture & export ─────────────────────────────────────────────────────────
 
-  type PdfImage = { data: Uint8Array; format: "JPEG" };
-
-  const canvasToPdfImage = (canvas: HTMLCanvasElement): Promise<PdfImage> => {
-    return new Promise((resolve, reject) => {
-      // JPEG reduz muito o tamanho final do PDF e evita RangeError: Invalid string length
-      // causado por PNG/base64 gigante em lotes importados por CSV.
-      canvas.toBlob(async (blob) => {
-        if (!blob) {
-          reject(new Error("Não foi possível converter o cartaz em imagem."));
-          return;
-        }
-
-        try {
-          resolve({
-            data: new Uint8Array(await blob.arrayBuffer()),
-            format: "JPEG",
-          });
-        } catch (err) {
-          reject(err);
-        }
-      }, "image/jpeg", 0.86);
-    });
-  };
-
-  const getCaptureScale = () => {
+  const captureScale = useMemo(() => {
     const n = totalPrintSlots || totalPrintCount;
-    if (isA4Eight) return n > 80 ? 1.25 : n > 32 ? 1.5 : 2.5;
-    return n > 50 ? 1.5 : n > 20 ? 2 : 4;
-  };
+    const dpi = n > 150 ? 170 : n > 50 ? 220 : 300;
+    const maxPixelRatio = n > 150 ? 2 : n > 50 ? 3 : 4;
+    return getPixelRatioForDpi(paperSize, dpi, maxPixelRatio);
+  }, [paperSize, totalPrintCount, totalPrintSlots]);
 
-  const captureOptions: CapturePosterOptions = {
+  const captureOptions = useMemo<CapturePosterOptions>(() => ({
     bgColor: template.bgColor,
     bgBaseOnly,
     customBackground,
-    pixelRatio: getCaptureScale(),
-  };
+    pixelRatio: captureScale,
+  }), [bgBaseOnly, captureScale, customBackground, template.bgColor]);
 
-  const capturePoster = async (containerEl: HTMLElement): Promise<HTMLCanvasElement | null> => {
+  const capturePoster = async (
+    containerEl: HTMLElement,
+    options: CapturePosterOptions = captureOptions,
+  ): Promise<HTMLCanvasElement | null> => {
     const posterEl = (containerEl.querySelector("[data-print-poster]") as HTMLElement) || containerEl;
-    return captureElement(posterEl, captureOptions);
+    return captureElement(posterEl, options);
   };
 
-  const addPosterToPDF = async (
-    pdf: jsPDF,
-    elId: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    rotate = false,
-    imageCache?: Map<string, PdfImage>,
-    cacheKey?: string,
-  ) => {
-    if (cacheKey && imageCache?.has(cacheKey)) {
-      const cached = imageCache.get(cacheKey)!;
-      pdf.addImage(cached.data, cached.format, x, y, w, h, undefined, "FAST");
-      return;
+  const captureExportImages = async (
+    sourceIndexes: number[],
+    rotateImages: boolean,
+    fontEmbedCSS: string | undefined,
+    metrics: BatchPdfMetrics,
+  ): Promise<Map<number, PdfImageData>> => {
+    const imageCache = new Map<number, PdfImageData>();
+
+    for (const srcIdx of sourceIndexes) {
+      const el = document.getElementById(getPosterDomIdForSource(srcIdx));
+      if (!el) throw new Error(`Cartaz ${srcIdx + 1} não encontrado na área de exportação.`);
+
+      const captureStart = performance.now();
+      const canvas = await capturePoster(el, { ...captureOptions, fontEmbedCSS });
+      metrics.captureMs += performance.now() - captureStart;
+
+      if (!canvas) throw new Error(`Não foi possível capturar o cartaz ${srcIdx + 1}.`);
+
+      const encodeStart = performance.now();
+      const imageCanvas = rotateImages ? rotateCanvas90(canvas) : canvas;
+
+      try {
+        imageCache.set(srcIdx, await canvasToPdfImage(imageCanvas, "image/jpeg", PDF_IMAGE_QUALITY));
+      } finally {
+        canvas.width = 0;
+        canvas.height = 0;
+        if (rotateImages) {
+          imageCanvas.width = 0;
+          imageCanvas.height = 0;
+        }
+        metrics.imageEncodeMs += performance.now() - encodeStart;
+      }
     }
 
-    const el = document.getElementById(elId);
-    if (!el) return;
-
-    let canvas = await capturePoster(el);
-    if (!canvas) return;
-
-    if (rotate) {
-      const rotated = rotateCanvas90(canvas);
-      canvas.width = 0;
-      canvas.height = 0;
-      canvas = rotated;
-    }
-
-    const imgData = await canvasToPdfImage(canvas);
-    if (cacheKey) imageCache?.set(cacheKey, imgData);
-    pdf.addImage(imgData.data, imgData.format, x, y, w, h, undefined, "FAST");
-    canvas.width = 0;
-    canvas.height = 0;
+    return imageCache;
   };
 
+  const buildBatchPDF = async (exportDomRenderMs: number): Promise<BatchPdfBuildResult> => {
+    const metrics: BatchPdfMetrics = {
+      dataPreparationMs: 0,
+      exportDomRenderMs,
+      fontEmbedMs: 0,
+      captureMs: 0,
+      imageEncodeMs: 0,
+      pdfAssemblyMs: 0,
+      outputMs: 0,
+      saveOrPrintMs: 0,
+      totalMs: 0,
+      pdfBytes: 0,
+      memoryBeforeMB: getApproxMemoryMB(),
+      memoryAfterMB: null,
+      pages: totalSheetCount,
+      posters: totalPrintCount,
+      uniquePosters: exportSourceIndexes.length,
+    };
 
-  const buildBatchPDF = async (): Promise<jsPDF> => {
+    const dataStart = performance.now();
+    const printItemBySlot = new Map(printSlotItems.map((item) => [item.slotIdx, item]));
+    metrics.dataPreparationMs = performance.now() - dataStart;
+
     const fmt = getBasePdfFormat(paperSize);
     const isLandsc = fmt[0] > fmt[1];
     const pdf = new jsPDF({ orientation: isLandsc ? "landscape" : "portrait", unit: "mm", format: fmt });
     const pdfW = pdf.internal.pageSize.getWidth();
     const pdfH = pdf.internal.pageSize.getHeight();
-    const rotate = needsRotation(paperSize);
-    const imageCache = new Map<string, PdfImage>();
+    const slots = getSheetSlots(paperSize, pdfW, pdfH);
 
-    if (isA4Eight) {
-      const cellW = pdfW / 2;
-      const cellH = pdfH / 4;
+    const exportStage = exportStageRef.current;
+    if (!exportStage) throw new Error("Área temporária de exportação não foi renderizada.");
 
-      for (let slotIdx = 0; slotIdx < totalPrintSlots; slotIdx++) {
-        const slotOnPage = slotIdx % 8;
-        if (slotIdx > 0 && slotOnPage === 0) pdf.addPage();
-        if (isEmptySlot(slotIdx)) continue;
+    const fontStart = performance.now();
+    const fontEmbedCSS = await getReusableFontEmbedCSS(exportStage);
+    metrics.fontEmbedMs = performance.now() - fontStart;
 
-        const productPrintIdx = getProductPrintIndexForSlot(slotIdx);
-        if (productPrintIdx === null) continue;
+    const imageCache = await captureExportImages(
+      exportSourceIndexes,
+      slots.some((slot) => slot.rotate),
+      fontEmbedCSS,
+      metrics,
+    );
 
-        const srcIdx = getSourceIndexForPrint(productPrintIdx);
-        await addPosterToPDF(
-          pdf,
-          getPosterDomIdForPrint(slotIdx),
-          (slotOnPage % 2) * cellW,
-          Math.floor(slotOnPage / 2) * cellH,
-          cellW,
-          cellH,
-          false,
-          imageCache,
-          `${paperSize}-${srcIdx}`,
-        );
-      }
-    } else if (isDuplo) {
-      const halfH = pdfH / 2;
+    const assemblyStart = performance.now();
 
-      for (let slotIdx = 0; slotIdx < totalPrintSlots; slotIdx++) {
-        const slotOnPage = slotIdx % 2;
-        if (slotIdx > 0 && slotOnPage === 0) pdf.addPage();
+    for (let slotIdx = 0; slotIdx < totalPrintSlots; slotIdx++) {
+      const slotOnPage = slotIdx % slots.length;
+      if (slotIdx > 0 && slotOnPage === 0) pdf.addPage();
 
-        const productPrintIdx = getProductPrintIndexForSlot(slotIdx);
-        if (productPrintIdx === null) continue;
+      const item = printItemBySlot.get(slotIdx);
+      if (!item) continue;
 
-        const srcIdx = getSourceIndexForPrint(productPrintIdx);
-        await addPosterToPDF(
-          pdf,
-          getPosterDomIdForPrint(slotIdx),
-          0,
-          slotOnPage * halfH,
-          pdfW,
-          halfH,
-          rotate,
-          imageCache,
-          `${paperSize}-${srcIdx}`,
-        );
-      }
-    } else {
-      for (let slotIdx = 0; slotIdx < totalPrintSlots; slotIdx++) {
-        if (slotIdx > 0) pdf.addPage();
+      const slot = slots[slotOnPage];
+      const image = imageCache.get(item.srcIdx);
+      if (!image) throw new Error(`Imagem do cartaz ${item.srcIdx + 1} não encontrada no cache.`);
 
-        const productPrintIdx = getProductPrintIndexForSlot(slotIdx);
-        if (productPrintIdx === null) continue;
-
-        const srcIdx = getSourceIndexForPrint(productPrintIdx);
-        await addPosterToPDF(
-          pdf,
-          getPosterDomIdForPrint(slotIdx),
-          0,
-          0,
-          pdfW,
-          pdfH,
-          false,
-          imageCache,
-          `${paperSize}-${srcIdx}`,
-        );
-      }
+      pdf.addImage(image.data, image.format, slot.x, slot.y, slot.width, slot.height, undefined, "FAST");
     }
 
-    return pdf;
+    metrics.pdfAssemblyMs = performance.now() - assemblyStart;
+    metrics.memoryAfterMB = getApproxMemoryMB();
+
+    return { pdf, metrics };
+  };
+
+  const validateBatchPlanLimit = () => {
+    if (!isBatchOverPlanLimit) return true;
+
+    toast({
+      title: "Limite do plano atingido",
+      description: `Seu plano atual permite até ${formatPlanLimit(maxBatchItems)} impressões por lote. Este lote possui ${totalPrintCount}.`,
+      variant: "destructive",
+    });
+
+    return false;
   };
 
   const exportAllPDF = async () => {
-    if (!validProducts.length) return;
+    if (!validProducts.length || !validateBatchPlanLimit()) return;
+    const actionStart = performance.now();
     setExporting(true);
+
     try {
-      const pdf = await buildBatchPDF();
-      pdf.save(`cartazes-lote-${totalPrintCount}.pdf`);
-      toast({ title: "PDF em lote exportado!", description: `${totalPrintCount} cartazes em ${totalSheetCount} folha(s) – ${paperSize}.` });
+      const renderStart = performance.now();
+      await waitForNextPaint();
+      const exportDomRenderMs = performance.now() - renderStart;
+
+      const { pdf, metrics } = await buildBatchPDF(exportDomRenderMs);
+
+      const outputStart = performance.now();
+      const { blob, bytes } = outputPdfBlob(pdf);
+      metrics.outputMs = performance.now() - outputStart;
+      metrics.pdfBytes = bytes;
+
+      const saveStart = performance.now();
+      savePdfBlob(blob, `cartazes-lote-${totalPrintCount}.pdf`);
+      metrics.saveOrPrintMs = performance.now() - saveStart;
+      metrics.totalMs = performance.now() - actionStart;
+
+      toast({ title: "PDF em lote exportado!", description: describeBatchPdfMetrics(metrics) });
     } catch (error) {
       console.error("Erro ao exportar PDF em lote:", error);
       toast({ title: "Erro ao exportar", description: error instanceof Error ? error.message : "Não foi possível gerar o PDF.", variant: "destructive" });
@@ -442,12 +647,28 @@ export default function BatchPage() {
   };
 
   const printAll = async () => {
-    if (!validProducts.length) return;
+    if (!validProducts.length || !validateBatchPlanLimit()) return;
+    const actionStart = performance.now();
     setExporting(true);
+
     try {
-      const pdf = await buildBatchPDF();
-      openPdfPrint(pdf, `cartazes-lote-${totalPrintCount}.pdf`);
-      toast({ title: "Enviando para impressora...", description: `${totalPrintCount} cartazes em ${totalSheetCount} folha(s) – ${paperSize}.` });
+      const renderStart = performance.now();
+      await waitForNextPaint();
+      const exportDomRenderMs = performance.now() - renderStart;
+
+      const { pdf, metrics } = await buildBatchPDF(exportDomRenderMs);
+
+      const outputStart = performance.now();
+      const { blob, bytes } = outputPdfBlob(pdf);
+      metrics.outputMs = performance.now() - outputStart;
+      metrics.pdfBytes = bytes;
+
+      const printStart = performance.now();
+      openPdfBlobPrint(blob, `cartazes-lote-${totalPrintCount}.pdf`);
+      metrics.saveOrPrintMs = performance.now() - printStart;
+      metrics.totalMs = performance.now() - actionStart;
+
+      toast({ title: "Enviando para impressora...", description: describeBatchPdfMetrics(metrics) });
     } catch (error) {
       console.error("Erro ao imprimir lote:", error);
       toast({ title: "Erro ao imprimir", description: error instanceof Error ? error.message : "Não foi possível preparar a impressão.", variant: "destructive" });
@@ -457,7 +678,7 @@ export default function BatchPage() {
   };
 
   const previewData: PosterData = { ...DEFAULT_POSTER_DATA, templateId: selectedTemplate };
-  const extraFonts = customFonts.map((f) => ({ value: f.value, label: `★ ${f.name}` }));
+  const extraFonts = canUseCustomFonts ? customFonts.map((f) => ({ value: f.value, label: `★ ${f.name}` })) : [];
 
   // ── render ────────────────────────────────────────────────────────────────────
 
@@ -504,7 +725,7 @@ export default function BatchPage() {
 
                 const srcIdx = getSourceIndexForPrint(productPrintIdx);
                 const sourceProduct = validProducts[srcIdx];
-                const copyNumber = expandedSourceIdx.slice(0, productPrintIdx + 1).filter((idx) => idx === srcIdx).length;
+                const copyNumber = printCopyNumbers[productPrintIdx] ?? 1;
                 const isEditing = editingPosterIdx === srcIdx;
 
                 return (
@@ -564,46 +785,13 @@ export default function BatchPage() {
                 resetPosterOverride={resetPosterOverride}
                 setEditingPosterIdx={setEditingPosterIdx}
                 customFonts={customFonts}
+                canUseCustomFonts={canUseCustomFonts}
               />
             )}
           </div>
         </div>
       );
     });
-  };
-
-  const renderNormalPreview = () => {
-    return (
-      <div className="space-y-4">
-        {expandedProducts.map((product, i) => {
-          const srcIdx = getSourceIndexForPrint(i);
-          const sourceProduct = validProducts[srcIdx];
-          const copyNumber = expandedSourceIdx.slice(0, i + 1).filter((idx) => idx === srcIdx).length;
-          const isEditing = editingPosterIdx === srcIdx;
-          return (
-            <div key={i} className={`grid gap-4 ${isEditing ? "grid-cols-1 lg:grid-cols-[1fr_360px]" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}>
-              {isEditing ? (
-                <>
-                  <div className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)] relative group">
-                    <button onClick={() => setEditingPosterIdx(null)} className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-primary text-primary-foreground"><Edit className="w-3.5 h-3.5" /></button>
-                    {perPosterStyles[srcIdx] && <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">Editado</div>}
-                    <div id={getPosterDomIdForPrint(i)}><PosterPreview template={template} data={{ ...getDataForPrint(i), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPrint(i)} paperSize={paperSize} customBackground={customBackground || undefined} /></div>
-                  </div>
-                  <InlineEditPanel idx={srcIdx} getDataForPoster={getDataForPoster} getStyleForPoster={getStyleForPoster} updatePerPosterData={updatePerPosterData} updatePerPosterStyle={updatePerPosterStyle} resetPosterOverride={resetPosterOverride} setEditingPosterIdx={setEditingPosterIdx} customFonts={customFonts} />
-                </>
-              ) : (
-                <div className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)] relative group">
-                  <button onClick={() => setEditingPosterIdx(srcIdx)} className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground transition-all"><Edit className="w-3.5 h-3.5" /></button>
-                  {perPosterStyles[srcIdx] && <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">Editado</div>}
-                  {sourceProduct?.copies > 1 && <div className={`absolute ${perPosterStyles[srcIdx] ? "top-7" : "top-2"} left-2 z-10 px-1.5 py-0.5 rounded bg-accent text-accent-foreground text-[9px] font-bold`}>cópia {copyNumber}/{sourceProduct.copies}</div>}
-                  <div id={getPosterDomIdForPrint(i)}><PosterPreview template={template} data={{ ...getDataForPrint(i), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPrint(i)} paperSize={paperSize} customBackground={customBackground || undefined} /></div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
   };
 
   return (
@@ -625,7 +813,6 @@ export default function BatchPage() {
             )}
             {step === "preview" && validProducts.length > 0 && (
               <>
-                {/* <Button size="sm" onClick={() => exportPDF(posterRef.current, paperSize, `${posterFilename}.pdf`, captureOptions)} className="snap-active gap-1.5"></Button> */}
                 <Button size="sm" onClick={exportAllPDF} disabled={exporting} className="gap-1.5">
                   {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                   Exportar PDF ({totalSheetCount} pág.)
@@ -636,6 +823,7 @@ export default function BatchPage() {
                 </Button>
               </>
             )}
+            <LogoutButton variant="ghost" size="sm" className="px-2 sm:px-3 [&_span]:hidden sm:[&_span]:inline" />
           </div>
         </div>
       </nav>
@@ -732,7 +920,13 @@ export default function BatchPage() {
               {/* Fontes */}
               <div className="p-4 rounded-lg border border-border bg-background">
                 <h3 className="text-sm font-bold text-foreground mb-3">Fontes Adicionais</h3>
-                <FontManager customFonts={customFonts} onFontsChange={setCustomFonts} />
+                {canUseCustomFonts ? (
+                  <FontManager customFonts={customFonts} onFontsChange={setCustomFonts} />
+                ) : (
+                  <p className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                    Fontes personalizadas estão bloqueadas no seu plano atual. As fontes padrão continuam disponíveis.
+                  </p>
+                )}
               </div>
 
               {/* Estilo */}
@@ -771,7 +965,7 @@ export default function BatchPage() {
             <div className="p-4 rounded-lg border border-dashed border-border bg-muted/30 flex items-center justify-between">
               <div>
                 <p className="text-sm font-bold text-foreground">Importar CSV</p>
-                <p className="text-xs text-muted-foreground">Colunas: Produto; Marca; Gramatura; Preço Novo; Preço Antigo; Desconto; Validade; Unidade</p>
+                <p className="text-xs text-muted-foreground">Colunas: Produto; Marca; Gramatura; Preço Novo; Preço Antigo; Desconto; Validade; Unidade; Cópias</p>
               </div>
               <div>
                 <input ref={fileRef} type="file" accept=".csv" onChange={handleCSV} className="hidden" />
@@ -782,7 +976,7 @@ export default function BatchPage() {
             {inputMode === "text" ? (
               <div className="p-4 rounded-lg border border-border bg-background">
                 <h3 className="text-sm font-bold text-foreground mb-2">Entrada por Texto</h3>
-                <p className="text-xs text-muted-foreground mb-3">Uma linha por produto, campos separados por <code className="bg-muted px-1 rounded">;</code><br />Formato: Produto; Marca; Gramatura; Preço; Preço Antigo; Desconto; Validade; Unidade</p>
+                <p className="text-xs text-muted-foreground mb-3">Uma linha por produto, campos separados por <code className="bg-muted px-1 rounded">;</code><br />Formato: Produto; Marca; Gramatura; Preço; Preço Antigo; Desconto; Validade; Unidade; Cópias</p>
                 <textarea value={textInput} onChange={(e) => setTextInput(e.target.value)} rows={8} placeholder={"Arroz Integral;Tio João;5kg;19,90;24,90;20;31/12/2026;un\nFeijão Preto;Camil;1kg;8,49;;;"} className="w-full rounded-lg border border-input bg-background text-sm text-foreground p-3 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring font-mono" />
                 <Button onClick={parseTextInput} className="mt-3 gap-1.5" size="sm"><FileText className="w-3.5 h-3.5" /> Processar Texto</Button>
               </div>
@@ -808,7 +1002,7 @@ export default function BatchPage() {
                         <td className="py-1 px-1"><input className="w-16 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.discount} onChange={(e) => updateProduct(i, "discount", e.target.value)} placeholder="20" /></td>
                         <td className="py-1 px-1"><input className="w-24 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.validity} onChange={(e) => updateProduct(i, "validity", e.target.value)} placeholder="31/12" /></td>
                         <td className="py-1 px-1"><input className="w-12 h-8 px-2 rounded border border-input bg-background text-foreground text-xs" value={p.unit} onChange={(e) => updateProduct(i, "unit", e.target.value)} placeholder="un" /></td>
-                        <td className="py-1 px-1"><input type="number" min="1" className="w-14 h-8 px-2 rounded border border-input bg-background text-foreground text-xs text-center" value={p.copies} onChange={(e) => updateProduct(i, "copies", Math.max(1, parseInt(e.target.value) || 1))} /></td>
+                        <td className="py-1 px-1"><input type="number" min="1" max={MAX_COPIES_PER_PRODUCT} className="w-14 h-8 px-2 rounded border border-input bg-background text-foreground text-xs text-center" value={p.copies} onChange={(e) => updateProduct(i, "copies", parseCopies(e.target.value))} /></td>
                         <td className="py-1 px-1">{products.length > 1 && <button onClick={() => removeRow(i)} className="p-1 text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>}</td>
                       </tr>
                     ))}
@@ -820,7 +1014,7 @@ export default function BatchPage() {
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep("config")} className="flex-1">Voltar</Button>
-              <Button onClick={() => { setEditingPosterIdx(null); setStep("preview"); }} className="flex-1" disabled={validProducts.length === 0}>
+              <Button onClick={() => { if (validateBatchPlanLimit()) { setEditingPosterIdx(null); setStep("preview"); } }} className="flex-1" disabled={validProducts.length === 0}>
                 Ver Preview ({validProducts.length} cartazes, {totalPrintCount} impressões)
               </Button>
             </div>
@@ -832,76 +1026,17 @@ export default function BatchPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h3 className="text-sm font-bold text-foreground">{validProducts.length} cartazes, {totalPrintCount} impressões, {totalSheetCount} folhas</h3>
+              {isBatchOverPlanLimit && (
+                <p className="text-xs font-semibold text-destructive">
+                  Limite do plano: até {formatPlanLimit(maxBatchItems)} impressões por lote. Reduza cópias ou solicite alteração de plano.
+                </p>
+              )}
               <p className="text-xs text-muted-foreground">Clique em <Edit className="w-3 h-3 inline" /> para editar cartazes individualmente</p>
             </div>
 
             <div className="space-y-6">
               {renderSheetPreview()}
             </div>
-
-            {/* {isDuplo ? (
-              <div className="space-y-6">
-                {Array.from({ length: Math.ceil(totalPrintCount / 2) }).map((_, pageIdx) => {
-                  const idx1 = pageIdx * 2, idx2 = pageIdx * 2 + 1;
-                  const srcIdx1 = getSourceIndexForPrint(idx1), srcIdx2 = getSourceIndexForPrint(idx2);
-                  const isEditing1 = editingPosterIdx === srcIdx1, isEditing2 = editingPosterIdx === srcIdx2;
-                  return (
-                    <div key={pageIdx}>
-                      <div className="rounded-lg border border-border overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)]">
-                        <p className="text-[10px] text-muted-foreground px-3 py-1 bg-muted font-mono">Folha {pageIdx + 1}</p>
-                        <div className="relative group">
-                          <button onClick={() => setEditingPosterIdx(isEditing1 ? null : srcIdx1)} className={`absolute top-2 right-2 z-10 p-1.5 rounded-lg transition-all ${isEditing1 ? "bg-primary text-primary-foreground" : "bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground"}`}><Edit className="w-3.5 h-3.5" /></button>
-                          <div id={getPosterDomIdForPrint(idx1)}>
-                            <PosterPreview template={template} data={{ ...getDataForPrint(idx1), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPrint(idx1)} paperSize={getPreviewPaperSizeForPrint()} customBackground={customBackground || undefined} />
-                          </div>
-                        </div>
-                        {idx2 < totalPrintCount && (
-                          <div className="border-t-2 border-dashed border-border relative group">
-                            <button onClick={() => setEditingPosterIdx(isEditing2 ? null : srcIdx2)} className={`absolute top-2 right-2 z-10 p-1.5 rounded-lg transition-all ${isEditing2 ? "bg-primary text-primary-foreground" : "bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground"}`}><Edit className="w-3.5 h-3.5" /></button>
-                            <div id={getPosterDomIdForPrint(idx2)}>
-                              <PosterPreview template={template} data={{ ...getDataForPrint(idx2), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPrint(idx2)} paperSize={getPreviewPaperSizeForPrint()} customBackground={customBackground || undefined} />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      {(isEditing1 || isEditing2) && (
-                        <InlineEditPanel idx={isEditing1 ? srcIdx1 : srcIdx2} getDataForPoster={getDataForPoster} getStyleForPoster={getStyleForPoster} updatePerPosterData={updatePerPosterData} updatePerPosterStyle={updatePerPosterStyle} resetPosterOverride={resetPosterOverride} setEditingPosterIdx={setEditingPosterIdx} customFonts={customFonts} />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {expandedProducts.map((product, i) => {
-                  const srcIdx = getSourceIndexForPrint(i);
-                  const sourceProduct = validProducts[srcIdx];
-                  const copyNumber = expandedSourceIdx.slice(0, i + 1).filter((idx) => idx === srcIdx).length;
-                  const isEditing = editingPosterIdx === srcIdx;
-                  return (
-                    <div key={i} className={`grid gap-4 ${isEditing ? "grid-cols-1 lg:grid-cols-[1fr_360px]" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}>
-                      {isEditing ? (
-                        <>
-                          <div className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)] relative group">
-                            <button onClick={() => setEditingPosterIdx(null)} className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-primary text-primary-foreground"><Edit className="w-3.5 h-3.5" /></button>
-                            {perPosterStyles[srcIdx] && <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">Editado</div>}
-                            <div id={getPosterDomIdForPrint(i)}><PosterPreview template={template} data={{ ...getDataForPrint(i), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPrint(i)} paperSize={paperSize} customBackground={customBackground || undefined} /></div>
-                          </div>
-                          <InlineEditPanel idx={srcIdx} getDataForPoster={getDataForPoster} getStyleForPoster={getStyleForPoster} updatePerPosterData={updatePerPosterData} updatePerPosterStyle={updatePerPosterStyle} resetPosterOverride={resetPosterOverride} setEditingPosterIdx={setEditingPosterIdx} customFonts={customFonts} />
-                        </>
-                      ) : (
-                        <div className="rounded-lg overflow-hidden shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.15)] relative group">
-                          <button onClick={() => setEditingPosterIdx(srcIdx)} className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-primary hover:text-primary-foreground transition-all"><Edit className="w-3.5 h-3.5" /></button>
-                          {perPosterStyles[srcIdx] && <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-primary/80 text-primary-foreground text-[9px] font-bold">Editado</div>}
-                          {sourceProduct?.copies > 1 && <div className={`absolute ${perPosterStyles[srcIdx] ? "top-7" : "top-2"} left-2 z-10 px-1.5 py-0.5 rounded bg-accent text-accent-foreground text-[9px] font-bold`}>cópia {copyNumber}/{sourceProduct.copies}</div>}
-                          <div id={getPosterDomIdForPrint(i)}><PosterPreview template={template} data={{ ...getDataForPrint(i), templateId: selectedTemplate }} showQR={false} qrUrl="" style={getStyleForPrint(i)} paperSize={paperSize} customBackground={customBackground||undefined} /></div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )} */}
 
             <div className="flex gap-2 pt-4 border-t border-border">
               <Button onClick={exportAllPDF} disabled={exporting} className="flex-1 gap-1.5">
@@ -913,6 +1048,33 @@ export default function BatchPage() {
             </div>
           </div>
         )}
+
+        {exporting && step === "preview" && (
+          <div
+            ref={exportStageRef}
+            aria-hidden="true"
+            className="fixed top-0 -left-[20000px] pointer-events-none overflow-hidden"
+            style={{ width: `${POSTER_REFERENCE_WIDTH}px`, contain: "layout style paint" }}
+          >
+            {exportSourceIndexes.map((srcIdx) => (
+              <div
+                key={srcIdx}
+                id={getPosterDomIdForSource(srcIdx)}
+                style={{ width: `${POSTER_REFERENCE_WIDTH}px`, marginBottom: 16 }}
+              >
+                <PosterPreview
+                  template={template}
+                  data={{ ...getDataForPoster(srcIdx), templateId: selectedTemplate }}
+                  showQR={false}
+                  qrUrl=""
+                  style={getStyleForPoster(srcIdx)}
+                  paperSize={getPreviewPaperSizeForPrint()}
+                  customBackground={customBackground || undefined}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -920,7 +1082,7 @@ export default function BatchPage() {
 
 // ── InlineEditPanel ───────────────────────────────────────────────────────────
 
-function InlineEditPanel({ idx, getDataForPoster, getStyleForPoster, updatePerPosterData, updatePerPosterStyle, resetPosterOverride, setEditingPosterIdx, customFonts }: {
+function InlineEditPanel({ idx, getDataForPoster, getStyleForPoster, updatePerPosterData, updatePerPosterStyle, resetPosterOverride, setEditingPosterIdx, customFonts, canUseCustomFonts }: {
   idx: number;
   getDataForPoster: (i: number) => PosterData;
   getStyleForPoster: (i: number) => PosterStyle;
@@ -929,9 +1091,9 @@ function InlineEditPanel({ idx, getDataForPoster, getStyleForPoster, updatePerPo
   resetPosterOverride: (i: number) => void;
   setEditingPosterIdx: (i: number | null) => void;
   customFonts: CustomFont[];
+  canUseCustomFonts: boolean;
 }) {
   const d = getDataForPoster(idx);
-  // const fieldId = idx + ;
   return (
     <div className="p-4 rounded-xl border-2 border-primary bg-primary/5 space-y-4 max-h-[80vh] overflow-y-auto lg:sticky lg:top-20 self-start">
       <div className="flex items-center justify-between">
@@ -952,7 +1114,7 @@ function InlineEditPanel({ idx, getDataForPoster, getStyleForPoster, updatePerPo
           ))}
         </div>
       </div>
-      <PosterStyleControls style={getStyleForPoster(idx)} updateStyle={(field, value) => updatePerPosterStyle(idx, field, value)} extraFonts={customFonts.map(f => ({ value: f.value, label: `★ ${f.name}` }))} />
+      <PosterStyleControls style={getStyleForPoster(idx)} updateStyle={(field, value) => updatePerPosterStyle(idx, field, value)} extraFonts={canUseCustomFonts ? customFonts.map(f => ({ value: f.value, label: `★ ${f.name}` })) : []} />
     </div>
   );
 }

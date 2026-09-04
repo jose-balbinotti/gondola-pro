@@ -1,0 +1,732 @@
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { toast } from "sonner";
+import { Activity, CreditCard, Crown, FileText, History, Search, Shield, Trash2, UserCheck, UserX, Users } from "lucide-react";
+import { AppHeader } from "@/components/layout/AppHeader";
+import { MetricCard } from "@/components/dashboard/MetricCard";
+import { SectionHeader } from "@/components/dashboard/SectionHeader";
+import { SubscriptionManagementCard } from "@/components/admin/SubscriptionManagementCard";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
+import type { Json, Tables } from "@/integrations/supabase/types";
+import { ROLE_LABELS, sortRoles, type AppRole } from "@/lib/authorization";
+import { useAuth } from "@/hooks/useAuth";
+
+const AUDIT_LOG_LIMIT = 50;
+
+type UserRoleRow = Pick<Tables<"user_roles">, "user_id" | "role">;
+type ProfileAdminRow = Pick<Tables<"profiles">, "id" | "display_name" | "status" | "created_at">;
+type AuditLogRow = Pick<
+  Tables<"audit_logs">,
+  "id" | "actor_user_id" | "action" | "entity_type" | "entity_id" | "metadata" | "created_at"
+>;
+
+type UserRow = {
+  user_id: string;
+  displayName: string | null;
+  status: string | null;
+  createdAt: string | null;
+  roles: AppRole[];
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
+};
+
+type PresetRow = Pick<
+  Tables<"poster_presets">,
+  "id" | "name" | "template_id" | "paper_size" | "device_id" | "user_id" | "created_at" | "updated_at"
+>;
+
+function normalizeUsers(rows: UserRoleRow[], profiles: ProfileAdminRow[]): UserRow[] {
+  const byUser = new Map<string, Set<AppRole>>();
+  const profilesByUser = new Map(profiles.map((profile) => [profile.id, profile]));
+
+  for (const row of rows) {
+    const roles = byUser.get(row.user_id) ?? new Set<AppRole>();
+    roles.add(row.role);
+    byUser.set(row.user_id, roles);
+  }
+
+  for (const profile of profiles) {
+    if (!byUser.has(profile.id)) {
+      byUser.set(profile.id, new Set<AppRole>());
+    }
+  }
+
+  return Array.from(byUser.entries())
+    .map(([userId, roleSet]) => {
+      const roles = sortRoles(Array.from(roleSet));
+      const profile = profilesByUser.get(userId);
+
+      return {
+        user_id: userId,
+        displayName: profile?.display_name ?? null,
+        status: profile?.status ?? null,
+        createdAt: profile?.created_at ?? null,
+        roles,
+        isAdmin: roles.includes("admin") || roles.includes("super_admin"),
+        isSuperAdmin: roles.includes("super_admin"),
+      };
+    })
+    .sort(
+      (a, b) => Number(b.isSuperAdmin) - Number(a.isSuperAdmin)
+        || Number(b.isAdmin) - Number(a.isAdmin)
+        || (a.displayName ?? "").localeCompare(b.displayName ?? "")
+        || a.user_id.localeCompare(b.user_id),
+    );
+}
+
+function getRoleActionErrorMessage(message?: string): string {
+  if (!message) return "Não foi possível atualizar a permissão.";
+
+  if (message.includes("self_admin_removal_forbidden")) {
+    return "Você não pode remover sua própria permissão administrativa.";
+  }
+
+  if (message.includes("last_super_admin_removal_forbidden")) {
+    return "Não é possível remover o último super administrador.";
+  }
+
+  if (message.includes("last_admin_removal_forbidden")) {
+    return "Não é possível remover o último administrador.";
+  }
+
+  if (message.includes("admin_role_required_for_super_admin")) {
+    return "Remova primeiro a permissão de super administrador.";
+  }
+
+  if (message.includes("base_role_removal_forbidden")) {
+    return "A permissão base de usuário não pode ser removida.";
+  }
+
+  if (message.includes("not_authorized")) {
+    return "Somente super administradores podem alterar permissões.";
+  }
+
+  if (message.includes("target_user_not_found")) {
+    return "Usuário não encontrado.";
+  }
+
+  return "Não foi possível atualizar a permissão.";
+}
+
+function getStatusActionErrorMessage(message?: string): string {
+  if (!message) return "Não foi possível atualizar o status da conta.";
+  if (message.includes("not_authorized")) return "Somente super administradores podem alterar status de contas.";
+  if (message.includes("target_user_not_found")) return "Usuário não encontrado.";
+  if (message.includes("invalid_profile_status")) return "Status inválido.";
+  if (message.includes("self_disable_forbidden")) return "Você não pode desativar sua própria conta.";
+  if (message.includes("last_active_admin_disable_forbidden")) return "Não é possível desativar o último administrador ativo.";
+  if (message.includes("last_active_super_admin_disable_forbidden")) return "Não é possível desativar o último super administrador ativo.";
+  return "Não foi possível atualizar o status da conta.";
+}
+
+function formatUserId(userId?: string | null): string {
+  return userId ? `${userId.slice(0, 12)}...` : "—";
+}
+
+function formatDateTime(date?: string | null): string {
+  if (!date) return "—";
+
+  return new Date(date).toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
+
+function getRoleBadgeVariant(role: AppRole): "default" | "secondary" | "outline" {
+  if (role === "super_admin") return "default";
+  if (role === "admin") return "secondary";
+  return "outline";
+}
+
+function getStatusBadgeVariant(status: string | null): "default" | "secondary" | "outline" {
+  if (status === "active") return "secondary";
+  if (status === "disabled") return "outline";
+  return "outline";
+}
+
+function getStatusLabel(status: string | null): string {
+  if (status === "active") return "Ativa";
+  if (status === "disabled") return "Desativada";
+  return "Sem perfil";
+}
+
+function getMetadataDetail(metadata: Json): string {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return "—";
+  }
+
+  const role = metadata.role;
+  if (typeof role === "string") return role;
+
+  const beforeStatus = metadata.before_status;
+  const afterStatus = metadata.after_status;
+  if (typeof beforeStatus === "string" && typeof afterStatus === "string") {
+    return `${beforeStatus} → ${afterStatus}`;
+  }
+
+  const beforePlan = metadata.before_plan_key;
+  const afterPlan = metadata.after_plan_key;
+  if (typeof afterPlan === "string") {
+    return typeof beforePlan === "string" ? `${beforePlan} → ${afterPlan}` : afterPlan;
+  }
+
+  const stripeSubscriptionId = metadata.stripe_subscription_id;
+  if (typeof stripeSubscriptionId === "string") return stripeSubscriptionId;
+
+  const stripeCheckoutSessionId = metadata.stripe_checkout_session_id;
+  if (typeof stripeCheckoutSessionId === "string") return stripeCheckoutSessionId;
+
+  const method = metadata.method;
+  if (typeof method === "string") return method;
+
+  const source = metadata.source;
+  if (typeof source === "string") return source;
+
+  const nextPath = metadata.next_path;
+  if (typeof nextPath === "string") return nextPath;
+
+  const changedFields = metadata.changed_fields;
+  if (Array.isArray(changedFields)) {
+    const fields = changedFields.filter((item): item is string => typeof item === "string");
+    if (fields.length > 0) return fields.join(", ");
+  }
+
+  return "—";
+}
+
+function getAdminActionErrorMessage(message?: string): string {
+  if (!message) return "Não foi possível executar a ação administrativa.";
+  if (message.includes("not_authorized")) return "Você não tem permissão para executar esta ação.";
+  if (message.includes("preset_not_found")) return "Preset não encontrado.";
+  return "Não foi possível executar a ação administrativa.";
+}
+
+function getActionLabel(action: string): string {
+  if (action === "user_role_assigned") return "Permissão atribuída";
+  if (action === "user_role_revoked") return "Permissão removida";
+  if (action === "poster_preset_deleted") return "Preset excluído";
+  if (action === "user_profile_status_updated") return "Status da conta alterado";
+  if (action === "user_subscription_plan_updated") return "Plano alterado";
+  if (action === "stripe_checkout_session_created") return "Checkout Stripe criado";
+  if (action === "stripe_customer_portal_session_created") return "Portal Stripe criado";
+  if (action === "stripe_subscription_synced") return "Assinatura Stripe sincronizada";
+  if (action === "billing_return_viewed") return "Retorno de pagamento";
+  if (action === "user_signed_in") return "Login concluído";
+  if (action === "user_signed_out") return "Logout concluído";
+  if (action === "password_reset_requested") return "Recuperação solicitada";
+  if (action === "password_updated") return "Senha alterada";
+  if (action === "auth_callback_completed") return "Callback de autenticação";
+  if (action === "profile_updated") return "Perfil atualizado";
+  return action;
+}
+
+function matchesSearch(values: Array<string | null | undefined>, search: string): boolean {
+  const normalizedSearch = search.trim().toLowerCase();
+  if (!normalizedSearch) return true;
+
+  return values.some((value) => value?.toLowerCase().includes(normalizedSearch));
+}
+
+export default function AdminPage() {
+  const {
+    user,
+    isAdmin,
+    isSuperAdmin,
+    loading: authLoading,
+    refreshRoles,
+    refreshSubscription,
+  } = useAuth();
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [presets, setPresets] = useState<PresetRow[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [changingRoleUserId, setChangingRoleUserId] = useState<string | null>(null);
+  const [changingStatusUserId, setChangingStatusUserId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const superAdminCount = useMemo(
+    () => users.filter((item) => item.isSuperAdmin).length,
+    [users],
+  );
+
+  const adminCount = useMemo(
+    () => users.filter((item) => item.isAdmin).length,
+    [users],
+  );
+
+  const disabledCount = useMemo(
+    () => users.filter((item) => item.status === "disabled").length,
+    [users],
+  );
+
+  const filteredUsers = useMemo(
+    () => users.filter((item) => matchesSearch([
+      item.displayName,
+      item.user_id,
+      item.status,
+      item.roles.join(" "),
+    ], search)),
+    [users, search],
+  );
+
+  const filteredPresets = useMemo(
+    () => presets.filter((item) => matchesSearch([
+      item.name,
+      item.template_id,
+      item.paper_size,
+      item.user_id,
+      item.device_id,
+    ], search)),
+    [presets, search],
+  );
+
+  const filteredAuditLogs = useMemo(
+    () => auditLogs.filter((item) => matchesSearch([
+      getActionLabel(item.action),
+      item.action,
+      item.entity_type,
+      item.entity_id,
+      item.actor_user_id,
+      getMetadataDetail(item.metadata),
+    ], search)),
+    [auditLogs, search],
+  );
+
+  const loadData = useCallback(async () => {
+    if (!isAdmin) return;
+
+    setLoadingData(true);
+
+    try {
+      const [rolesRes, profilesRes, presetsRes, auditRes] = await Promise.all([
+        supabase.from("user_roles").select("user_id, role"),
+        supabase.from("profiles").select("id, display_name, status, created_at").order("created_at", { ascending: false }),
+        supabase
+          .from("poster_presets")
+          .select("id, name, template_id, paper_size, device_id, user_id, created_at, updated_at")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("audit_logs")
+          .select("id, actor_user_id, action, entity_type, entity_id, metadata, created_at")
+          .order("created_at", { ascending: false })
+          .limit(AUDIT_LOG_LIMIT),
+      ]);
+
+      if (rolesRes.error) throw rolesRes.error;
+      if (profilesRes.error) throw profilesRes.error;
+      if (presetsRes.error) throw presetsRes.error;
+      if (auditRes.error) throw auditRes.error;
+
+      setUsers(normalizeUsers(rolesRes.data ?? [], profilesRes.data ?? []));
+      setPresets(presetsRes.data ?? []);
+      setAuditLogs(auditRes.data ?? []);
+    } catch {
+      toast.error("Não foi possível carregar os dados administrativos.");
+    } finally {
+      setLoadingData(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const changeRole = async (targetUserId: string, role: AppRole, shouldAssign: boolean) => {
+    setChangingRoleUserId(targetUserId);
+
+    try {
+      const { error } = shouldAssign
+        ? await supabase.rpc("assign_user_role", { _target_user_id: targetUserId, _role: role })
+        : await supabase.rpc("revoke_user_role", { _target_user_id: targetUserId, _role: role });
+
+      if (error) throw error;
+
+      toast.success(shouldAssign ? "Permissão atribuída" : "Permissão removida");
+      await loadData();
+      await refreshRoles();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : undefined;
+      toast.error(getRoleActionErrorMessage(message));
+    } finally {
+      setChangingRoleUserId(null);
+    }
+  };
+
+  const changeStatus = async (targetUserId: string, nextStatus: "active" | "disabled") => {
+    setChangingStatusUserId(targetUserId);
+
+    try {
+      const { error } = await supabase.rpc("update_user_profile_status", {
+        _target_user_id: targetUserId,
+        _status: nextStatus,
+      });
+
+      if (error) throw error;
+
+      toast.success(nextStatus === "active" ? "Conta reativada" : "Conta desativada");
+      await loadData();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : undefined;
+      toast.error(getStatusActionErrorMessage(message));
+    } finally {
+      setChangingStatusUserId(null);
+    }
+  };
+
+  const deletePreset = async (id: string) => {
+    const { error } = await supabase.rpc("delete_preset_as_admin", { _preset_id: id });
+
+    if (error) {
+      toast.error(getAdminActionErrorMessage(error.message));
+      return;
+    }
+
+    toast.success("Preset excluído");
+    await loadData();
+  };
+
+  if (authLoading || !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground">Carregando...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <AppHeader />
+
+      <main className="container space-y-6 py-6 lg:py-8">
+        <SectionHeader
+          eyebrow="Administração"
+          title="Painel administrativo"
+          description="Gerencie usuários, permissões, status de conta, presets e eventos de auditoria sem expor operações sensíveis no frontend."
+          action={(
+            <Badge variant={isSuperAdmin ? "default" : "secondary"} className="h-8 px-3">
+              {isSuperAdmin ? "Super admin" : "Admin"}
+            </Badge>
+          )}
+        />
+
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            title="Usuários"
+            value={String(users.length)}
+            description={`${disabledCount} contas desativadas`}
+            icon={<Users className="h-5 w-5" />}
+          />
+          <MetricCard
+            title="Admins"
+            value={String(adminCount)}
+            description={`${superAdminCount} super admins`}
+            icon={<Crown className="h-5 w-5" />}
+          />
+          <MetricCard
+            title="Presets"
+            value={String(presets.length)}
+            description="Modelos salvos no banco"
+            icon={<FileText className="h-5 w-5" />}
+          />
+          <MetricCard
+            title="Auditoria"
+            value={String(auditLogs.length)}
+            description={`Últimos ${AUDIT_LOG_LIMIT} eventos`}
+            icon={<Activity className="h-5 w-5" />}
+          />
+        </section>
+
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Shield className="h-5 w-5 text-primary" aria-hidden="true" />
+              Operações protegidas
+            </CardTitle>
+            <CardDescription>
+              Admins visualizam dados. Somente super admins alteram permissões ou status de contas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label htmlFor="admin-search">Buscar no painel</Label>
+              <div className="relative max-w-xl">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                <Input
+                  id="admin-search"
+                  type="search"
+                  placeholder="Buscar por usuário, role, preset, plano ou evento..."
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Tabs defaultValue="users" className="space-y-4">
+          <TabsList className="flex h-auto flex-wrap justify-start">
+            <TabsTrigger value="users" className="gap-2">
+              <Users className="h-4 w-4" aria-hidden="true" /> Usuários
+            </TabsTrigger>
+            <TabsTrigger value="presets" className="gap-2">
+              <FileText className="h-4 w-4" aria-hidden="true" /> Presets
+            </TabsTrigger>
+            <TabsTrigger value="subscriptions" className="gap-2">
+              <CreditCard className="h-4 w-4" aria-hidden="true" /> Planos
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="gap-2">
+              <History className="h-4 w-4" aria-hidden="true" /> Auditoria
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="users">
+            <AdminTableCard
+              title="Usuários e permissões"
+              description={`${filteredUsers.length} usuário(s) encontrados`}
+              loading={loadingData}
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Usuário</TableHead>
+                    <TableHead>User ID</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Roles</TableHead>
+                    <TableHead>Criado em</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.map((adminUser) => {
+                    const isCurrentUser = adminUser.user_id === user?.id;
+                    const isChanging = changingRoleUserId === adminUser.user_id;
+                    const isChangingStatus = changingStatusUserId === adminUser.user_id;
+
+                    return (
+                      <TableRow key={adminUser.user_id}>
+                        <TableCell className="font-semibold">
+                          {adminUser.displayName || "—"}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">{formatUserId(adminUser.user_id)}</TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusBadgeVariant(adminUser.status)}>{getStatusLabel(adminUser.status)}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {adminUser.roles.length > 0 ? adminUser.roles.map((role) => (
+                              <Badge key={role} variant={getRoleBadgeVariant(role)}>
+                                {ROLE_LABELS[role]}
+                              </Badge>
+                            )) : (
+                              <Badge variant="outline">Sem role</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                          {formatDateTime(adminUser.createdAt)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <Button
+                              variant={adminUser.status === "disabled" ? "outline" : "secondary"}
+                              size="sm"
+                              onClick={() => changeStatus(adminUser.user_id, adminUser.status === "disabled" ? "active" : "disabled")}
+                              disabled={!isSuperAdmin || isChangingStatus || isCurrentUser || !adminUser.status}
+                            >
+                              {adminUser.status === "disabled" ? <UserCheck className="h-3.5 w-3.5" /> : <UserX className="h-3.5 w-3.5" />}
+                              {adminUser.status === "disabled" ? "Reativar" : "Desativar"}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => changeRole(adminUser.user_id, "admin", !adminUser.isAdmin)}
+                              disabled={
+                                !isSuperAdmin
+                                || isChanging
+                                || (adminUser.isAdmin && adminCount <= 1)
+                                || (adminUser.isAdmin && adminUser.isSuperAdmin)
+                                || (isCurrentUser && adminUser.isAdmin)
+                              }
+                            >
+                              {adminUser.isAdmin ? "Remover Admin" : "Tornar Admin"}
+                            </Button>
+                            <Button
+                              variant={adminUser.isSuperAdmin ? "destructive" : "outline"}
+                              size="sm"
+                              onClick={() => changeRole(adminUser.user_id, "super_admin", !adminUser.isSuperAdmin)}
+                              disabled={
+                                !isSuperAdmin
+                                || isChanging
+                                || (adminUser.isSuperAdmin && superAdminCount <= 1)
+                                || (isCurrentUser && adminUser.isSuperAdmin)
+                              }
+                            >
+                              {adminUser.isSuperAdmin ? "Remover Super" : "Tornar Super"}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {filteredUsers.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        Nenhum usuário encontrado
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </AdminTableCard>
+          </TabsContent>
+
+          <TabsContent value="presets">
+            <AdminTableCard
+              title="Presets salvos"
+              description={`${filteredPresets.length} preset(s) encontrados`}
+              loading={loadingData}
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Template</TableHead>
+                    <TableHead>Tamanho</TableHead>
+                    <TableHead>Dono</TableHead>
+                    <TableHead>Criado em</TableHead>
+                    <TableHead>Atualizado em</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPresets.map((preset) => (
+                    <TableRow key={preset.id}>
+                      <TableCell className="font-semibold">{preset.name}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{preset.template_id}</TableCell>
+                      <TableCell className="text-sm">{preset.paper_size}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {formatUserId(preset.user_id)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {formatDateTime(preset.created_at)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {formatDateTime(preset.updated_at)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="destructive" size="sm" onClick={() => deletePreset(preset.id)}>
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Excluir
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {filteredPresets.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground">
+                        Nenhum preset encontrado
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </AdminTableCard>
+          </TabsContent>
+
+          <TabsContent value="subscriptions">
+            <SubscriptionManagementCard
+              search={search}
+              isSuperAdmin={isSuperAdmin}
+              onChanged={async () => {
+                await refreshRoles();
+                await refreshSubscription();
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent value="audit">
+            <AdminTableCard
+              title="Auditoria"
+              description={`${filteredAuditLogs.length} evento(s) nos últimos registros carregados`}
+              loading={loadingData}
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Ação</TableHead>
+                    <TableHead>Autor</TableHead>
+                    <TableHead>Alvo</TableHead>
+                    <TableHead>Detalhe</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredAuditLogs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {formatDateTime(log.created_at)}
+                      </TableCell>
+                      <TableCell className="text-sm font-medium">{getActionLabel(log.action)}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {formatUserId(log.actor_user_id)}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {formatUserId(log.entity_id)}
+                      </TableCell>
+                      <TableCell className="text-sm">{getMetadataDetail(log.metadata)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {filteredAuditLogs.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        Nenhum evento administrativo encontrado
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </AdminTableCard>
+          </TabsContent>
+        </Tabs>
+      </main>
+    </div>
+  );
+}
+
+function AdminTableCard({
+  title,
+  description,
+  loading,
+  children,
+}: {
+  title: string;
+  description: string;
+  loading: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-xl">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="rounded-md border border-border p-6 text-sm text-muted-foreground">
+            Carregando dados administrativos...
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-md border border-border">
+            {children}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

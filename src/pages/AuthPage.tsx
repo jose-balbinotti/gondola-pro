@@ -1,87 +1,159 @@
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { Label } from "@/components/ui/label";
+import { AuthLayout } from "@/components/auth/AuthLayout";
+import { supabase } from "@/integrations/supabase/client";
+import { logClientSecurityEvent } from "@/lib/clientAudit";
 import { useAuth } from "@/hooks/useAuth";
-import { useEffect } from "react";
+import {
+  getAuthErrorMessage,
+  getAuthRedirectUrl,
+  getSafeRedirectPath,
+  normalizeEmail,
+  validatePassword,
+  type AuthMode,
+} from "@/lib/auth";
 
-export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
+interface AuthPageProps {
+  mode?: AuthMode;
+}
+
+export default function AuthPage({ mode = "login" }: AuthPageProps) {
+  const isLogin = mode === "login";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const redirectPath = useMemo(() => getSafeRedirectPath(location.state), [location.state]);
 
   useEffect(() => {
-    if (user) navigate("/dashboard");
-  }, [user, navigate]);
+    if (!authLoading && user) {
+      navigate(redirectPath, { replace: true });
+    }
+  }, [authLoading, user, navigate, redirectPath]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const normalizedEmail = normalizeEmail(email);
+    const passwordValidationError = validatePassword(password);
+
+    if (passwordValidationError) {
+      toast.error(passwordValidationError);
+      return;
+    }
+
     setLoading(true);
+
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
+
         if (error) throw error;
-        toast.success("Login realizado!");
-        navigate("/dashboard");
-      } else {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        toast.success("Conta criada com sucesso!");
-        navigate("/dashboard");
+
+        await logClientSecurityEvent("user_signed_in", { method: "password" });
+        toast.success("Login realizado com sucesso.");
+        navigate(redirectPath, { replace: true });
+        return;
       }
-    } catch (err: any) {
-      toast.error(err.message || "Erro na autenticação");
+
+      const { data, error } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: {
+          emailRedirectTo: getAuthRedirectUrl("/auth/callback"),
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.session) {
+        await logClientSecurityEvent("user_signed_in", { method: "signup" });
+        toast.success("Conta criada com sucesso.");
+        navigate(redirectPath, { replace: true });
+        return;
+      }
+
+      toast.success("Conta criada. Verifique seu e-mail para confirmar o acesso.");
+      navigate("/login", { replace: true, state: { from: redirectPath } });
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-black text-foreground">GôndolaPro</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {isLogin ? "Entre na sua conta" : "Crie sua conta"}
-          </p>
+    <AuthLayout
+      title={isLogin ? "Entrar" : "Criar conta"}
+      description={isLogin ? "Acesse sua conta para criar e gerenciar cartazes." : "Crie sua conta para salvar presets e acessar a área logada."}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <div className="space-y-2">
+          <Label htmlFor="email">E-mail</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="voce@empresa.com"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            autoComplete="email"
+            inputMode="email"
+            required
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="password">Senha</Label>
+            {isLogin && (
+              <Link to="/forgot-password" className="text-xs font-semibold text-primary hover:underline">
+                Esqueci minha senha
+              </Link>
+            )}
+          </div>
           <Input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <Input
+            id="password"
             type="password"
-            placeholder="Senha"
+            placeholder="Sua senha"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete={isLogin ? "current-password" : "new-password"}
             required
-            minLength={6}
+            minLength={8}
           />
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Aguarde..." : isLogin ? "Entrar" : "Criar conta"}
-          </Button>
-        </form>
+          {!isLogin && (
+            <p className="text-xs text-muted-foreground">
+              Use pelo menos 8 caracteres.
+            </p>
+          )}
+        </div>
 
-        <p className="text-center text-sm text-muted-foreground">
-          {isLogin ? "Não tem conta?" : "Já tem conta?"}{" "}
-          <button
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-primary font-semibold hover:underline"
-          >
-            {isLogin ? "Cadastre-se" : "Faça login"}
-          </button>
-        </p>
-      </div>
-    </div>
+        <Button type="submit" className="w-full" disabled={loading || authLoading}>
+          {loading ? "Aguarde..." : isLogin ? "Entrar" : "Criar conta"}
+        </Button>
+      </form>
+
+      <p className="text-center text-sm text-muted-foreground">
+        {isLogin ? "Não tem conta?" : "Já tem conta?"}{" "}
+        <Link
+          to={isLogin ? "/register" : "/login"}
+          state={{ from: redirectPath }}
+          className="text-primary font-semibold hover:underline"
+        >
+          {isLogin ? "Cadastre-se" : "Faça login"}
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }

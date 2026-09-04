@@ -1,52 +1,14 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import type { User, Session } from "@supabase/supabase-js";
+import { useContext } from "react";
+import { AuthContext, type AppRole, type AuthContextValue, type UserProfile } from "@/contexts/auth-context";
+
+export type { AppRole, AuthContextValue, UserProfile };
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const context = useContext(AuthContext);
 
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          const { data } = await supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", session.user.id);
-          setIsAdmin(data?.some((r) => r.role === "admin") ?? false);
-        } else {
-          setIsAdmin(false);
-        }
-        setLoading(false);
-      }
-    );
+  if (!context) {
+    throw new Error("useAuth deve ser usado dentro de AuthProvider.");
+  }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.user.id)
-          .then(({ data }) => {
-            setIsAdmin(data?.some((r) => r.role === "admin") ?? false);
-            setLoading(false);
-          });
-      } else {
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const signOut = () => supabase.auth.signOut();
-
-  return { user, session, loading, isAdmin, signOut };
+  return context;
 }

@@ -1,4 +1,4 @@
-import { forwardRef, useRef, useState, useEffect, useImperativeHandle } from "react";
+import { forwardRef, memo, useRef, useState, useEffect, useImperativeHandle } from "react";
 import { ASPECT_RATIOS } from "@/lib/paperSizes";
 import { QRCodeSVG } from "qrcode.react";
 import type { PosterTemplate, PosterData } from "@/lib/templates";
@@ -29,6 +29,7 @@ export const FONT_OPTIONS = [
   { value: "SuperMarketSlant", label: "Super Market Slant" },
   { value: "'Balmy', cursive", label: "Balmy" },
   { value: "'Target2000', sans-serif", label: "Target 2000" },
+  { value: "Ramen Sauce", label: "Ramen Sauce" },
 ];
 
 export interface PosterStyle {
@@ -125,13 +126,33 @@ interface Props {
   customBackground?: string;
 }
 
+function shallowEqualRecord<T extends Record<string, unknown>>(left: T, right: T): boolean {
+  if (left === right) return true;
+
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  if (leftKeys.length !== rightKeys.length) return false;
+
+  return leftKeys.every((key) => left[key] === right[key]);
+}
+
+function arePosterPropsEqual(prev: Props, next: Props): boolean {
+  return prev.template === next.template
+    && prev.showQR === next.showQR
+    && prev.qrUrl === next.qrUrl
+    && prev.paperSize === next.paperSize
+    && prev.customBackground === next.customBackground
+    && shallowEqualRecord(prev.data as unknown as Record<string, unknown>, next.data as unknown as Record<string, unknown>)
+    && shallowEqualRecord(prev.style as unknown as Record<string, unknown>, next.style as unknown as Record<string, unknown>);
+}
+
 const REFERENCE_WIDTH = 800;
 
 function splitPrice(price: string): { reais: string; centavos: string } {
   if (!price) return { reais: "", centavos: "" };
   const clean = price.replace("R$", "").trim();
   if (!clean) return { reais: "", centavos: "" };
-  const parts = clean.split(/[,\.]/);
+  const parts = clean.split(/[,.]/);
   return { reais: parts[0] || "0", centavos: parts[1] || "00" };
 }
 
@@ -675,4 +696,4 @@ const PosterPreview = forwardRef<HTMLDivElement, Props>(
 );
 
 PosterPreview.displayName = "PosterPreview";
-export default PosterPreview;
+export default memo(PosterPreview, arePosterPropsEqual);

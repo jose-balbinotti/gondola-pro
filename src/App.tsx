@@ -1,33 +1,89 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { AppErrorBoundary } from "@/components/system/AppErrorBoundary";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import Dashboard from "./pages/Dashboard.tsx";
-import EditorPage from "./pages/EditorPage.tsx";
-import BatchPage from "./pages/BatchPage.tsx";
-import AuthPage from "./pages/AuthPage.tsx";
-import AdminPage from "./pages/AdminPage.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { AdminRoute } from "@/routes/AdminRoute";
+import { ProtectedRoute } from "@/routes/ProtectedRoute";
+
+const Index = lazy(() => import("./pages/Index"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const EditorPage = lazy(() => import("./pages/EditorPage"));
+const BatchPage = lazy(() => import("./pages/BatchPage"));
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const AuthCallbackPage = lazy(() => import("./pages/AuthCallbackPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
- 
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<AuthPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/editor/:templateId" element={<EditorPage />} />
-          <Route path="/batch" element={<BatchPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <AppErrorBoundary>
+            <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Carregando...</div>}>
+              <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<AuthPage mode="login" />} />
+              <Route path="/register" element={<AuthPage mode="register" />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/auth/callback" element={<AuthCallbackPage />} />
+              <Route
+                path="/profile"
+                element={(
+                  <ProtectedRoute>
+                    <ProfilePage />
+                  </ProtectedRoute>
+                )}
+              />
+              <Route
+                path="/admin"
+                element={(
+                  <AdminRoute>
+                    <AdminPage />
+                  </AdminRoute>
+                )}
+              />
+              <Route
+                path="/dashboard"
+                element={(
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                )}
+              />
+              <Route
+                path="/editor/:templateId"
+                element={(
+                  <ProtectedRoute>
+                    <EditorPage />
+                  </ProtectedRoute>
+                )}
+              />
+              <Route
+                path="/batch"
+                element={(
+                  <ProtectedRoute>
+                    <BatchPage />
+                  </ProtectedRoute>
+                )}
+              />
+              <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </AppErrorBoundary>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

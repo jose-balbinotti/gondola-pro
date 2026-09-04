@@ -1,0 +1,189 @@
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import type { Session, User } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
+import { AuthContext, type AuthContextValue } from "@/contexts/auth-context";
+import { isAdminRole, isSuperAdminRole, sortRoles, type AppRole } from "@/lib/authorization";
+import { loadOrCreateCurrentProfile, type UserProfile } from "@/lib/profiles";
+import { loadCurrentSubscription, type UserSubscriptionWithPlan } from "@/lib/plans";
+
+async function fetchUserRoles(userId: string): Promise<AppRole[]> {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+
+  if (error || !data) return [];
+
+  return sortRoles(Array.from(new Set(data.map((row) => row.role))));
+}
+
+async function fetchUserProfile(userId: string): Promise<UserProfile | null> {
+  try {
+    return await loadOrCreateCurrentProfile(userId);
+  } catch {
+    return null;
+  }
+}
+
+async function fetchUserSubscription(userId: string): Promise<UserSubscriptionWithPlan | null> {
+  try {
+    return await loadCurrentSubscription(userId);
+  } catch {
+    return null;
+  }
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [roles, setRoles] = useState<AppRole[]>([]);
+  const [subscription, setSubscription] = useState<UserSubscriptionWithPlan | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const clearAuthState = useCallback(() => {
+    setSession(null);
+    setUser(null);
+    setProfile(null);
+    setRoles([]);
+    setSubscription(null);
+    setLoading(false);
+  }, []);
+
+  const applySession = useCallback(async (nextSession: Session | null) => {
+    if (!nextSession?.user) {
+      clearAuthState();
+      return;
+    }
+
+    const { data, error } = await supabase.auth.getUser();
+
+    if (error || !data.user) {
+      clearAuthState();
+      return;
+    }
+
+    const nextProfile = await fetchUserProfile(data.user.id);
+    const [nextRoles, nextSubscription] = await Promise.all([
+      fetchUserRoles(data.user.id),
+      fetchUserSubscription(data.user.id),
+    ]);
+
+    setSession(nextSession);
+    setUser(data.user);
+    setProfile(nextProfile);
+    setRoles(nextRoles);
+    setSubscription(nextSubscription);
+    setLoading(false);
+  }, [clearAuthState]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const applyActiveSession = async (nextSession: Session | null) => {
+      if (!isActive) return;
+      await applySession(nextSession);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, nextSession) => {
+        window.setTimeout(() => {
+          void applyActiveSession(nextSession);
+        }, 0);
+      },
+    );
+
+    supabase.auth.getSession().then(({ data }) => {
+      void applyActiveSession(data.session);
+    });
+
+    return () => {
+      isActive = false;
+      subscription.unsubscribe();
+    };
+  }, [applySession]);
+
+  const refreshRoles = useCallback(async () => {
+    if (!user) {
+      setRoles([]);
+      return;
+    }
+
+    setRoles(await fetchUserRoles(user.id));
+  }, [user]);
+
+  const refreshProfile = useCallback(async () => {
+    if (!user) {
+      setProfile(null);
+      return;
+    }
+
+    setProfile(await fetchUserProfile(user.id));
+  }, [user]);
+
+
+  const refreshSubscription = useCallback(async () => {
+    if (!user) {
+      setSubscription(null);
+      return;
+    }
+
+    setSubscription(await fetchUserSubscription(user.id));
+  }, [user]);
+
+  const refreshAuthState = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase.auth.getSession();
+    await applySession(data.session);
+  }, [applySession]);
+
+  const signOut = useCallback(async () => {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      throw error;
+    }
+
+    clearAuthState();
+  }, [clearAuthState]);
+
+  const value = useMemo<AuthContextValue>(() => ({
+    user,
+    session,
+    profile,
+    subscription,
+    plan: subscription?.plan ?? null,
+    roles,
+    loading,
+    isAuthenticated: Boolean(user && session),
+    isEmailConfirmed: Boolean(user?.email_confirmed_at),
+    isAccountActive: profile?.status !== "disabled",
+    isAdmin: profile?.status !== "disabled" && isAdminRole(roles),
+    isSuperAdmin: profile?.status !== "disabled" && isSuperAdminRole(roles),
+    refreshProfile,
+    refreshRoles,
+    refreshSubscription,
+    refreshAuthState,
+    signOut,
+  }), [
+    user,
+    session,
+    profile,
+    subscription,
+    roles,
+    loading,
+    refreshProfile,
+    refreshRoles,
+    refreshSubscription,
+    refreshAuthState,
+    signOut,
+  ]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}

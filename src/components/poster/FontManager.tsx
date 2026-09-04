@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { addCustomFont, removeCustomFont, loadCustomFonts, type CustomFont } from "@/lib/customFonts";
+import { validateGoogleFontName } from "@/lib/security";
 
 interface Props {
   customFonts: CustomFont[];
@@ -17,13 +18,20 @@ export default function FontManager({ customFonts, onFontsChange }: Props) {
   const { toast } = useToast();
 
   const handleAdd = () => {
-    const f = addCustomFont(newFontName);
-    if (f) {
+    const validationError = validateGoogleFontName(newFontName);
+
+    if (validationError) {
+      toast({ title: validationError, variant: "destructive" });
+      return;
+    }
+
+    const font = addCustomFont(newFontName);
+    if (font) {
       onFontsChange(loadCustomFonts());
       setNewFontName("");
-      toast({ title: `Fonte "${f.name}" adicionada!` });
+      toast({ title: `Fonte "${font.name}" adicionada!` });
     } else {
-      toast({ title: "Fonte já existe ou nome inválido", variant: "destructive" });
+      toast({ title: "Fonte já existe ou limite atingido", variant: "destructive" });
     }
   };
 

@@ -1,0 +1,184 @@
+import { FormEvent, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { toast } from "sonner";
+import { ArrowLeft, CheckCircle2, Loader2, ShieldCheck, UserCircle } from "lucide-react";
+import { PlanSummaryCard } from "@/components/billing/PlanSummaryCard";
+import { AppHeader } from "@/components/layout/AppHeader";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/useAuth";
+import { normalizeDisplayName, updateCurrentProfile, validateDisplayName } from "@/lib/profiles";
+
+function formatDate(date?: string | null): string {
+  if (!date) return "—";
+
+  return new Date(date).toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
+
+export default function ProfilePage() {
+  const { user, profile, roles, isEmailConfirmed, refreshProfile, subscription, plan } = useAuth();
+  const [displayName, setDisplayName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDisplayName(profile?.displayName ?? "");
+  }, [profile?.displayName]);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user || saving) return;
+
+    const normalizedName = normalizeDisplayName(displayName);
+    const validationError = validateDisplayName(normalizedName);
+
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      await updateCurrentProfile(user.id, { displayName: normalizedName });
+      await refreshProfile();
+      toast.success("Perfil atualizado com sucesso.");
+    } catch {
+      toast.error("Não foi possível atualizar o perfil.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <AppHeader />
+
+      <main className="container max-w-5xl space-y-6 py-6 lg:py-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <Button asChild variant="ghost" size="icon" aria-label="Voltar para o dashboard">
+              <Link to="/dashboard">
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Conta</p>
+              <h1 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl">Meu perfil</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Gerencie os dados básicos usados pela aplicação.</p>
+            </div>
+          </div>
+          <Badge variant={profile?.status === "disabled" ? "outline" : "secondary"} className="w-fit">
+            {profile?.status === "disabled" ? "Conta desativada" : "Conta ativa"}
+          </Badge>
+        </div>
+
+        <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <UserCircle className="h-5 w-5 text-primary" aria-hidden="true" />
+                Dados do perfil
+              </CardTitle>
+              <CardDescription>
+                O e-mail e a senha continuam sob responsabilidade do Supabase Auth. Aqui ficam apenas dados da aplicação.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form className="space-y-5" onSubmit={handleSubmit}>
+                <div className="space-y-2">
+                  <Label htmlFor="displayName">Nome de exibição</Label>
+                  <Input
+                    id="displayName"
+                    value={displayName}
+                    maxLength={80}
+                    placeholder="Como você quer ser chamado?"
+                    autoComplete="name"
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    disabled={saving}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Use entre 2 e 80 caracteres. Deixe em branco para exibir o e-mail.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-mail de acesso</Label>
+                  <Input id="email" value={user?.email ?? ""} disabled readOnly />
+                  <p className="text-xs text-muted-foreground">
+                    Alteração de e-mail deve seguir um fluxo próprio de autenticação em fase futura.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <Button type="submit" disabled={saving}>
+                    {saving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                    Salvar perfil
+                  </Button>
+                  <Button asChild type="button" variant="outline">
+                    <Link to="/dashboard">Voltar ao dashboard</Link>
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-5">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <ShieldCheck className="h-5 w-5 text-primary" aria-hidden="true" />
+                  Segurança da conta
+                </CardTitle>
+                <CardDescription>Resumo do estado atual da autenticação.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                <div className="flex items-start justify-between gap-3 rounded-2xl border border-border bg-muted/40 p-3">
+                  <div>
+                    <p className="font-medium text-foreground">E-mail</p>
+                    <p className="break-all text-muted-foreground">{user?.email ?? "—"}</p>
+                  </div>
+                  <Badge variant={isEmailConfirmed ? "secondary" : "outline"}>
+                    {isEmailConfirmed ? "Confirmado" : "Pendente"}
+                  </Badge>
+                </div>
+                <div className="rounded-2xl border border-border bg-muted/40 p-3">
+                  <p className="font-medium text-foreground">Permissões</p>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {roles.length > 0 ? roles.map((role) => (
+                      <Badge key={role} variant="outline">{role}</Badge>
+                    )) : <Badge variant="outline">Sem role</Badge>}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <PlanSummaryCard plan={plan} subscription={subscription} />
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Histórico do perfil</CardTitle>
+                <CardDescription>Datas operacionais da tabela `profiles`.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-primary" aria-hidden="true" />
+                  <span>Criada em {formatDate(profile?.createdAt)}</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-primary" aria-hidden="true" />
+                  <span>Atualizada em {formatDate(profile?.updatedAt)}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}

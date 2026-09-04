@@ -1,0 +1,101 @@
+import { lazy, Suspense } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { AppErrorBoundary } from "@/components/system/AppErrorBoundary";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { AdminRoute } from "@/routes/AdminRoute";
+import { ProtectedRoute } from "@/routes/ProtectedRoute";
+
+const Index = lazy(() => import("./pages/Index"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const EditorPage = lazy(() => import("./pages/EditorPage"));
+const BatchPage = lazy(() => import("./pages/BatchPage"));
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const AuthCallbackPage = lazy(() => import("./pages/AuthCallbackPage"));
+const BillingReturnPage = lazy(() => import("./pages/BillingReturnPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+const queryClient = new QueryClient();
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <AuthProvider>
+          <AppErrorBoundary>
+            <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Carregando...</div>}>
+              <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<AuthPage mode="login" />} />
+              <Route path="/register" element={<AuthPage mode="register" />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/auth/callback" element={<AuthCallbackPage />} />
+              <Route
+                path="/billing/return"
+                element={(
+                  <ProtectedRoute>
+                    <BillingReturnPage />
+                  </ProtectedRoute>
+                )}
+              />
+              <Route
+                path="/profile"
+                element={(
+                  <ProtectedRoute>
+                    <ProfilePage />
+                  </ProtectedRoute>
+                )}
+              />
+              <Route
+                path="/admin"
+                element={(
+                  <AdminRoute>
+                    <AdminPage />
+                  </AdminRoute>
+                )}
+              />
+              <Route
+                path="/dashboard"
+                element={(
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                )}
+              />
+              <Route
+                path="/editor/:templateId"
+                element={(
+                  <ProtectedRoute>
+                    <EditorPage />
+                  </ProtectedRoute>
+                )}
+              />
+              <Route
+                path="/batch"
+                element={(
+                  <ProtectedRoute>
+                    <BatchPage />
+                  </ProtectedRoute>
+                )}
+              />
+              <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </AppErrorBoundary>
+        </AuthProvider>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+export default App;

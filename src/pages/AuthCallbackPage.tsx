@@ -1,0 +1,64 @@
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
+import { AuthLayout } from "@/components/auth/AuthLayout";
+import { supabase } from "@/integrations/supabase/client";
+import { logClientSecurityEvent } from "@/lib/clientAudit";
+import { getAuthErrorMessage } from "@/lib/auth";
+
+function getNextPath(value: string | null): string {
+  if (value && value.startsWith("/") && !value.startsWith("//")) {
+    return value;
+  }
+
+  return "/dashboard";
+}
+
+export default function AuthCallbackPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [message, setMessage] = useState("Validando sua autenticação...");
+  const nextPath = useMemo(() => getNextPath(searchParams.get("next")), [searchParams]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const completeAuthFlow = async () => {
+      try {
+        const code = searchParams.get("code");
+
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+        } else {
+          const { data, error } = await supabase.auth.getSession();
+          if (error) throw error;
+          if (!data.session) throw new Error("invalid token");
+        }
+
+        await logClientSecurityEvent("auth_callback_completed", { next_path: nextPath });
+
+        if (!isMounted) return;
+        toast.success("Autenticação confirmada.");
+        navigate(nextPath, { replace: true });
+      } catch (error) {
+        if (!isMounted) return;
+        setMessage("Não foi possível concluir a autenticação.");
+        toast.error(getAuthErrorMessage(error));
+        navigate("/login", { replace: true });
+      }
+    };
+
+    void completeAuthFlow();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate, nextPath, searchParams]);
+
+  return (
+    <AuthLayout title="Confirmando acesso" description="Estamos finalizando a validação segura da sua conta.">
+      <p className="text-center text-sm text-muted-foreground">{message}</p>
+    </AuthLayout>
+  );
+}

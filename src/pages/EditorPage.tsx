@@ -1,6 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { TEMPLATES, DEFAULT_POSTER_DATA, type PosterData } from "@/lib/templates";
@@ -13,8 +16,12 @@ import PosterSheetPreview from "@/components/poster/PosterSheetPreview";
 import PosterStyleControls from "@/components/poster/PosterStyleControls";
 import FontManager from "@/components/poster/FontManager";
 import { Field, SliderField } from "@/components/ui/Field";
-import { loadPresets, savePresetToDB, deletePresetFromDB, loadPresetsFromDB, exportPresetsToJSON, importPresetsFromJSON, type PosterPreset } from "@/lib/presets";
+import { loadPresets, savePresetToDB, deletePresetFromDB, loadPresetsFromDB, exportPresetsToJSON, importPresetsFromJSON, getPresetSaveErrorMessage, type PosterPreset } from "@/lib/presets";
 import { loadCustomFonts, injectAllCustomFonts, type CustomFont } from "@/lib/customFonts";
+import { planAllowsCustomFonts, planAllowsPremiumTemplates } from "@/lib/plans";
+import { useAuth } from "@/hooks/useAuth";
+import { readFileAsDataUrl, validateBackgroundFile, validatePresetImportFile } from "@/lib/security";
+import pdfWorkerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 const DEFAULT_FIELD_VALUES: Record<string, string> = {
   productName: DEFAULT_POSTER_DATA.productName,
@@ -32,6 +39,8 @@ export default function EditorPage() {
   const bgFileRef      = useRef<HTMLInputElement>(null);
   const importFileRef  = useRef<HTMLInputElement>(null);
   const { toast }      = useToast();
+  const { plan, isAdmin } = useAuth();
+  const canUseCustomFonts = isAdmin || planAllowsCustomFonts(plan);
   const { exportPNG, exportPDF, printPoster } = usePdf();
 
   const [data, setData]                     = useState<PosterData>({ ...DEFAULT_POSTER_DATA, templateId: template.id });
@@ -46,8 +55,11 @@ export default function EditorPage() {
 
   useEffect(() => {
     loadPresetsFromDB().then(setPresets);
-    injectAllCustomFonts();
   }, []);
+
+  useEffect(() => {
+    if (canUseCustomFonts) injectAllCustomFonts();
+  }, [canUseCustomFonts]);
 
   const update      = useCallback((field: keyof PosterData, value: string) =>
     setData((prev) => ({ ...prev, [field]: value })), []);
@@ -68,24 +80,44 @@ export default function EditorPage() {
   const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const validationError = validateBackgroundFile(file);
+    if (validationError) {
+      toast({ title: validationError, variant: "destructive" });
+      e.target.value = "";
+      return;
+    }
+
     if (file.type === "application/pdf") {
       try {
         const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
         const arrayBuffer = await file.arrayBuffer();
-        const pdf         = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        const page        = await pdf.getPage(1);
-        const viewport    = page.getViewport({ scale: 2 });
-        const canvas      = document.createElement("canvas");
-        canvas.width = viewport.width; canvas.height = viewport.height;
-        await page.render({ canvasContext: canvas.getContext("2d")!, viewport }).promise;
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        if (!context) throw new Error("canvas_context_unavailable");
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: context, viewport }).promise;
         setCustomBackground(canvas.toDataURL("image/png"));
+        canvas.width = 0;
+        canvas.height = 0;
         toast({ title: "PDF importado como fundo!" });
-      } catch { toast({ title: "Erro ao importar PDF", variant: "destructive" }); }
+      } catch {
+        toast({ title: "Erro ao importar PDF", variant: "destructive" });
+      }
     } else {
-      const reader  = new FileReader();
-      reader.onload = (ev) => { setCustomBackground(ev.target?.result as string); toast({ title: "Imagem de fundo carregada!" }); };
-      reader.readAsDataURL(file);
+      try {
+        setCustomBackground(await readFileAsDataUrl(file));
+        toast({ title: "Imagem de fundo carregada!" });
+      } catch {
+        toast({ title: "Erro ao importar imagem", variant: "destructive" });
+      }
     }
     e.target.value = "";
   };
@@ -94,9 +126,14 @@ export default function EditorPage() {
 
   const handleSavePreset = async () => {
     if (!presetName.trim()) { toast({ title: "Digite um nome para o preset", variant: "destructive" }); return; }
-    const result = await savePresetToDB({ name: presetName.trim(), templateId: template.id, paperSize, style: posterStyle, backgroundImage: customBackground || undefined, posterData: { ...data } });
-    if (result) { setPresets(await loadPresetsFromDB()); setPresetName(""); toast({ title: `Preset "${result.name}" salvo!` }); }
-    else toast({ title: "Erro ao salvar preset", variant: "destructive" });
+
+    try {
+      const result = await savePresetToDB({ name: presetName.trim(), templateId: template.id, paperSize, style: posterStyle, backgroundImage: customBackground || undefined, posterData: { ...data } });
+      if (result) { setPresets(await loadPresetsFromDB()); setPresetName(""); toast({ title: `Preset "${result.name}" salvo!` }); }
+      else toast({ title: "Erro ao salvar preset", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Erro ao salvar preset", description: getPresetSaveErrorMessage(error), variant: "destructive" });
+    }
   };
 
   const handleLoadPreset = (preset: PosterPreset) => {
@@ -118,16 +155,68 @@ export default function EditorPage() {
   const handleImportPresets = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const validationError = validatePresetImportFile(file);
+    if (validationError) {
+      toast({ title: validationError, variant: "destructive" });
+      e.target.value = "";
+      return;
+    }
+
     try {
       const updated = await importPresetsFromJSON(file);
       for (const p of updated) await savePresetToDB({ name: p.name, templateId: p.templateId, paperSize: p.paperSize, style: p.style, backgroundImage: p.backgroundImage, posterData: p.posterData });
       setPresets(await loadPresetsFromDB()); toast({ title: "Presets importados com sucesso!" });
-    } catch { toast({ title: "Erro ao importar arquivo", variant: "destructive" }); }
+    } catch (error) { toast({ title: "Erro ao importar arquivo", description: getPresetSaveErrorMessage(error), variant: "destructive" }); }
     e.target.value = "";
   };
 
   const qrUrl     = data.whatsappNumber ? `https://wa.me/55${data.whatsappNumber.replace(/\D/g, "")}` : "";
-  const extraFonts = customFonts.map((f) => ({ value: f.value, label: `★ ${f.name}` }));
+  const canUseCurrentTemplate = !template.premium || isAdmin || planAllowsPremiumTemplates(plan);
+  const extraFonts = canUseCustomFonts ? customFonts.map((f) => ({ value: f.value, label: `★ ${f.name}` })) : [];
+
+  if (!canUseCurrentTemplate) {
+    return (
+      <div className="min-h-screen bg-background">
+        <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
+          <div className="container flex h-14 items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button asChild variant="ghost" size="icon" aria-label="Voltar para o dashboard">
+                <Link to="/dashboard"><ArrowLeft className="h-4 w-4" /></Link>
+              </Button>
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded bg-primary">
+                  <Tag className="h-3.5 w-3.5 text-primary-foreground" aria-hidden="true" />
+                </div>
+                <span className="text-sm font-bold text-foreground">{template.name}</span>
+              </div>
+            </div>
+            <LogoutButton variant="ghost" size="sm" className="px-2 sm:px-3" />
+          </div>
+        </nav>
+
+        <main className="container flex min-h-[calc(100vh-3.5rem)] max-w-2xl items-center py-10">
+          <Card className="w-full border-primary/20">
+            <CardHeader>
+              <Badge variant="outline" className="mb-2 w-fit">Plano atual: {plan?.name ?? "sem plano"}</Badge>
+              <CardTitle>Template disponível apenas em planos premium</CardTitle>
+              <CardDescription>
+                Este modelo está bloqueado para o seu plano atual. Como ainda não há pagamento automático, solicite a liberação manual para um administrador.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 sm:flex-row">
+              <Button asChild>
+                <Link to="/dashboard">Voltar aos templates</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/profile">Ver plano atual</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -154,6 +243,7 @@ export default function EditorPage() {
             <Button variant="outline" size="sm" onClick={() => printPoster(posterRef.current, paperSize, `${posterFilename}.pdf`, captureOptions)} className="snap-active gap-1.5">
               <Printer className="w-3.5 h-3.5" /> Imprimir
             </Button>
+            <LogoutButton variant="ghost" size="sm" className="px-2 sm:px-3 [&_span]:hidden sm:[&_span]:inline" />
           </div>
         </div>
       </nav>
@@ -260,7 +350,13 @@ export default function EditorPage() {
                 <div className="p-4 rounded-lg border border-border bg-background">
                   <h3 className="text-sm font-bold text-foreground mb-3">Fontes</h3>
                   <div className="space-y-3">
-                    <FontManager customFonts={customFonts} onFontsChange={setCustomFonts} />
+                    {canUseCustomFonts ? (
+                      <FontManager customFonts={customFonts} onFontsChange={setCustomFonts} />
+                    ) : (
+                      <p className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                        Fontes personalizadas estão bloqueadas no seu plano atual. As fontes padrão continuam disponíveis.
+                      </p>
+                    )}
                   </div>
                 </div>
 

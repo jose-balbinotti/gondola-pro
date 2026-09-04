@@ -1,0 +1,215 @@
+import type { PosterStyle } from "@/components/poster/PosterPreview";
+import type { PosterData } from "@/lib/templates";
+import { supabase } from "@/integrations/supabase/client";
+import type { Json, Tables } from "@/integrations/supabase/types";
+
+export interface PosterPreset {
+  id: string;
+  name: string;
+  templateId: string;
+  paperSize: string;
+  style: PosterStyle;
+  backgroundImage?: string;
+  posterData?: PosterData;
+  createdAt: number;
+}
+
+const STORAGE_KEY = "gondolapro-presets";
+const DEVICE_ID_KEY = "gondolapro-device-id";
+
+type PosterPresetRow = Tables<"poster_presets">;
+function getDeviceId(): string {
+  let id = localStorage.getItem(DEVICE_ID_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(DEVICE_ID_KEY, id);
+  }
+  return id;
+}
+
+function toJson<T>(value: T): Json {
+  return value as Json;
+}
+
+async function getCurrentUserId(): Promise<string | null> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) return null;
+  return data.user?.id ?? null;
+}
+
+// ── localStorage (fallback / cache) ──
+
+export function loadPresetsLocal(): PosterPreset[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) as PosterPreset[] : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePresetsLocal(presets: PosterPreset[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+}
+
+// ── Supabase helpers ──
+
+function rowToPreset(row: PosterPresetRow): PosterPreset {
+  return {
+    id: row.id,
+    name: row.name,
+    templateId: row.template_id,
+    paperSize: row.paper_size,
+    style: row.style as unknown as PosterStyle,
+    backgroundImage: row.background_image || undefined,
+    posterData: row.poster_data ? row.poster_data as unknown as PosterData : undefined,
+    createdAt: new Date(row.created_at).getTime(),
+  };
+}
+
+// ── Public API (async, syncs with DB) ──
+
+export async function loadPresetsFromDB(): Promise<PosterPreset[]> {
+  try {
+    const userId = await getCurrentUserId();
+    if (!userId) return loadPresetsLocal();
+
+    const { data, error } = await supabase
+      .from("poster_presets")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (error || !data) throw error;
+    const presets = data.map(rowToPreset);
+    savePresetsLocal(presets);
+    return presets;
+  } catch {
+    return loadPresetsLocal();
+  }
+}
+
+export async function savePresetToDB(
+  preset: Omit<PosterPreset, "id" | "createdAt">,
+): Promise<PosterPreset | null> {
+  const deviceId = getDeviceId();
+  const userId = await getCurrentUserId();
+
+  if (!userId) return savePresetLocalOnly(preset);
+
+  const { data, error } = await supabase.rpc("create_poster_preset", {
+    _device_id: deviceId,
+    _name: preset.name,
+    _template_id: preset.templateId,
+    _paper_size: preset.paperSize,
+    _style: toJson(preset.style),
+    _background_image: preset.backgroundImage || null,
+    _poster_data: preset.posterData ? toJson(preset.posterData) : null,
+  });
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const newPreset = rowToPreset(data);
+  const locals = loadPresetsLocal();
+  locals.unshift(newPreset);
+  savePresetsLocal(locals);
+  return newPreset;
+}
+
+export async function deletePresetFromDB(id: string): Promise<void> {
+  try {
+    const userId = await getCurrentUserId();
+    if (userId) {
+      await supabase.from("poster_presets").delete().eq("id", id).eq("user_id", userId);
+    }
+  } catch {
+    // local fallback below keeps UI consistent even when DB delete is unavailable
+  }
+  const presets = loadPresetsLocal().filter((p) => p.id !== id);
+  savePresetsLocal(presets);
+}
+
+
+export function getPresetSaveErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+
+  if (message.includes("plan_limit_exceeded:max_presets")) {
+    return "Você atingiu o limite de presets do seu plano atual. Exclua um preset antigo ou solicite a mudança de plano.";
+  }
+
+  if (message.includes("not_authorized")) {
+    return "Sua sessão não está autorizada para salvar presets no banco.";
+  }
+
+  return "Não foi possível salvar o preset no banco. Tente novamente.";
+}
+
+// ── Synchronous localStorage-only (legacy compat) ──
+
+export function loadPresets(): PosterPreset[] {
+  return loadPresetsLocal();
+}
+
+export function savePreset(preset: Omit<PosterPreset, "id" | "createdAt">): PosterPreset | null {
+  return savePresetLocalOnly(preset);
+}
+
+function savePresetLocalOnly(preset: Omit<PosterPreset, "id" | "createdAt">): PosterPreset | null {
+  const presets = loadPresetsLocal();
+  const newPreset: PosterPreset = {
+    ...preset,
+    id: crypto.randomUUID(),
+    createdAt: Date.now(),
+  };
+  presets.unshift(newPreset);
+  savePresetsLocal(presets);
+  return newPreset;
+}
+
+export function deletePreset(id: string): void {
+  const presets = loadPresetsLocal().filter((p) => p.id !== id);
+  savePresetsLocal(presets);
+}
+
+export function updatePreset(id: string, updates: Partial<PosterPreset>): void {
+  const presets = loadPresetsLocal().map((p) => (p.id === id ? { ...p, ...updates } : p));
+  savePresetsLocal(presets);
+}
+
+// ── Export / Import JSON ──
+
+export function exportPresetsToJSON(presets: PosterPreset[]): void {
+  const blob = new Blob([JSON.stringify(presets, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `gondolapro-presets-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function importPresetsFromJSON(file: File): Promise<PosterPreset[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const imported = JSON.parse(reader.result as string) as PosterPreset[];
+        if (!Array.isArray(imported)) throw new Error("Invalid format");
+        const existing = loadPresetsLocal();
+        const existingNames = new Set(existing.map((p) => p.name));
+        for (const p of imported) {
+          if (!existingNames.has(p.name)) {
+            existing.push({ ...p, id: crypto.randomUUID(), createdAt: Date.now() });
+            existingNames.add(p.name);
+          }
+        }
+        savePresetsLocal(existing);
+        resolve(existing);
+      } catch (e) {
+        reject(e);
+      }
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+}
